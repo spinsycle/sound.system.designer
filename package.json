@@ -1,0 +1,19 @@
+{
+  "name": "soundsystemdesigner",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "typecheck": "tsc -p packages/physics --noEmit",
+    "test": "vitest run",
+    "gate": "npm run typecheck && npm test",
+    "sync-vectors": "node tools/sync-vectors.mjs",
+    "mutation": "node tools/mutation-check.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}

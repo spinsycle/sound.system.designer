@@ -1,0 +1,180 @@
+// Asserts every shared physics test vector (test-vectors.json, generated in the vault by reference_vectors.py and
+// copied here by `npm run sync-vectors`). The last test fails if any vector output was never asserted, so a vector
+// added to the spec cannot be silently skipped.
+import { readFileSync } from 'node:fs';
+import { afterAll, describe, expect, it } from 'vitest';
+import * as P from '../src/index';
+
+interface Vector {
+  id: string;
+  inputs: Record<string, number>;
+  outputs: Record<string, number>;
+  tol: { rel?: number; abs_db?: number; abs?: number };
+}
+
+const file = JSON.parse(readFileSync(new URL('./test-vectors.json', import.meta.url), 'utf8')) as { vectors: Vector[] };
+const vectors = new Map(file.vectors.map((v) => [v.id, v]));
+const asserted = new Set<string>();
+
+function vec(id: string): Vector {
+  const v = vectors.get(id);
+  if (!v) throw new Error(`missing vector ${id}`);
+  return v;
+}
+
+/** Same tolerance rule as the plugin's expectVec: rel, abs_db or abs. */
+function expectVec(id: string, key: string, got: number): void {
+  const v = vec(id);
+  const want = v.outputs[key];
+  if (want === undefined) throw new Error(`vector ${id} has no output ${key}`);
+  const tol = v.tol.rel !== undefined ? v.tol.rel * Math.max(Math.abs(want), 1e-300) : (v.tol.abs_db ?? v.tol.abs ?? 1e-12);
+  asserted.add(`${id}.${key}`);
+  expect(Math.abs(got - want), `${id}.${key}: got ${got}, want ${want}, tol ${tol}`).toBeLessThanOrEqual(tol);
+}
+
+const magDb = (h: P.Cx): number => P.dB(P.abs(h));
+const ids = (prefix: string): string[] => [...vectors.keys()].filter((id) => id.startsWith(prefix));
+
+// the reference driver every displacement and horn vector uses
+const dv = vec('driver_derived').inputs;
+const spec: P.DriverSpec = { name: 'ref', fs: dv.fs!, qes: dv.qes!, qms: dv.qms!, vasM3: dv.vas_m3!, sd: dv.sd_m2!, re: dv.re!, xmax: 0.01, pe: 100 };
+const ref = P.deriveDriver(spec);
+
+describe('shared vectors', () => {
+  it('drivers', () => {
+    for (const k of ['qts', 'cms', 'mms', 'bl', 'rms'] as const) expectVec('driver_derived', k, ref[k]);
+  });
+
+  it('sealed', () => {
+    const i = vec('sealed_params').inputs;
+    const p = P.sealedParams(i.fs!, i.qts!, i.vas!, i.vb!);
+    expectVec('sealed_params', 'alpha', p.alpha);
+    expectVec('sealed_params', 'fc', p.fc);
+    expectVec('sealed_params', 'qtc', p.qtc);
+    for (const id of ids('sealed_f3_')) expectVec(id, 'f3', P.sealedF3(vec(id).inputs.fc!, vec(id).inputs.qtc!));
+    for (const id of ids('sealed_mag_')) {
+      const v = vec(id).inputs;
+      expectVec(id, 'db', magDb(P.sealedHP(v.f!, v.fc!, v.qtc!)));
+    }
+    for (const id of ids('sealed_x_')) expectVec(id, 'x_per_v', P.abs(P.sealedX(vec(id).inputs.f!, spec, ref, vec(id).inputs.vb_m3!)));
+  });
+
+  it('ported', () => {
+    for (const id of [...ids('vented_b4_mag_'), 'vented_hf_asymptote']) {
+      const v = vec(id).inputs;
+      expectVec(id, 'db', magDb(P.ventedG(v.f!, v.fs!, v.qts!, v.vas_l! / v.vb_l!, v.fb!)));
+    }
+    const b4 = vec('vented_b4_f3').inputs;
+    expectVec('vented_b4_f3', 'f3', P.ventedF3(b4.fs!, b4.qts!, b4.vas_l! / b4.vb_l!, b4.fb!));
+    for (const id of ids('vented_x_')) {
+      const v = vec(id).inputs;
+      expectVec(id, 'x_per_v', P.abs(P.ventedX(v.f!, spec, ref, v.vas_l! / v.vb_l!, v.fb!)));
+    }
+    expectVec('vented_x_dc', 'free_air', (ref.bl * ref.cms) / spec.re);
+    const pl = vec('port_length').inputs;
+    expectVec('port_length', 'length_m', P.portLengthM(pl.vb_m3!, pl.fb!, pl.d_m!));
+  });
+
+  it('thermal', () => {
+    expectVec('thermal_gain', 'db', P.thermalGainDb(vec('thermal_gain').inputs.delta_t_k!));
+  });
+
+  it('band-pass', () => {
+    for (const id of ids('bp_mag_')) {
+      const v = vec(id).inputs;
+      expectVec(id, 'db', magDb(P.bandpassG(v.f!, v.fs!, v.qts!, v.vas_l! / v.vr_l!, v.vas_l! / v.vf_l!, v.fb!)));
+    }
+    for (const id of ids('bp_x_')) {
+      const v = vec(id).inputs;
+      expectVec(id, 'x_per_v', P.abs(P.bandpassX(v.f!, spec, ref, v.vas_l! / v.vr_l!, v.vas_l! / v.vf_l!, v.fb!)));
+    }
+    const dc = vec('bp_x_dc').inputs;
+    expectVec('bp_x_dc', 'sealed_rear', P.abs(P.sealedX(dc.f!, spec, ref, dc.vr_l! / 1000)));
+  });
+
+  it('horn', () => {
+    const model = (id: string): P.HornModel => {
+      const v = vec(id).inputs;
+      return P.hornModel(spec, ref, v.vr_m3!, v.st_m2!, v.sm_m2!, v.length_m!);
+    };
+    const h = model('horn_params');
+    expectVec('horn_params', 'm_per_m', h.m);
+    expectVec('horn_params', 'fc_hz', h.fc);
+    expectVec('horn_params', 'r_load', h.rLoad);
+    expectVec('horn_params', 'r_tot', h.rTot);
+    expectVec('horn_params', 'f_h', h.fh);
+    expectVec('horn_params', 'pass_gain_db', P.dB(h.kg / h.rTot));
+    for (const id of ids('horn_mag_')) expectVec(id, 'db', magDb(P.hornG(vec(id).inputs.f!, model(id))));
+    for (const id of ids('horn_x_')) expectVec(id, 'x_per_v', P.abs(P.hornX(vec(id).inputs.f!, model(id))));
+
+    const g = vec('horn_flare_cutoff').inputs;
+    const flare = P.hornFlare(g.st_m2!, g.sm_m2!, g.length_m!);
+    expectVec('horn_flare_cutoff', 'm_per_m', flare.m);
+    expectVec('horn_flare_cutoff', 'fc_hz', flare.fc);
+    expectVec('horn_min_mouth', 'area_m2', P.hornMinMouthArea(vec('horn_min_mouth').inputs.fc!));
+  });
+
+  it('crossover', () => {
+    for (const id of ids('lr4_')) {
+      const v = vec(id);
+      const lp = P.lr4Lp(v.inputs.f!, v.inputs.fc!);
+      const hp = P.lr4Hp(v.inputs.f!, v.inputs.fc!);
+      expectVec(id, 'lp_db', magDb(lp));
+      expectVec(id, 'hp_db', magDb(hp));
+      if ('sum_db' in v.outputs) expectVec(id, 'sum_db', magDb(P.add(lp, hp)));
+    }
+    for (const id of [...ids('xover2_'), ...ids('xover3_'), ...ids('xover4_')]) {
+      const v = vec(id).inputs;
+      const bands = P.crossoverBands(v.f!, [v.x1!, v.x2!, v.x3!].slice(0, v.n_bands! - 1));
+      bands.forEach((b, k) => expectVec(id, `band${k + 1}_db`, magDb(b)));
+      expectVec(id, 'sum_db', magDb(bands.reduce(P.add)));
+    }
+    for (const id of ['xover_ordering', 'xover_nyquist_cap']) {
+      const v = vec(id).inputs;
+      const eff = P.effectiveCrossovers([v.req1!, v.req2!, v.req3!], v.bands!, v.fs!);
+      eff.forEach((x, k) => expectVec(id, `x${k + 1}`, x));
+    }
+  });
+
+  it('room', () => {
+    expectVec('distance_gain', 'db', P.distanceGainDb(vec('distance_gain').inputs.r! / vec('distance_gain').inputs.r_ref!));
+    expectVec('distance_delay', 'delay_s', P.timeOfFlightS(vec('distance_delay').inputs.r!));
+    for (const id of ids('air_absorb_')) {
+      const v = vec(id).inputs;
+      expectVec(id, 'db_per_m', P.airAbsorptionDbPerM(v.f!, v.temp_c!, v.rh!));
+    }
+    for (const id of ids('boundary_gain_')) expectVec(id, 'db', P.boundaryGainDb(vec(id).inputs.n!));
+    // the shelf has half its low-frequency gain (in dB) at its corner, whatever the boundary distance
+    for (const id of ids('boundary_shelf_mid_'))
+      expectVec(id, 'db', magDb(P.boundaryShelf(P.boundaryCornerHz(0.5), vec(id).inputs.n!, 0.5)));
+    expectVec('boundary_corner', 'hz', P.boundaryCornerHz(vec('boundary_corner').inputs.d!));
+    const cd = vec('critical_distance').inputs;
+    expectVec('critical_distance', 'm', P.criticalDistanceM(cd.volume_m3!, cd.t60!));
+  });
+
+  it('impedance', () => {
+    const check = (id: string, x: P.Cx): void => {
+      const z = P.impedanceFromDisplacement(vec(id).inputs.f!, x, ref.bl, spec.re);
+      expectVec(id, 'z_ohm', P.abs(z));
+      if ('phase_deg' in vec(id).outputs) expectVec(id, 'phase_deg', P.phaseDeg(z));
+    };
+    for (const id of ids('imp_sealed_')) check(id, P.sealedX(vec(id).inputs.f!, spec, ref, vec(id).inputs.vb_m3!));
+    for (const id of ids('imp_vented_')) {
+      const v = vec(id).inputs;
+      check(id, P.ventedX(v.f!, spec, ref, v.vas_l! / v.vb_l!, v.fb!));
+    }
+    for (const id of ids('imp_bp_')) {
+      const v = vec(id).inputs;
+      check(id, P.bandpassX(v.f!, spec, ref, v.vas_l! / v.vr_l!, v.vas_l! / v.vf_l!, v.fb!));
+    }
+    for (const id of ids('imp_horn_')) {
+      const v = vec(id).inputs;
+      check(id, P.hornX(v.f!, P.hornModel(spec, ref, v.vr_m3!, v.st_m2!, v.sm_m2!, v.length_m!)));
+    }
+  });
+
+  afterAll(() => {
+    const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
+    expect(missing, 'vector outputs never asserted').toEqual([]);
+  });
+});

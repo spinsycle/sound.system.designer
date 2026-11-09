@@ -1,0 +1,98 @@
+// Copyright (C) 2026 Spinsycle
+// SPDX-License-Identifier: AGPL-3.0-only
+// Drivers (spec: "Drivers"). SI units throughout a DriverSpec.
+import { C, RHO, clamp } from './constants';
+
+export interface DriverSpec {
+  name: string;
+  /** Free-air resonance, Hz. */
+  fs: number;
+  qes: number;
+  qms: number;
+  /** Equivalent compliance volume, m^3. */
+  vasM3: number;
+  /** Cone area, m^2. */
+  sd: number;
+  /** Voice-coil DC resistance, ohm. */
+  re: number;
+  /** One-way linear excursion, m. */
+  xmax: number;
+  /** Thermal power, W. */
+  pe: number;
+}
+
+/** Generic classes: invented values, not any real product. The order matches the plugin's frozen class list. */
+export const DRIVER_CLASSES: readonly DriverSpec[] = [
+  { name: '10 in', fs: 45, qes: 0.55, qms: 5, vasM3: 0.025, sd: 0.033, re: 3.4, xmax: 0.006, pe: 200 },
+  { name: '12 in', fs: 38, qes: 0.5, qms: 5, vasM3: 0.06, sd: 0.048, re: 3.4, xmax: 0.008, pe: 400 },
+  { name: '15 in', fs: 32, qes: 0.45, qms: 6, vasM3: 0.14, sd: 0.0855, re: 3.4, xmax: 0.01, pe: 600 },
+  { name: '18 in', fs: 28, qes: 0.4, qms: 6, vasM3: 0.28, sd: 0.123, re: 3.4, xmax: 0.012, pe: 900 },
+  { name: '21 in', fs: 24, qes: 0.38, qms: 6, vasM3: 0.45, sd: 0.17, re: 3.4, xmax: 0.014, pe: 1200 },
+  { name: '8 in', fs: 65, qes: 0.5, qms: 4, vasM3: 0.018, sd: 0.0215, re: 6.0, xmax: 0.004, pe: 150 },
+  { name: '6.5 in', fs: 85, qes: 0.55, qms: 4, vasM3: 0.008, sd: 0.014, re: 6.0, xmax: 0.003, pe: 100 },
+  { name: '1 in HF', fs: 700, qes: 0.3, qms: 3, vasM3: 0.000002, sd: 0.0008, re: 6.0, xmax: 0.0005, pe: 40 },
+];
+
+export interface DriverDerived {
+  qts: number;
+  /** Suspension compliance, m/N. */
+  cms: number;
+  /** Moving mass, kg. */
+  mms: number;
+  /** Force factor, T m. */
+  bl: number;
+  /** Mechanical resistance, N s/m. */
+  rms: number;
+}
+
+export function deriveDriver(d: DriverSpec): DriverDerived {
+  const qts = 1 / (1 / d.qes + 1 / d.qms);
+  const cms = d.vasM3 / (RHO * C * C * d.sd * d.sd);
+  const ws = 2 * Math.PI * d.fs;
+  const mms = 1 / (ws * ws * cms);
+  return { qts, cms, mms, bl: Math.sqrt((ws * mms * d.re) / d.qes), rms: (ws * mms) / d.qms };
+}
+
+/** A user-entered driver in datasheet units (the plugin's eight Custom fields). */
+export interface CustomDriverFields {
+  fsHz: number;
+  qts: number;
+  qms: number;
+  vasL: number;
+  sdCm2: number;
+  reOhm: number;
+  xmaxMm: number;
+  powerW: number;
+}
+
+/** Defaults equal the "12 in" class. */
+export const CUSTOM_DRIVER_DEFAULTS: CustomDriverFields = {
+  fsHz: 38,
+  qts: 0.4545454545454546,
+  qms: 5,
+  vasL: 60,
+  sdCm2: 480,
+  reOhm: 3.4,
+  xmaxMm: 8,
+  powerW: 400,
+};
+
+/**
+ * User-entered fields to a DriverSpec, with the plugin's engine clamps. Qes follows from Qts and Qms
+ * (1/Qts = 1/Qes + 1/Qms); Qms is kept at least 1.05 Qts so Qes stays positive.
+ */
+export function customDriver(c: CustomDriverFields): DriverSpec {
+  const qts = clamp(c.qts, 0.05, 3.0);
+  const qms = Math.max(clamp(c.qms, 0.5, 50.0), qts * 1.05);
+  return {
+    name: 'Custom',
+    fs: clamp(c.fsHz, 5.0, 500.0),
+    qes: (qts * qms) / (qms - qts),
+    qms,
+    vasM3: clamp(c.vasL, 0.1, 5000.0) * 1e-3,
+    sd: clamp(c.sdCm2, 1.0, 5000.0) * 1e-4,
+    re: clamp(c.reOhm, 0.5, 64.0),
+    xmax: clamp(c.xmaxMm, 0.1, 60.0) * 1e-3,
+    pe: clamp(c.powerW, 1.0, 10000.0),
+  };
+}
