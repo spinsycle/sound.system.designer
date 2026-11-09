@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const src = (f) => `packages/physics/src/${f}`;
 const test = (f) => `packages/physics/test/${f}`;
+const app = (f) => `packages/app/src/${f}`;
 
 // [file, find (first occurrence), replace]
 const mutations = [
@@ -145,9 +146,30 @@ const mutations = [
   [src('impedance.ts'), 'deriveDriver(p.driver).bl, p.driver.re', 'deriveDriver(p.driver).bl, 1'],
   [src('impedance.ts'), 'boxDisplacement(p, f), deriveDriver(p.driver).bl', 'boxDisplacement(p, f), 1'],
   [src('impedance.ts'), '* 180) / Math.PI', '* 90) / Math.PI'],
+  // A1 physics additions
+  [src('power.ts'), 'Math.sqrt(2 * powerW * re)', 'Math.sqrt(powerW * re)'],
+  [src('complex.ts'), 'return -dPhase / (2 * Math.PI * 2 * df);', 'return -dPhase / (2 * Math.PI * df);'],
+  [src('complex.ts'), 'Math.atan2(b.im * a.re - b.re * a.im,', 'Math.atan2(b.re * a.im - b.im * a.re,'],
+  // app model
+  [app('model.ts'), 'P.peakVoltsForPower(d.powerW, box.driver.re) * 1000', 'P.peakVoltsForPower(d.powerW, box.driver.re) * 100'],
+  [app('model.ts'), 'P.abs(P.boxDisplacement(box, f))', 'P.abs(P.boxResponse(box, f))'],
+  [app('model.ts'), 'impedanceOhm: P.abs(z)', 'impedanceOhm: z.re'],
+  [app('model.ts'), 'phaseDeg: P.phaseDeg(z)', 'phaseDeg: -P.phaseDeg(z)'],
+  [app('model.ts'), 'P.portLengthM(chamberL / 1000, d.tuneHz, d.portDiameterCm / 100) * 100', 'P.portLengthM(chamberL / 1000, d.tuneHz, d.portDiameterCm / 100) * 10'],
+  [app('model.ts'), 'port(d.frontVolumeL);', 'port(d.volumeL);'],
+  [app('model.ts'), 'if (lengthCm <= 0)', 'if (lengthCm <= -1e9)'],
+  [app('model.ts'), 'if (x > xmaxMm) over = k;', 'if (x > xmaxMm * 1e6) over = k;'],
+  [app('model.ts'), 'if (d.powerW > driver.pe)', 'if (d.powerW > driver.pe * 1e6)'],
+  [app('model.ts'), 'd.custom.qms < d.custom.qts * 1.05)', 'd.custom.qms < 0)'],
+  [app('model.ts'), 'const target = db[k]! - 3;', 'const target = db[k]! - 6;'],
+  [app('model.ts'), 'P.sealedParams(driver.fs, derived.qts, driver.vasM3, vb)', 'P.sealedParams(driver.fs, derived.qts, driver.vasM3, d.volumeL)'],
+  [app('model.ts'), 'P.ventedF3(driver.fs, derived.qts, driver.vasM3 / vb, d.tuneHz)', 'P.ventedF3(driver.fs, derived.qts, driver.vasM3 / d.volumeL, d.tuneHz)'],
+  [app('model.ts'), 'P.clamp(v, r.min, r.max) : fallback', 'v : fallback'],
+  [app('model.ts'), "groupDelayMs: P.groupDelayS((x) => P.boxResponse(box, x), f) * 1000", "groupDelayMs: P.groupDelayS((x) => P.boxResponse(box, x), f)"],
 ];
 
-const gate = () => spawnSync('npm run gate', { cwd: root, shell: true, encoding: 'utf8' }).status;
+// `check` is the gate without the production build, which no mutation here can affect
+const gate = () => spawnSync('npm run check', { cwd: root, shell: true, encoding: 'utf8' }).status;
 
 if (gate() !== 0) {
   console.error('baseline gate fails: fix that first');

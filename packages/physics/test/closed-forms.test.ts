@@ -63,6 +63,25 @@ describe('closed forms', () => {
     expect(P.abs(P.boxImpedance(sealed, fc))).toBeCloseTo(d.re + (r.bl * r.bl) / r.rms, 8);
   });
 
+  it('peak volts for a power: the sine dissipates that power in Re', () => {
+    const v = P.peakVoltsForPower(400, 3.4);
+    expect((v * v) / 2 / 3.4).toBeCloseTo(400, 10);
+  });
+
+  it('group delay: a pure delay, and the closed form of a second-order high-pass', () => {
+    const delay = (f: number): P.Cx => P.cx(Math.cos(-2 * Math.PI * f * 0.0123), Math.sin(-2 * Math.PI * f * 0.0123));
+    expect(P.groupDelayS(delay, 37)).toBeCloseTo(0.0123, 9);
+    // H = s^2/(s^2 + (wc/Q) s + wc^2): delay = (wc/Q)(wc^2 + w^2) / ((wc^2 - w^2)^2 + (w wc/Q)^2)
+    const fc = 50;
+    const q = 0.9;
+    for (const f of [20, 50, 130]) {
+      const w = 2 * Math.PI * f;
+      const wc = 2 * Math.PI * fc;
+      const want = ((wc / q) * (wc * wc + w * w)) / ((wc * wc - w * w) ** 2 + ((w * wc) / q) ** 2);
+      expect(P.groupDelayS((x) => P.sealedHP(x, fc, q), f) / want).toBeCloseTo(1, 6);
+    }
+  });
+
   it('boundary shelf: full gain at DC, none at high frequency', () => {
     for (const n of [1, 2, 3]) {
       expect(P.dB(P.abs(P.boundaryShelf(0.01, n, 0.5)))).toBeCloseTo(P.boundaryGainDb(n), 3);

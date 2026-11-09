@@ -5,9 +5,12 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
-    "typecheck": "tsc -p packages/physics --noEmit",
+    "typecheck": "tsc -p packages/physics --noEmit && tsc -p packages/app --noEmit",
     "test": "vitest run",
-    "gate": "npm run typecheck && npm test",
+    "check": "npm run typecheck && npm test",
+    "build": "vite build packages/app",
+    "dev": "vite packages/app",
+    "gate": "npm run check && npm run build",
     "sync-vectors": "node tools/sync-vectors.mjs",
     "mutation": "node tools/mutation-check.mjs"
   },

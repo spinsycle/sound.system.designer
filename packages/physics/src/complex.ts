@@ -28,4 +28,16 @@ export function poly(coefs: readonly number[], s: Cx): Cx {
 /** s = j 2 pi f. */
 export const jw = (f: number): Cx => cx(0, 2 * Math.PI * f);
 
-export const dB = (mag: number): number => 20 * Math.log10(mag);
+/**
+ * Group delay of a response h at f, seconds: -d(phase)/d(omega), by a central difference. The phase step is taken
+ * as arg(h(f+) conj(h(f-))), so it never sees a wrap.
+ */
+export function groupDelayS(h: (f: number) => Cx, f: number): number {
+  const df = f * 1e-4;
+  const a = h(f - df);
+  const b = h(f + df);
+  const dPhase = Math.atan2(b.im * a.re - b.re * a.im, b.re * a.re + b.im * a.im);
+  return -dPhase / (2 * Math.PI * 2 * df);
+}
+
+export const dB =(mag: number): number => 20 * Math.log10(mag);
