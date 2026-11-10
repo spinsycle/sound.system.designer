@@ -34,7 +34,8 @@ export function airAbsorptionDbPerM(f: number, tempC = 20.0, rh = 50.0, pKpa = 1
 /** Inverse-distance law relative to 1 m, dB. */
 export const distanceGainDb = (r: number): number => -20 * Math.log10(Math.max(r, 1e-9) / REF_DISTANCE_M);
 /** Time of flight over r metres, s. The plugin's optional delay is this minus the 1 m reference: (r - 1) / c. */
-export const timeOfFlightS = (r: number): number => r / C;
+/** Delay relative to the reference distance (the plugin and the shared spec use 1 m). */
+export const timeOfFlightS = (r: number, rRef = 1): number => (r - rRef) / C;
 /** Low-frequency pressure gain for n boundaries (1 wall, 2 edge, 3 corner), dB. */
 export const boundaryGainDb = (n: number): number => 20 * Math.log10(2 ** n);
 /** Distance at which the diffuse field equals the direct sound (omnidirectional source), m. */

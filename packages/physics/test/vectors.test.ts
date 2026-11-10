@@ -138,7 +138,7 @@ describe('shared vectors', () => {
 
   it('room', () => {
     expectVec('distance_gain', 'db', P.distanceGainDb(vec('distance_gain').inputs.r! / vec('distance_gain').inputs.r_ref!));
-    expectVec('distance_delay', 'delay_s', P.timeOfFlightS(vec('distance_delay').inputs.r!));
+    expectVec('distance_delay', 'delay_s', P.timeOfFlightS(vec('distance_delay').inputs.r!, vec('distance_delay').inputs.r_ref!));
     for (const id of ids('air_absorb_')) {
       const v = vec(id).inputs;
       expectVec(id, 'db_per_m', P.airAbsorptionDbPerM(v.f!, v.temp_c!, v.rh!));

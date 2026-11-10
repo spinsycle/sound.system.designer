@@ -120,7 +120,6 @@ const mutations = [
   [src('room.ts'), '-4.17 *', '-4.2 *'],
   [src('room.ts'), '1.261', '1.27'],
   [src('room.ts'), '=> -20 * Math.log10(Math.max(r, 1e-9)', '=> -10 * Math.log10(Math.max(r, 1e-9)'],
-  [src('room.ts'), '=> r / C;', '=> (r - 1) / C;'],
   [src('room.ts'), '20 * Math.log10(2 ** n)', '10 * Math.log10(2 ** n)'],
   [src('room.ts'), '0.057 *', '0.06 *'],
   [src('room.ts'), 'C / (4 * Math.max(distM, 0.01))', 'C / (2 * Math.max(distM, 0.01))'],
@@ -289,6 +288,7 @@ const mutations = [
   [sys, 'P.clamp(i.nBands, 1, MAX_BANDS)', 'i.nBands'],
   [sys, 'P.clamp(i.selected, 0, nBands - 1)', 'i.selected'],
   [sys, 'if (anySolo) notes.push', 'if (!anySolo) notes.push'],
+  [src('room.ts'), '(r - rRef) / C', 'r / C'],
   // A3c amps and limits
   [sys, 'P.abs(x.raw(f).x) * P.abs(x.leg(f))', 'P.abs(x.raw(f).x)'],
   [sys, '[lowestHz, ...SYSTEM_FREQS.filter((f) => f > lowestHz)]', '[...SYSTEM_FREQS]'],

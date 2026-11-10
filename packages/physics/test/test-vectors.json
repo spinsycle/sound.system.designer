@@ -395,12 +395,13 @@
     },
     {
       "id": "distance_delay",
-      "desc": "Propagation delay at 10 m (s)",
+      "desc": "Propagation delay at 10 m relative to the 1 m reference (s)",
       "inputs": {
+        "r_ref": 1.0,
         "r": 10.0
       },
       "outputs": {
-        "delay_s": 0.029154518950437316
+        "delay_s": 0.026239067055393587
       },
       "tol": {
         "rel": 1e-12
