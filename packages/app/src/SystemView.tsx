@@ -4,7 +4,11 @@
 import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
 import { Chart } from './Chart';
-import { BAND_RANGES, type Band, DISTANCE_RANGE, LOWEST_RANGE, MAX_BANDS, type Project, TEMPLATES, XOVER_RANGE, applyTemplate, bandName, computeSystem, levelTrims, sanitizeProject } from './system';
+import { AMP_LOADS, BAND_RANGES, type Band, COUNT_RANGE, DISTANCE_RANGE, LOWEST_RANGE, MAX_BANDS, type Project, TEMPLATES, XOVER_RANGE, applyTemplate, bandName, computeSystem, levelTrims, sanitizeProject } from './system';
+
+const divisors = (n: number): number[] => Array.from({ length: n }, (_, i) => i + 1).filter((s) => n % s === 0);
+const wiringLabel = (n: number, s: number): string => (n === 1 ? 'One driver' : s === 1 ? 'All in parallel' : s === n ? 'All in series' : `${s} in series, ${n / s} strings in parallel`);
+const CAUSES = { amp: 'the amp', heat: 'driver power', excursion: 'cone excursion' } as const;
 
 export function SystemView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -91,6 +95,31 @@ export function SystemView({ project, onChange }: { project: Project; onChange: 
               <button type="button" onClick={() => set({ selected: k, view: 'box' })}>
                 Edit this box
               </button>
+
+              <h3>Drivers and amp</h3>
+              <Field id={`count-${k}`} range={COUNT_RANGE} value={band.count} onChange={(v) => setBand(k, { count: Math.round(v) })} />
+              <div className="field">
+                <label htmlFor={`wiring-${k}`}>Wiring</label>
+                <select id={`wiring-${k}`} value={band.series} onChange={(e) => setBand(k, { series: Number(e.target.value) })}>
+                  {divisors(band.count).map((s) => (
+                    <option key={s} value={s}>
+                      {wiringLabel(band.count, s)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Field id={`amp-${k}`} range={BAND_RANGES.ampPowerW} value={band.ampPowerW} onChange={(v) => setBand(k, { ampPowerW: v })} />
+              <div className="field">
+                <label htmlFor={`ampload-${k}`}>Amp power is rated into</label>
+                <select id={`ampload-${k}`} value={band.ampLoadOhm} onChange={(e) => setBand(k, { ampLoadOhm: Number(e.target.value) })}>
+                  {AMP_LOADS.map((r) => (
+                    <option key={r} value={r}>
+                      {r} Ω
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Field id={`ampmin-${k}`} range={BAND_RANGES.ampMinLoadOhm} value={band.ampMinLoadOhm} onChange={(v) => setBand(k, { ampMinLoadOhm: v })} />
             </section>
           );
         })}
@@ -140,6 +169,46 @@ export function SystemView({ project, onChange }: { project: Project; onChange: 
               ))}
             </tbody>
             <caption>Own level: the band's boxes averaged over its passband at 0 dB trim and 1 m, before the crossover.</caption>
+          </table>
+
+          <h3>How loud it goes</h3>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col" className="left">
+                  Band
+                </th>
+                <th scope="col">Lowest load, Ω</th>
+                <th scope="col">Amp, V</th>
+                <th scope="col">Stops at, V</th>
+                <th scope="col" className="left pad">
+                  Stopped by
+                </th>
+                <th scope="col">Max level, dB</th>
+                <th scope="col">Headroom, dB</th>
+              </tr>
+            </thead>
+            <tbody>
+              {c.bands.map((b, k) => (
+                <tr key={k} className={b.audible ? (c.limits.limitingBand === k ? 'first' : '') : 'off'}>
+                  <th scope="row" className="left">
+                    {b.name}
+                  </th>
+                  <td>{b.limits.minLoadOhm.toFixed(1)}</td>
+                  <td>{b.limits.ampV.toFixed(1)}</td>
+                  <td>{b.limits.limitV.toFixed(1)}</td>
+                  <td className="left pad">{CAUSES[b.limits.cause]}</td>
+                  <td>{Number.isFinite(b.limits.maxDb) ? b.limits.maxDb.toFixed(1) : 'none'}</td>
+                  <td>{b.limits.headroomDb.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <caption>
+              {c.limits.limitingBand >= 0
+                ? `The system can be raised ${c.limits.headroomDb.toFixed(1)} dB above the reference input before ${c.bands[c.limits.limitingBand]!.name} stops (${CAUSES[c.bands[c.limits.limitingBand]!.limits.cause]}): about ${(c.limits.referenceDb + c.limits.headroomDb).toFixed(0)} dB SPL average at ${project.distanceM.toFixed(project.distanceM < 10 ? 1 : 0)} m. `
+                : 'No band is audible. '}
+              Max level is each band's own passband level at 1 m, at the voltage where it stops.
+            </caption>
           </table>
           {c.warnings.length > 0 && (
             <ul className="warnings">

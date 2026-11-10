@@ -387,6 +387,22 @@ tr.off {
   opacity: 0.45;
 }
 
+/* the band that stops first */
+tr.first th,
+tr.first td {
+  color: var(--amber-core);
+}
+
+th.pad,
+td.pad {
+  padding-left: 14px;
+}
+
+section .field + h3,
+section button + h3 {
+  margin-top: 16px;
+}
+
 .charts.one {
   grid-template-columns: 1fr;
 }

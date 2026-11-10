@@ -17,7 +17,7 @@ const vec = (id: string): Vector => file.vectors.find((x) => x.id === id)!;
 const ref = vec('driver_derived');
 const custom = { fsHz: ref.inputs.fs!, qts: ref.outputs.qts!, qms: ref.inputs.qms!, vasL: ref.inputs.vas_m3! * 1000, sdCm2: ref.inputs.sd_m2! * 1e4, reOhm: ref.inputs.re!, xmaxMm: 10, powerW: 100 };
 const sealed = (volumeL: number): M.Design => ({ ...M.DEFAULT_DESIGN, driverClass: M.CUSTOM_CLASS, custom, type: 'sealed', volumeL });
-const band = (design: M.Design, more: Partial<S.Band> = {}): S.Band => ({ design, count: 1, series: 1, trimDb: 0, delayMs: 0, invert: false, solo: false, mute: false, ...more });
+const band = (design: M.Design, more: Partial<S.Band> = {}): S.Band => ({ design, count: 1, series: 1, ampPowerW: 500, ampLoadOhm: 4, ampMinLoadOhm: 2, trimDb: 0, delayMs: 0, invert: false, solo: false, mute: false, ...more });
 const project = (bands: S.Band[], more: Partial<S.Project> = {}): S.Project =>
   S.sanitizeProject({ ...S.DEFAULT_PROJECT, nBands: bands.length, bands: [...bands, ...S.DEFAULT_PROJECT.bands.slice(bands.length)], ...more });
 const db = (c: P.Cx): number => P.splDb(P.abs(c));
@@ -86,13 +86,14 @@ describe('system checks', () => {
     const k = ok.freqs.findIndex((f) => f >= 300);
     // LR4 legs of the same box sum to the box itself
     expect(ok.levelDb[k]!).toBeCloseTo(db(S.systemEvaluator(same()).bands[0]!.box(ok.freqs[k]!)), 6);
-    expect(ok.warnings).toEqual([]);
+    const cancels = (c: S.SystemView): string[] => c.warnings.filter((w) => w.includes('cancel'));
+    expect(cancels(ok)).toEqual([]);
     const bad = S.computeSystem(same({ invert: true }));
     expect(bad.levelDb[k]!).toBeLessThan(ok.levelDb[k]! - 20);
-    expect(bad.warnings.length).toBe(1);
-    expect(bad.warnings[0]).toContain('Low and High cancel at the 300 Hz crossover');
+    expect(cancels(bad).length).toBe(1);
+    expect(cancels(bad)[0]).toContain('Low and High cancel at the 300 Hz crossover');
     // a muted neighbour is not a cancellation
-    expect(S.computeSystem(same({ invert: true, mute: true })).warnings).toEqual([]);
+    expect(cancels(S.computeSystem(same({ invert: true, mute: true })))).toEqual([]);
   });
 
   it('crossover points out of order are used in order, with a note', () => {
@@ -123,6 +124,73 @@ describe('system checks', () => {
     // a band with no passband is left alone
     const none = S.levelTrims(project([band(sealed(100)), band(sealed(20))], { xover: [100, 800, 3500], lowestHz: 150 }));
     expect(none[0]).toBe(0);
+  });
+});
+
+describe('amps, wiring and limits', () => {
+  // the reference driver with the limit vectors' ratings: 600 W, and Xmax 10 mm
+  const rated = (volumeL: number): M.Design => ({ ...sealed(volumeL), custom: { ...custom, powerW: vec('limit_thermal').inputs.pe!, xmaxMm: vec('limit_excursion').inputs.xmax_m! * 1000 } });
+  const driver = M.driverOf(rated(100));
+  const limitsOf = (more: Partial<S.Band>, proj: Partial<S.Project> = {}): S.BandLimits => S.computeSystem(project([band(rated(100), more)], { lowestHz: 30, ...proj })).bands[0]!.limits;
+
+  it('the three limit voltages are the shared formulas', () => {
+    const l = limitsOf({ count: 2, series: 2, ampPowerW: vec('limit_amp').inputs.power_w!, ampLoadOhm: vec('limit_amp').inputs.load_ohm! });
+    expect(l.ampV).toBeCloseTo(vec('limit_amp').outputs.volts!, 9);
+    expect(l.heatV).toBeCloseTo(vec('limit_thermal').outputs.volts!, 9);
+    // a sealed box with Qtc under 0.707 moves most at the lowest frequency it is asked to play
+    const worst = P.abs(P.sealedX(30, driver, P.deriveDriver(driver), 0.1));
+    expect(l.excursionV).toBeCloseTo(P.excursionLimitVolts(driver.xmax, worst, 2), 9);
+    expect(l.limitV).toBe(Math.min(l.ampV, l.heatV, l.excursionV));
+  });
+
+  it('each cause can be the one that stops the band', () => {
+    expect(limitsOf({ ampPowerW: 20 }).cause).toBe('amp');
+    expect(limitsOf({ ampPowerW: 20000, ampLoadOhm: 8 }, { lowestHz: 200 }).cause).toBe('heat');
+    expect(limitsOf({ ampPowerW: 20000, ampLoadOhm: 8 }, { lowestHz: 20 }).cause).toBe('excursion');
+  });
+
+  it('a crossover under the band protects the cone', () => {
+    const alone = limitsOf({}, { lowestHz: 30 }).excursionV;
+    const top = S.computeSystem(project([band(rated(100)), band(rated(100))], { xover: [300, 800, 3500], lowestHz: 30 })).bands[1]!.limits.excursionV;
+    expect(top).toBeGreaterThan(10 * alone);
+  });
+
+  it('load: one driver is about Re; four in parallel are a quarter of that and trip the warning', () => {
+    const one = S.computeSystem(project([band(rated(100))], { lowestHz: 30 }));
+    expect(one.bands[0]!.limits.minLoadOhm).toBeGreaterThanOrEqual(driver.re);
+    expect(one.bands[0]!.limits.minLoadOhm).toBeLessThan(driver.re * 1.2);
+    expect(one.warnings.some((w) => w.includes('the load falls'))).toBe(false);
+    const four = S.computeSystem(project([band(rated(100), { count: 4, series: 1 })], { lowestHz: 30 }));
+    expect(four.bands[0]!.limits.minLoadOhm).toBeCloseTo(one.bands[0]!.limits.minLoadOhm / 4, 9);
+    expect(four.warnings.some((w) => w.includes("Full range: the load falls to 1.3 Ω, under the amp's 2.0 Ω minimum"))).toBe(true);
+    // series-parallel brings it back
+    expect(S.computeSystem(project([band(rated(100), { count: 4, series: 2 })], { lowestHz: 30 })).warnings.some((w) => w.includes('the load falls'))).toBe(false);
+  });
+
+  it('warnings: the amp can overheat the drivers, or push the cone past Xmax; a small amp does neither', () => {
+    const hot = S.computeSystem(project([band(rated(100), { ampPowerW: 4000, ampLoadOhm: 4 })], { lowestHz: 200 }));
+    // 4000 W into 4 ohm is 126.5 V; into this driver's 5 ohm that is 3200 W
+    expect(hot.warnings.some((w) => w.includes('the amp puts 3200 W into each driver, rated 600 W'))).toBe(true);
+    const far = S.computeSystem(project([band(rated(100), { ampPowerW: 4000, ampLoadOhm: 4 })], { lowestHz: 20 }));
+    expect(far.warnings.some((w) => w.includes('the cone passes Xmax (10.0 mm)'))).toBe(true);
+    const small = S.computeSystem(project([band(rated(100), { ampPowerW: 20 })], { lowestHz: 30 }));
+    expect(small.warnings).toEqual([]);
+  });
+
+  it('max level and headroom: trim eats headroom; the system stops where its weakest audible band does', () => {
+    const c = S.computeSystem(project([band(rated(100), { ampPowerW: 20 })], { lowestHz: 30 }));
+    const l = c.bands[0]!.limits;
+    expect(l.maxDb).toBeCloseTo(c.bands[0]!.nativeDb + 20 * Math.log10(l.limitV / S.REF_VOLTS), 9);
+    expect(l.headroomDb).toBeCloseTo(20 * Math.log10(l.limitV / S.REF_VOLTS), 9);
+    expect(limitsOf({ ampPowerW: 20, trimDb: 6 }).headroomDb).toBeCloseTo(l.headroomDb - 6, 9);
+    expect(limitsOf({ ampPowerW: 20, trimDb: 6 }).maxDb).toBeCloseTo(l.maxDb, 9);
+    const two = (more: Partial<S.Band> = {}): S.SystemLimits =>
+      S.computeSystem(project([band(rated(100), { ampPowerW: 2000 }), band(rated(100), { ampPowerW: 20, ...more })], { xover: [300, 800, 3500], lowestHz: 30 })).limits;
+    expect(two().limitingBand).toBe(1);
+    expect(two().headroomDb).toBeCloseTo(20 * Math.log10(P.ampVolts(20, 4) / S.REF_VOLTS), 9);
+    expect(two({ mute: true }).limitingBand).toBe(0);
+    expect(Number.isFinite(two().referenceDb)).toBe(true);
+    expect(S.computeSystem(project([band(rated(100), { mute: true })])).limits.limitingBand).toBe(-1);
   });
 });
 
@@ -160,5 +228,43 @@ describe('project', () => {
     expect(S.computeSystem(p).bands[0]!.summary).toBe('18 in, scoop, 52 Hz exponential');
     expect([mid!.design.driverClass, mid!.design.horn.loading, mid!.design.volumeL]).toEqual([1, 'front', 20]);
     expect(M.compute(bass!.design).horn!.lengthM).toBeCloseTo(1.0, 9);
+  });
+});
+
+describe('amps: details the first pass left uncovered', () => {
+  const rated: M.Design = { ...sealed(100), custom: { ...custom, powerW: 600, xmaxMm: 10 } };
+  const one = (more: Partial<S.Band>, proj: Partial<S.Project> = {}): S.SystemView => S.computeSystem(project([band(rated, more)], { lowestHz: 30, ...proj }));
+
+  it('the power warning counts the series string: two in series share the voltage', () => {
+    const w = one({ count: 2, series: 2, ampPowerW: 4000, ampLoadOhm: 4 }, { lowestHz: 200 }).warnings;
+    expect(w.some((x) => x.includes('puts 800 W into each driver'))).toBe(true);
+  });
+
+  it('the Xmax warning gives watts on the amp rating', () => {
+    const v = one({ ampPowerW: 4000, ampLoadOhm: 4 }, { lowestHz: 20 });
+    const watts = (v.bands[0]!.limits.excursionV ** 2 / 4).toFixed(0);
+    expect(v.warnings.some((x) => x.includes(`${watts} W on the amp's rating`))).toBe(true);
+  });
+
+  it('the reference level averages from the lowest frequency played up', () => {
+    expect(one({}, { lowestHz: 200 }).limits.referenceDb).not.toBeCloseTo(one({}, { lowestHz: 30 }).limits.referenceDb, 1);
+  });
+
+  it('stored amp values: only the offered loads, minimum load clamped', () => {
+    const b = (x: object) => S.sanitizeProject({ bands: [x] }).bands[0]!;
+    expect(b({ ampLoadOhm: 3 }).ampLoadOhm).toBe(4);
+    expect(b({ ampLoadOhm: 8 }).ampLoadOhm).toBe(8);
+    expect(b({ ampMinLoadOhm: 99 }).ampMinLoadOhm).toBe(16);
+    expect(b({ ampMinLoadOhm: 4 }).ampMinLoadOhm).toBe(4);
+  });
+});
+
+describe('templates carry amps sized to their drivers', () => {
+  it('every template band gets an amp equal to its driver rating, so none starts with a power warning', () => {
+    S.TEMPLATES.forEach((t, i) => {
+      const v = S.computeSystem(S.applyTemplate(S.DEFAULT_PROJECT, i));
+      v.bands.forEach((b) => expect(b.limits.ampV).toBeLessThanOrEqual(b.limits.heatV));
+      expect(v.warnings.filter((w) => w.includes('into each driver'))).toEqual([]);
+    });
   });
 });

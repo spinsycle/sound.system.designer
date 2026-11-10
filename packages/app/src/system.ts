@@ -17,6 +17,10 @@ export interface Band {
   count: number;
   /** Drivers in each series string; the strings are in parallel. Divides count. */
   series: number;
+  /** The band's amplifier channel: rated power into a rated load, and the lowest load it accepts. */
+  ampPowerW: number;
+  ampLoadOhm: number;
+  ampMinLoadOhm: number;
   trimDb: number;
   delayMs: number;
   invert: boolean;
@@ -39,11 +43,17 @@ export interface Project {
   view: 'system' | 'box';
 }
 
-export type BandField = 'trimDb' | 'delayMs';
+export type BandField = 'trimDb' | 'delayMs' | 'ampPowerW' | 'ampMinLoadOhm';
 export const BAND_RANGES: Record<BandField, Range> = {
   trimDb: { label: 'Trim', unit: 'dB', min: -40, max: 12, linear: true },
   delayMs: { label: 'Delay', unit: 'ms', min: 0, max: 20, linear: true },
+  ampPowerW: { label: 'Amp power', unit: 'W', min: 1, max: 20000 },
+  ampMinLoadOhm: { label: 'Amp minimum load', unit: 'Ω', min: 1, max: 16 },
 };
+export const COUNT_RANGE: Range = { label: 'Drivers', unit: '', min: 1, max: 16, linear: true };
+/** Loads an amplifier's power is rated into. */
+export const AMP_LOADS: readonly number[] = [2, 4, 8, 16];
+const AMP_DEFAULTS = { ampPowerW: 500, ampLoadOhm: 4, ampMinLoadOhm: 2 };
 export const XOVER_RANGE: Range = { label: 'Crossover', unit: 'Hz', min: 20, max: 16000 };
 export const LOWEST_RANGE: Range = { label: 'Lowest frequency played', unit: 'Hz', min: 20, max: 200 };
 export const DISTANCE_RANGE: Range = { label: 'Listening distance', unit: 'm', min: 1, max: 200 };
@@ -55,6 +65,7 @@ const band = (design: Partial<Design>, more: Partial<Band> = {}): Band => ({
   design: sanitize({ ...DEFAULT_DESIGN, ...design }),
   count: 1,
   series: 1,
+  ...AMP_DEFAULTS,
   trimDb: 0,
   delayMs: 0,
   invert: false,
@@ -174,6 +185,9 @@ export function sanitizeProject(input: unknown): Project {
       return {
         design: b.design === undefined ? def.design : sanitize(b.design),
         ...group(b.count, b.series),
+        ampPowerW: num(b.ampPowerW, BAND_RANGES.ampPowerW, AMP_DEFAULTS.ampPowerW),
+        ampLoadOhm: AMP_LOADS.includes(b.ampLoadOhm as number) ? (b.ampLoadOhm as number) : AMP_DEFAULTS.ampLoadOhm,
+        ampMinLoadOhm: num(b.ampMinLoadOhm, BAND_RANGES.ampMinLoadOhm, AMP_DEFAULTS.ampMinLoadOhm),
         trimDb: num(b.trimDb, BAND_RANGES.trimDb, 0),
         delayMs: num(b.delayMs, BAND_RANGES.delayMs, 0),
         invert: b.invert === true,
@@ -205,6 +219,36 @@ export interface BandView {
   hiHz: number;
   /** Average level of the box itself (no crossover leg) over its passband, at 0 dB trim. */
   nativeDb: number;
+  limits: BandLimits;
+}
+
+export type LimitCause = 'amp' | 'heat' | 'excursion';
+
+/** How far the band can be driven. Voltages are amplifier RMS volts for a sine; small-signal extrapolation. */
+export interface BandLimits {
+  /** The amplifier's full voltage. */
+  ampV: number;
+  /** Where each driver takes its rated power. */
+  heatV: number;
+  /** Where the cone reaches Xmax at the worst frequency the band's signal can meet. */
+  excursionV: number;
+  limitV: number;
+  cause: LimitCause;
+  /** Lowest load the group presents over the band's passband, ohm. */
+  minLoadOhm: number;
+  /** The band's own passband level at its limit, dB SPL at the listening distance. */
+  maxDb: number;
+  /** How far the reference input can be raised before this band reaches its limit, dB. */
+  headroomDb: number;
+}
+
+export interface SystemLimits {
+  /** How far the whole system can be raised above the reference input, dB: the smallest band headroom. */
+  headroomDb: number;
+  /** Index of the audible band that gives up first, or -1 when none is audible. */
+  limitingBand: number;
+  /** Average level of the sum from the lowest frequency played to the top, at the reference input. */
+  referenceDb: number;
 }
 
 export interface SystemView {
@@ -214,6 +258,7 @@ export interface SystemView {
   bands: BandView[];
   /** The crossover points in use (ordered, at least 1.2x apart). */
   xover: number[];
+  limits: SystemLimits;
   warnings: string[];
   notes: string[];
 }
@@ -250,7 +295,9 @@ export function systemEvaluator(p: Project) {
     const box = (f: number): P.Cx => P.scale(raw(f).g, pRef);
     /** The band as it plays: crossover leg, trim, polarity, distance. Everything but its delay. */
     const played = (f: number): P.Cx => P.scale(P.mul(P.crossoverBands(f, xover)[k]!, box(f)), gain * P.abs(P.roomDirectResponse(room, f)));
-    return { b, box, played, audible: !b.mute && (!anySolo || b.solo), loHz: k === 0 ? p.lowestHz : xover[k - 1]!, hiHz: k === n - 1 ? TOP_HZ : xover[k]! };
+    /** The band's crossover leg. */
+    const leg = (f: number): P.Cx => P.crossoverBands(f, xover)[k]!;
+    return { b, raw, leg, box, played, audible: !b.mute && (!anySolo || b.solo), loHz: k === 0 ? p.lowestHz : xover[k - 1]!, hiHz: k === n - 1 ? TOP_HZ : xover[k]! };
   });
   const total = (f: number): P.Cx => P.systemPressure(f, bands.filter((x) => x.audible).map((x) => ({ pressure: x.played(f), delayS: x.b.delayMs / 1000 })));
   return { n, xover, bands, total, anySolo };
@@ -262,7 +309,7 @@ export function computeSystem(p: Project): SystemView {
   const freqs = SYSTEM_FREQS;
   const perBand = sys.bands.map((x) => {
     const inBand = freqs.filter((f) => f >= x.loHz && f <= x.hiHz).map((f) => P.splDb(P.abs(x.box(f))));
-    return { ...x, played: freqs.map((f) => x.played(f)), nativeDb: inBand.length ? mean(inBand) : Number.NaN };
+    return { ...x, curve: freqs.map((f) => x.played(f)), nativeDb: inBand.length ? mean(inBand) : Number.NaN };
   });
   const floor = (pa: number): number => P.splDb(Math.max(pa, 1e-12));
   const levelDb = freqs.map((f) => floor(P.abs(sys.total(f))));
@@ -270,14 +317,28 @@ export function computeSystem(p: Project): SystemView {
     name: bandName(n, k),
     summary: summary(x.b.design),
     audible: x.audible,
-    levelDb: x.played.map((v) => floor(P.abs(v))),
+    levelDb: x.curve.map((v) => floor(P.abs(v))),
     loHz: x.loHz,
     hiHz: x.hiHz,
     nativeDb: x.nativeDb,
+    limits: bandLimits(x, p.lowestHz, x.nativeDb),
   }));
 
   const warnings: string[] = [];
   const notes: string[] = [];
+  bands.forEach((v, k) => {
+    const b = perBand[k]!.b;
+    const driver = driverOf(b.design);
+    const l = v.limits;
+    if (l.minLoadOhm < b.ampMinLoadOhm) warnings.push(`${v.name}: the load falls to ${fmt(l.minLoadOhm)} Ω, under the amp's ${fmt(b.ampMinLoadOhm)} Ω minimum. Wire the drivers differently or put fewer on the channel.`);
+    if (l.ampV > l.heatV) warnings.push(`${v.name}: at full power the amp puts ${fmt((l.ampV / b.series) ** 2 / driver.re, 0)} W into each driver, rated ${fmt(driver.pe, 0)} W.`);
+    if (l.ampV > l.excursionV)
+      warnings.push(`${v.name}: at full power the cone passes Xmax (${fmt(driver.xmax * 1000)} mm). It gets there at ${fmt(l.excursionV)} V, ${fmt(l.excursionV ** 2 / b.ampLoadOhm, 0)} W on the amp's rating. Raise the lowest frequency played or the crossover under this band.`);
+  });
+  const heard = bands.map((v, k) => ({ v, k })).filter((x) => x.v.audible);
+  const limiting = heard.reduce((best, x) => (best === null || x.v.limits.headroomDb < best.v.limits.headroomDb ? x : best), null as (typeof heard)[number] | null);
+  const span = levelDb.filter((_, i) => freqs[i]! >= p.lowestHz && freqs[i]! <= TOP_HZ);
+  const limits: SystemLimits = { headroomDb: limiting ? limiting.v.limits.headroomDb : Number.NaN, limitingBand: limiting ? limiting.k : -1, referenceDb: span.length ? mean(span) : Number.NaN };
   const at = (values: number[], f: number): number => values[freqs.findIndex((x) => x >= f)]!;
   xover.forEach((fx, k) => {
     const lower = perBand[k]!;
@@ -292,7 +353,33 @@ export function computeSystem(p: Project): SystemView {
   if (anySolo) notes.push('A band is soloed: the sum shows the soloed bands only.');
   notes.push(`Levels are for ${REF_VOLTS} V into a band at 0 dB trim, in half space, at ${fmt(p.distanceM)} m outdoors. Horn bands are radiated power, not on-axis level.`);
 
-  return { freqs, levelDb, bands, xover, warnings, notes };
+  notes.push('Limits are for a steady sine and ignore power compression and any limiter: real programme has peaks above its average, so treat them as ceilings, not operating points. Each driver is taken to be in its own box.');
+
+  return { freqs, levelDb, bands, xover, limits, warnings, notes };
+}
+
+/** Limits of one band of a system. nativeDb is its own passband level at the reference input, 1 m. */
+function bandLimits(x: ReturnType<typeof systemEvaluator>['bands'][number], lowestHz: number, nativeDb: number): BandLimits {
+  const b = x.b;
+  const driver = driverOf(b.design);
+  const w = P.wiring(b.count, b.series);
+  // the cone meets whatever the band's signal holds from the lowest frequency played upwards, shaped by its crossover leg
+  const worstX = Math.max(...[lowestHz, ...SYSTEM_FREQS.filter((f) => f > lowestHz)].map((f) => P.abs(x.raw(f).x) * P.abs(x.leg(f))));
+  const ampV = P.ampVolts(b.ampPowerW, b.ampLoadOhm);
+  const heatV = P.thermalLimitVolts(driver.pe, driver.re, b.series);
+  const excursionV = P.excursionLimitVolts(driver.xmax, worstX, b.series);
+  const limitV = Math.min(ampV, heatV, excursionV);
+  const inBand = [x.loHz, ...SYSTEM_FREQS.filter((f) => f > x.loHz && f < x.hiHz), x.hiHz];
+  return {
+    ampV,
+    heatV,
+    excursionV,
+    limitV,
+    cause: limitV === ampV ? 'amp' : limitV === heatV ? 'heat' : 'excursion',
+    minLoadOhm: Math.min(...inBand.map((f) => P.abs(x.raw(f).z))) * w.loadFactor,
+    maxDb: nativeDb + 20 * Math.log10(limitV / REF_VOLTS),
+    headroomDb: 20 * Math.log10(limitV / (REF_VOLTS * 10 ** (b.trimDb / 20))),
+  };
 }
 
 /**
@@ -312,5 +399,8 @@ export function applyTemplate(p: Project, index: number): Project {
   const bands = DEFAULT_BANDS().map((def, k) => t.bands[k] ?? def);
   const next: Project = { ...p, nBands: t.bands.length, xover: DEFAULT_PROJECT.xover.map((x, k) => t.xover[k] ?? x), bands, selected: 0, view: 'system' };
   const trims = levelTrims(next);
-  return sanitizeProject({ ...next, bands: bands.map((b, k) => ({ ...b, trimDb: trims[k] ?? 0 })) });
+  return sanitizeProject({ ...next, bands: bands.map((b, k) => ({ ...b, trimDb: trims[k] ?? 0, ampPowerW: ampJustWithin(driverOf(b.design), b) })) });
 }
+
+/** Rating, into the band's amp load, of an amp that just reaches the drivers' thermal limit (rounded down). */
+const ampJustWithin = (d: { pe: number; re: number }, b: Band): number => Math.max(1, Math.floor((d.pe * d.re * b.series * b.series) / b.ampLoadOhm));

@@ -6,8 +6,9 @@ repository holds the physics library (milestone A0), a direct-radiator box desig
 driver entry, sealed/ported/band-pass, response, excursion, impedance and group-delay plots) and a horn designer (A2:
 front-loaded horns and rear-loaded scoops; exponential, hyperbolic, tractrix and conical flares; a one-dimensional
 horn simulation; a profile drawing and a panel table for horns built from straight panels) and a system view (A3,
-in progress: up to four bands behind Linkwitz-Riley crossovers, trim, delay and polarity per band, the summed
-response in dB SPL, generic starting points). Amps and limits, cut lists, exports and the desktop shell come next.
+up to four bands behind Linkwitz-Riley crossovers, trim, delay and polarity per band, drivers and wiring, an amp
+per band with load, power and excursion limits and a max-level table, the summed response in dB SPL, generic
+starting points). Cut lists, exports and the desktop shell come next.
 
 The horn simulation is one-dimensional (plane waves) and lossless. It shows cutoff, mouth-reflection ripple and how
 the horn loads the driver. Its response is radiated power: it does not know about directivity or bends.
