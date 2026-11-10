@@ -141,8 +141,8 @@ export const TEMPLATES: readonly Template[] = [
   },
   {
     label: 'Jamaican-style: dancehall stack',
-    description: 'Four-way: an 18 in scoop, 12 in mid bin, 6.5 in mid horn and a compression-driver horn; 100 Hz, 450 Hz and 3 kHz.',
-    xover: [100, 450, 3000],
+    description: 'Four-way: an 18 in scoop, 12 in mid bin, 6.5 in mid horn and a compression-driver horn; 100 Hz, 900 Hz and 3 kHz (above the mid horn flare cutoff of about 740 Hz).',
+    xover: [100, 900, 3000],
     bands: [band(scoop(3, 40, 600, 4000, 1.0)), band(bin(1, 20, 250, 2000, 0.5)), band(bin(6, 4, 60, 900, 0.1, true)), band(HF_HORN)],
   },
   {

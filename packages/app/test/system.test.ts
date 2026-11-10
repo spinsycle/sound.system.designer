@@ -221,7 +221,9 @@ describe('project', () => {
 
   it('templates use the plugin factory presets: the dancehall stack', () => {
     const p = S.applyTemplate(S.DEFAULT_PROJECT, S.TEMPLATES.findIndex((t) => t.label.includes('dancehall')));
-    expect(p.xover).toEqual([100, 450, 3000]);
+    // the plugin preset crosses at 450 Hz; the horn simulation shows an 8 dB hole there (mid horn cutoff 739 Hz), so the app crosses above the cutoff
+    expect(p.xover).toEqual([100, 900, 3000]);
+    expect(S.computeSystem(p).warnings.filter((w) => w.includes('cancel'))).toEqual([]);
     const [bass, mid] = p.bands;
     expect([bass!.design.driverClass, bass!.design.type, bass!.design.horn.loading, bass!.design.horn.throatCm2, bass!.design.horn.mouthCm2, bass!.design.horn.throatChamberL]).toEqual([3, 'horn', 'rear', 600, 4000, 40]);
     // the plugin gives throat, mouth and length; the flare that has them is 1 m long
