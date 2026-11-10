@@ -5,6 +5,7 @@
 import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
 import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
+import type { Range } from './model';
 import { type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
 import { saveText } from './desktop';
 import { baffleSvg, sheetDxf, sheetSvg, slug } from './export';
@@ -12,30 +13,49 @@ import { layout3d } from './layout3d';
 import { Scene3D } from './Scene3D';
 import type { Band, Project } from './system';
 import { sanitizeProject } from './system';
+import { MATERIALS_IN, type Units, UNITS, formatDecimal, formatLength, fromMm, parseLength, swapShopDefaults, toMm } from './units';
 
-const mm = (m: number): string => (m * 1000).toFixed(0);
+/** A length in metres, as text in the chosen unit. */
+const mm = (m: number, u: Units): string => formatLength(m * 1000, u);
 
-function csv(v: Build): string {
+/** A wall or sheet size: stored in millimetres, shown and typed in the chosen unit (fractions work in inches). */
+function LengthField(p: { id: string; range: Range; valueMm: number; units: Units; onChangeMm: (mm: number) => void }) {
+  const r = { ...p.range, min: fromMm(p.range.min, p.units), max: fromMm(p.range.max, p.units), unit: p.units };
+  return (
+    <Field
+      id={p.id}
+      range={r}
+      value={fromMm(p.valueMm, p.units)}
+      onChange={(v) => p.onChangeMm(Math.round(toMm(v, p.units) * 1000) / 1000)}
+      parse={(t) => {
+        const m = parseLength(t, p.units);
+        return m === null ? null : fromMm(m, p.units);
+      }}
+    />
+  );
+}
+
+function csv(v: Build, u: Units): string {
   const q = (s: string): string => `"${s.replace(/"/g, '""')}"`;
-  const lines = ['Cut list', 'Band,Part,Length mm,Width mm,Qty,Note', ...v.cutList.map((r) => [q(r.band), q(r.part), r.l, r.w, r.qty, q(r.note)].join(',')), '', 'Bill of materials', 'Item,Qty,Unit,Note', ...v.bom.map((b) => [q(b.item), b.qty, b.unit, q(b.note)].join(','))];
+  const lines = ['Cut list', `Band,Part,Length ${u},Width ${u},Qty,Note`, ...v.cutList.map((r) => [q(r.band), q(r.part), formatDecimal(r.l, u), formatDecimal(r.w, u), r.qty, q(r.note)].join(',')), '', 'Bill of materials', 'Item,Qty,Unit,Note', ...v.bom.map((b) => [q(b.item), b.qty, b.unit, q(b.note)].join(','))];
   return lines.join('\n');
 }
 
 /** Front baffle to scale: the driver hole and port hole stacked in the middle. */
-function Baffle({ c }: { c: Cabinet }) {
+function Baffle({ c, u }: { c: Cabinet; u: Units }) {
   const g = c.geometry;
   const holes = c.cutouts;
   const pad = 0.03;
   return (
     <figure className="baffle">
-      <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${g.hO + 2 * pad}`} role="img" aria-label={`${c.title} front baffle, ${mm(g.wO)} by ${mm(g.hO)} millimetres`}>
+      <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${g.hO + 2 * pad}`} role="img" aria-label={`${c.title} front baffle, ${mm(g.wO, u)} by ${mm(g.hO, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>
         <rect x={0} y={0} width={g.wO} height={g.hO} className="piece" />
         {holePositions(c).map((h, i) => (
           <circle key={i} cx={h.cx} cy={h.cy} r={h.r} className={h.kind === 'port' ? 'hole port-hole' : 'hole'} />
         ))}
       </svg>
       <figcaption>
-        {c.title}: {mm(g.wO)} x {mm(g.hO)} x {mm(g.dO)} mm outside. {holes.map((h) => `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM)} mm`).join(', ')}.
+        {c.title}: {mm(g.wO, u)} x {mm(g.hO, u)} x {mm(g.dO, u)} {u} outside. {holes.map((h) => `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`).join(', ')}.
       </figcaption>
     </figure>
   );
@@ -53,13 +73,13 @@ function Sheet({ v, sheet, p }: { v: Build; sheet: number; p: Project }) {
           <g key={i} className={`band-${x.band}`}>
             <rect x={x.placement.x * 1000} y={x.placement.y * 1000} width={x.placement.w * 1000} height={x.placement.h * 1000} className="cut" />
             <text x={x.placement.x * 1000 + 12} y={x.placement.y * 1000 + 40} className="cut-label">
-              {Math.round(x.placement.w * 1000)} x {Math.round(x.placement.h * 1000)}
+              {mm(x.placement.w, p.units)} x {mm(x.placement.h, p.units)}
             </text>
           </g>
         ))}
       </svg>
       <figcaption>
-        Sheet {sheet + 1} of {v.sheets}: {here.length} pieces, {p.shop.sheetLmm} x {p.shop.sheetWmm} mm.
+        Sheet {sheet + 1} of {v.sheets}: {here.length} pieces, {formatLength(p.shop.sheetLmm, p.units)} x {formatLength(p.shop.sheetWmm, p.units)} {p.units}.
       </figcaption>
     </figure>
   );
@@ -81,7 +101,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
   const setShop = (patch: Partial<Project['shop']>): void => set({ shop: { ...project.shop, ...patch } });
   const setBuild = (k: number, patch: Partial<Band['build']>): void => set({ bands: project.bands.map((b, i) => (i === k ? { ...b, build: { ...b.build, ...patch } } : b)) });
   const copy = (): void => {
-    navigator.clipboard.writeText(csv(v)).then(
+    navigator.clipboard.writeText(csv(v, project.units)).then(
       () => setCopied(true),
       () => setCopied(false),
     );
@@ -92,22 +112,29 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
       <div className="controls">
         <section>
           <h2>Walls and sheets</h2>
+          <div className="segmented" role="radiogroup" aria-label="Units">
+            {UNITS.map((x) => (
+              <button key={x.id} type="button" role="radio" aria-checked={project.units === x.id} className={project.units === x.id ? 'on' : ''} onClick={() => set({ units: x.id, shop: swapShopDefaults(project.shop, x.id) })}>
+                {x.label}
+              </button>
+            ))}
+          </div>
           <div className="segmented" role="radiogroup" aria-label="Wall material">
-            {MATERIALS.map((m) => (
+            {(project.units === 'in' ? MATERIALS_IN : MATERIALS).map((m) => (
               <button key={m.label} type="button" role="radio" aria-checked={project.shop.thicknessMm === m.thicknessMm} className={project.shop.thicknessMm === m.thicknessMm ? 'on' : ''} onClick={() => setShop({ thicknessMm: m.thicknessMm })}>
                 {m.label}
               </button>
             ))}
           </div>
-          <Field id="shop-t" range={SHOP_RANGES.thicknessMm} value={project.shop.thicknessMm} onChange={(x) => setShop({ thicknessMm: x })} />
-          <Field id="shop-l" range={SHOP_RANGES.sheetLmm} value={project.shop.sheetLmm} onChange={(x) => setShop({ sheetLmm: x })} />
-          <Field id="shop-w" range={SHOP_RANGES.sheetWmm} value={project.shop.sheetWmm} onChange={(x) => setShop({ sheetWmm: x })} />
-          <Field id="shop-k" range={SHOP_RANGES.kerfMm} value={project.shop.kerfMm} onChange={(x) => setShop({ kerfMm: x })} />
+          <LengthField id="shop-t" range={SHOP_RANGES.thicknessMm} valueMm={project.shop.thicknessMm} units={project.units} onChangeMm={(x) => setShop({ thicknessMm: x })} />
+          <LengthField id="shop-l" range={SHOP_RANGES.sheetLmm} valueMm={project.shop.sheetLmm} units={project.units} onChangeMm={(x) => setShop({ sheetLmm: x })} />
+          <LengthField id="shop-w" range={SHOP_RANGES.sheetWmm} valueMm={project.shop.sheetWmm} units={project.units} onChangeMm={(x) => setShop({ sheetWmm: x })} />
+          <LengthField id="shop-k" range={SHOP_RANGES.kerfMm} valueMm={project.shop.kerfMm} units={project.units} onChangeMm={(x) => setShop({ kerfMm: x })} />
           <div className="field">
             <label htmlFor="project-name">Project name</label>
             <input id="project-name" type="text" className="left" value={project.name} onChange={(e) => set({ name: e.target.value })} />
           </div>
-          <p className="hint">Metric for now. The project name is used in exported file names.</p>
+          <p className="hint">Millimetres or inches (fractions such as 3/4 or 1 1/2 work in inches; the Build page and the exported files follow, the box pages stay metric). The project name is used in exported file names.</p>
         </section>
         {project.bands.slice(0, project.nBands).map((band, k) => (
           <section key={k}>
@@ -128,7 +155,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
               </select>
             </div>
             <p className="hint">
-              Proportions of the inside, width : height : depth. {v.bands[k]!.cabinets.map((c) => `${c.title}: ${mm(c.geometry.wI)} x ${mm(c.geometry.hI)} x ${mm(c.geometry.dI)} mm inside`).join('; ') || 'Horn sections only.'}
+              Proportions of the inside, width : height : depth. {v.bands[k]!.cabinets.map((c) => `${c.title}: ${mm(c.geometry.wI, project.units)} x ${mm(c.geometry.hI, project.units)} x ${mm(c.geometry.dI, project.units)} ${project.units} inside`).join('; ') || 'Horn sections only.'}
             </p>
           </section>
         ))}
@@ -146,8 +173,8 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
                 <th scope="col" className="left pad">
                   Part
                 </th>
-                <th scope="col">Length, mm</th>
-                <th scope="col">Width, mm</th>
+                <th scope="col">Length, {project.units}</th>
+                <th scope="col">Width, {project.units}</th>
                 <th scope="col">Qty</th>
                 <th scope="col" className="left pad">
                   Note
@@ -161,8 +188,8 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
                     {r.band}
                   </th>
                   <td className="left pad">{r.part}</td>
-                  <td>{r.l}</td>
-                  <td>{r.w}</td>
+                  <td>{formatLength(r.l, project.units)}</td>
+                  <td>{formatLength(r.w, project.units)}</td>
                   <td>{r.qty}</td>
                   <td className="left pad">{r.note}</td>
                 </tr>
@@ -173,7 +200,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             <button type="button" onClick={copy}>
               Copy cut list and parts as CSV
             </button>
-            <button type="button" onClick={() => download(`${base}-cut-list.csv`, csv(v), 'text/csv')}>
+            <button type="button" onClick={() => download(`${base}-cut-list.csv`, csv(v, project.units), 'text/csv')}>
               Save as CSV file
             </button>
             <button type="button" onClick={() => window.print()}>
@@ -203,8 +230,8 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             {v.bands.flatMap((b) =>
               b.cabinets.map((c, i) => (
                 <div key={`${b.name}-${i}`}>
-                  <Baffle c={{ ...c, title: `${b.name}: ${c.title}` }} />
-                  <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-${slug(c.title)}-baffle.svg`, baffleSvg(c, `${b.name}: ${c.title}`), 'image/svg+xml')}>
+                  <Baffle c={{ ...c, title: `${b.name}: ${c.title}` }} u={project.units} />
+                  <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-${slug(c.title)}-baffle.svg`, baffleSvg(c, `${b.name}: ${c.title}`, project.units), 'image/svg+xml')}>
                     Download SVG
                   </button>
                 </div>

@@ -1,7 +1,7 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.0.0.
+Version 1.1.0.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
@@ -9,7 +9,7 @@ Version 1.0.0.
   amplifier per band with load, power and excursion limits and a max-level table; the summed response in dB SPL; eight
   generic starting points.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
-  materials (metric), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
+  materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
 - **Brief:** describe a system or a box in words and a local [Ollama](https://ollama.com) model proposes three variants.
   The model only picks parts and sizes into a strictly checked schema; the same calculators as everywhere else judge the
   result. Everything stays on your computer: only an Ollama server on `localhost` is ever contacted.
@@ -22,7 +22,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.0.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.1.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 
@@ -31,7 +31,7 @@ To use the Brief panel, install Ollama and pull a model once: `ollama pull llama
 ## Use
 
 1. **System** page: pick a starting point or build your own bands; each band's box opens on its own page.
-2. **Build** page: choose wall material, sheet size, box proportions and bracing; read the cut list; save SVG, DXF or CSV
+2. **Build** page: choose Millimetres or Inches, wall material, sheet size (fractions like 3/4 or 1 1/2 work in inches), box proportions and bracing; read the cut list; save SVG, DXF or CSV
    files, or print to PDF.
 3. **Brief** (top of the System and box pages): type what you need, press Design 3 variants, compare the table, Load one.
    Undo last load brings your previous design back.
@@ -47,7 +47,7 @@ To use the Brief panel, install Ollama and pull a model once: `ollama pull llama
 - The sheet layout is a simple heuristic, not an optimal nesting.
 - The Brief model is not deterministic and sometimes gives a poor or refused design; the warnings column is the
   calculators judging it.
-- Windows only for now; metric only.
+- Windows only for now. Lengths on the Build page and in the exported files can be millimetres or inches; the box pages (volumes, areas, port sizes) stay metric.
 
 ## Develop
 

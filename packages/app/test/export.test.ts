@@ -4,6 +4,7 @@ import * as L from '../src/buildlist';
 import * as X from '../src/export';
 import * as M from '../src/model';
 import * as S from '../src/system';
+import * as U from '../src/units';
 
 const roots = S.applyTemplate(S.DEFAULT_PROJECT, S.TEMPLATES.findIndex((t) => t.label.includes('roots dub')));
 const sealed: S.Project = S.sanitizeProject({ ...S.DEFAULT_PROJECT, bands: [{ design: { ...M.DEFAULT_DESIGN, type: 'sealed', volumeL: 100, driverClass: 2 } }] });
@@ -156,5 +157,61 @@ describe('names', () => {
     expect(X.slug('--abc!! ')).toBe('abc');
     expect(S.sanitizeProject({ name: 'x'.repeat(100) }).name.length).toBe(60);
     expect(S.sanitizeProject({ name: 5 }).name).toBe('sound-system');
+  });
+});
+
+describe('inch exports', () => {
+  const inch: S.Project = { ...roots, units: 'in', shop: { thicknessMm: 19.05, sheetLmm: 2438.4, sheetWmm: 1219.2, kerfMm: 3.175 } };
+  const v = L.computeBuild(inch);
+  const here = v.pieces.filter((x) => x.placement.sheet === 0);
+
+  it('the sheet SVG is drawn in millimetres and sized in inches, with fractions in the labels', () => {
+    const svg = X.sheetSvg(v, inch, 0);
+    expect(svg).toContain('width="96in" height="48in" viewBox="0 0 2438.4 1219.2"');
+    expect(svg).not.toContain('mm"');
+    const p = here[0]!.placement;
+    expect(svg).toContain(`${U.formatLength(p.w * 1000, 'in')} x ${U.formatLength(p.h * 1000, 'in')}`);
+  });
+
+  it('the baffle SVG is sized in inches', () => {
+    const c = v.bands[0]!.cabinets[0]!;
+    const svg = X.baffleSvg(c, 'Sub', 'in');
+    expect(svg).toContain(`width="${Math.round(((Math.round(c.geometry.wO * 1e4) / 10) / 25.4) * 1e4) / 1e4}in"`);
+    expect(X.baffleSvg(c, 'Sub')).toContain('mm"');
+  });
+
+  it('the DXF says inches and its coordinates are inches', () => {
+    const dxf = X.sheetDxf(v, inch, 0);
+    const p = pairs(dxf);
+    const i = p.findIndex(([c, val]) => c === 9 && val === '$INSUNITS');
+    expect(p[i + 1]).toEqual([70, '1']);
+    const ents = entities(dxf);
+    const sheet = ents.filter((e) => e.type === 'LINE' && e.layer === 'SHEET');
+    const xs = sheet.flatMap((e) => [Number(e.v[10]), Number(e.v[11])]);
+    const ys = sheet.flatMap((e) => [Number(e.v[20]), Number(e.v[21])]);
+    expect(Math.max(...xs)).toBeCloseTo(96, 3);
+    expect(Math.max(...ys)).toBeCloseTo(48, 3);
+    const cut = ents.filter((e) => e.type === 'LINE' && e.layer === 'CUT');
+    here.forEach((x, k) => {
+      const four = cut.slice(4 * k, 4 * k + 4);
+      const cx = four.flatMap((e) => [Number(e.v[10]), Number(e.v[11])]);
+      expect(Math.max(...cx) - Math.min(...cx)).toBeCloseTo((x.placement.w * 1000) / 25.4, 3);
+      const cy = four.flatMap((e) => [Number(e.v[20]), Number(e.v[21])]);
+      expect(Math.min(...cy)).toBeCloseTo(48 - (x.placement.y * 1000 + x.placement.h * 1000) / 25.4, 3);
+    });
+    const t = ents.find((e) => e.type === 'TEXT')!;
+    expect(t.v[40]).toBe('0.75');
+    const ti = ents.findIndex((e) => e.type === 'TEXT');
+    const firstCut = cut.slice(0, 4);
+    expect(Number(t.v[10]) - Math.min(...firstCut.flatMap((e) => [Number(e.v[10]), Number(e.v[11])]))).toBeCloseTo(0.375, 4);
+    expect(ti).toBeGreaterThan(0);
+    expect(t.v[1]).toMatch(/ [\d/ ]+ x [\d/ ]+$/);
+    expect(dxf).not.toContain('AC1015');
+  });
+
+  it('in millimetres the DXF still says millimetres', () => {
+    const p = pairs(X.sheetDxf(L.computeBuild(roots), roots, 0));
+    const i = p.findIndex(([c, val]) => c === 9 && val === '$INSUNITS');
+    expect(p[i + 1]).toEqual([70, '4']);
   });
 });

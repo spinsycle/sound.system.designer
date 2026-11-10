@@ -99,6 +99,13 @@ describe('design rules, one at a time', () => {
     expect(B.validateDesign({ ...tops, driver: 'custom', custom: missing }, '$', false).errors.some((e) => e.includes('custom.fsHz'))).toBe(true);
   });
 
+  it('a sealed box or a horn may carry a tuneHz, which changes nothing', () => {
+    const plain = B.validateDesign(tops, '$', false).value!;
+    const withTune = B.validateDesign({ ...tops, tuneHz: 38 }, '$', false).value!;
+    expect(withTune).toEqual(plain);
+    expect(B.validateDesign({ ...hornDesign, tuneHz: 38 }, '$', false).errors).toEqual([]);
+  });
+
   it('a band-pass box also needs its tuning and port, and a rear-loaded horn is accepted', () => {
     const bp = { driver: '15 in', type: 'bandpass', volumeL: 60, frontVolumeL: 40, tuneHz: 60, portDiameterCm: 8 };
     const { tuneHz: _t, ...noTune } = bp;
@@ -213,7 +220,9 @@ describe('schema, prompt and metrics', () => {
     expect(d.properties.volumeL!.maximum).toBe(M.BOX_RANGES.volumeL.max);
     expect(d.properties.driver!.enum).toEqual(P.DRIVER_CLASSES.map((c) => c.name)); // the model may not invent a custom driver
     expect(d.properties.type!.enum).toEqual(['sealed', 'ported', 'bandpass', 'horn']);
-    expect(d.required).toEqual(expect.arrayContaining(['driver', 'type', 'volumeL', 'label', 'note']));
+    expect(d.required).toEqual(expect.arrayContaining(['driver', 'type', 'volumeL', 'tuneHz', 'label', 'note']));
+    for (const k of ['tuneHz', 'portDiameterCm', 'frontVolumeL']) expect(B.designSchema(false).required).toContain(k);
+    expect((B.systemSchema() as { properties: { bands: { items: { properties: { design: { required: string[] } } } } } }).properties.bands.items.properties.design.required).toContain('tuneHz');
     expect(B.designSchema(false).required).not.toContain('label');
     const s = B.systemSchema() as { properties: Record<string, { maximum?: number; maxItems?: number }>; required: string[] };
     expect(s.properties.distanceM!.maximum).toBe(S.DISTANCE_RANGE.max);
@@ -230,6 +239,7 @@ describe('schema, prompt and metrics', () => {
     expect(sys).toContain('2, 4, 8, 16');
     expect(sys).toContain('never calculate');
     expect(sys).toContain('Horn mouth area');
+    expect(sys).toContain('ALWAYS include all three');
     expect(sys).toContain('Format example');
     expect(sys).not.toContain('"custom"');
     const one = B.systemPrompt('box');

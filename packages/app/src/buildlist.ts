@@ -5,6 +5,7 @@
 import * as P from '@soundsystemdesigner/physics';
 import { compute, driverOf } from './model';
 import { type Band, type Project, bandName, summary } from './system';
+import { type Units, formatLength } from './units';
 
 /** Joint spacing for screws, m. */
 export const SCREW_SPACING = 0.15;
@@ -83,6 +84,10 @@ export interface BuildView {
 }
 
 const mm = (m: number): number => Math.round(m * 1000);
+/** A length in metres as text in the chosen unit, with its unit: "465 mm" or "18 5/16 in". */
+const fl = (m: number, u: Units): string => `${formatLength(m * 1000, u)} ${u}`;
+/** Joint length in metres as text: metres, or feet. */
+const fj = (m: number, u: Units): string => (u === 'in' ? `${(m / 0.3048).toFixed(1)} ft` : `${m.toFixed(1)} m`);
 
 /** Where a cabinet's baffle holes sit, to scale: centred across, stacked and centred down, y from the top edge (m). */
 export function holePositions(c: Cabinet): { kind: Cutout['kind']; cx: number; cy: number; r: number }[] {
@@ -108,7 +113,7 @@ function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: num
   };
 }
 
-function bandBuild(b: Band, name: string, shop: Project['shop']): BandBuild {
+function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): BandBuild {
   const d = b.design;
   const t = shop.thicknessMm / 1000;
   const driver = driverOf(d);
@@ -158,7 +163,7 @@ function bandBuild(b: Band, name: string, shop: Project['shop']): BandBuild {
   for (const c of cabinets) {
     const baffle = Math.min(c.geometry.wO, c.geometry.hO);
     const holes = c.cutouts.map((x) => x.diameterM);
-    if (holes.length > 0 && Math.max(...holes) + 2 * HOLE_MARGIN > baffle) warnings.push(`${name}: the ${mm(Math.max(...holes))} mm hole does not fit the ${mm(c.geometry.wO)} x ${mm(c.geometry.hO)} mm baffle. Change the proportions or the volume.`);
+    if (holes.length > 0 && Math.max(...holes) + 2 * HOLE_MARGIN > baffle) warnings.push(`${name}: the ${fl(Math.max(...holes), u)} hole does not fit the ${formatLength(c.geometry.wO * 1000, u)} x ${fl(c.geometry.hO, u)} baffle. Change the proportions or the volume.`);
     else if (holes.length === 2 && holes[0]! + holes[1]! + 3 * HOLE_MARGIN > Math.max(c.geometry.wO, c.geometry.hO)) warnings.push(`${name}: the driver and port holes do not both fit the baffle. Change the proportions.`);
   }
 
@@ -167,7 +172,7 @@ function bandBuild(b: Band, name: string, shop: Project['shop']): BandBuild {
 }
 
 export function computeBuild(p: Project): BuildView {
-  const bands = p.bands.slice(0, p.nBands).map((b, k) => bandBuild(b, bandName(p.nBands, k), p.shop));
+  const bands = p.bands.slice(0, p.nBands).map((b, k) => bandBuild(b, bandName(p.nBands, k), p.shop, p.units));
   const cutList: CutRow[] = [];
   const raw: { label: string; band: number; l: number; w: number }[] = [];
   const add = (band: BandBuild, part: string, l: number, w: number, qtyEach: number, note: string): void => {
@@ -191,22 +196,22 @@ export function computeBuild(p: Project): BuildView {
   const pieces = raw.map((r, i) => ({ label: r.label, band: r.band, placement: packed.placements[i]! }));
   const warnings = bands.flatMap((b) => b.warnings);
   const oversize = [...new Set(pieces.filter((x) => x.placement.sheet < 0).map((x) => x.label))];
-  for (const label of oversize) warnings.push(`${label} is larger than a ${p.shop.sheetLmm} x ${p.shop.sheetWmm} mm sheet: split it or choose a bigger sheet. It is left off the sheet count.`);
+  for (const label of oversize) warnings.push(`${label} is larger than a ${formatLength(p.shop.sheetLmm, p.units)} x ${fl(p.shop.sheetWmm / 1000, p.units)} sheet: split it or choose a bigger sheet. It is left off the sheet count.`);
   const usedArea = pieces.filter((x) => x.placement.sheet >= 0).reduce((a, x) => a + x.placement.w * x.placement.h, 0);
   const waste = packed.sheets > 0 ? 1 - usedArea / (packed.sheets * sheetL * sheetW) : 0;
 
   const jointM = raw.reduce((a, r) => a + 2 * (r.l + r.w), 0) / 2;
   const bom: BomLine[] = [];
-  if (packed.sheets > 0) bom.push({ item: `Sheet ${p.shop.sheetLmm} x ${p.shop.sheetWmm} mm, ${p.shop.thicknessMm} mm`, qty: packed.sheets, unit: 'sheets', note: `${(waste * 100).toFixed(0)} % waste with this layout` });
+  if (packed.sheets > 0) bom.push({ item: `Sheet ${formatLength(p.shop.sheetLmm, p.units)} x ${formatLength(p.shop.sheetWmm, p.units)} ${p.units}, ${fl(p.shop.thicknessMm / 1000, p.units)}`, qty: packed.sheets, unit: 'sheets', note: `${(waste * 100).toFixed(0)} % waste with this layout` });
   const byDriver = new Map<string, number>();
   for (const bb of bands) byDriver.set(bb.driver, (byDriver.get(bb.driver) ?? 0) + bb.count);
   for (const [name, qty] of byDriver) bom.push({ item: name, qty, unit: 'pcs', note: '' });
   const tubes = bands.filter((b) => b.port);
-  for (const bb of tubes) bom.push({ item: `Round port tube, ${mm(bb.port!.diameterM)} mm inside, ${mm(bb.port!.lengthM)} mm long`, qty: bb.count, unit: 'pcs', note: `${bb.name}; cut from longer stock` });
+  for (const bb of tubes) bom.push({ item: `Round port tube, ${fl(bb.port!.diameterM, p.units)} inside, ${fl(bb.port!.lengthM, p.units)} long`, qty: bb.count, unit: 'pcs', note: `${bb.name}; cut from longer stock` });
   const screws = Math.ceil(jointM / SCREW_SPACING - 1e-9);
   if (raw.length > 0) {
-    bom.push({ item: 'Wood screws', qty: screws, unit: 'pcs', note: `one per ${SCREW_SPACING * 1000} mm of joint (${jointM.toFixed(1)} m)` });
-    bom.push({ item: 'Wood glue', qty: Math.ceil(jointM / GLUE_PER_BOTTLE - 1e-9), unit: 'bottles', note: `one per ${GLUE_PER_BOTTLE} m of joint` });
+    bom.push({ item: 'Wood screws', qty: screws, unit: 'pcs', note: `one per ${fl(SCREW_SPACING, p.units)} of joint (${fj(jointM, p.units)})` });
+    bom.push({ item: 'Wood glue', qty: Math.ceil(jointM / GLUE_PER_BOTTLE - 1e-9), unit: 'bottles', note: `one per ${fj(GLUE_PER_BOTTLE, p.units)} of joint` });
   }
   const cabs = bands.reduce((a, b) => a + b.count * Math.max(b.cabinets.length, 1), 0);
   if (cabs > 0) bom.push({ item: 'Speaker terminal or connector', qty: bands.reduce((a, b) => a + b.count, 0), unit: 'pcs', note: 'one per driver cabinet' });
@@ -216,7 +221,7 @@ export function computeBuild(p: Project): BuildView {
   const notes = [
     'Butt joints, no rabbets or mitres: add allowance yourself if you cut them. Hole sizes are estimates: check the driver datasheet.',
     'The shelf layout is a heuristic: a good hand layout, or a nesting tool, often saves a sheet. Pieces lie long side along the sheet, so grain direction is not respected.',
-    `Driver displacement is estimated at 0.15 Sd^1.5, a round port tube at its outer volume, a window brace as a 50 mm frame: boxes are sized so the air left is the designed volume.`,
+    `Driver displacement is estimated at 0.15 Sd^1.5, a round port tube at its outer volume, a window brace as a ${fl(0.05, p.units)} frame: boxes are sized so the air left is the designed volume.`,
   ];
   return { bands, cutList, pieces, sheets: packed.sheets, waste, bom, warnings, notes };
 }

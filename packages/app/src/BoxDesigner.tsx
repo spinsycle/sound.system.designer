@@ -26,11 +26,11 @@ import {
 export const show =(v: number): string => String(Number(v.toPrecision(4)));
 
 /** A number box that accepts any typing and commits a clamped value on blur or Enter, with an optional slider. */
-export function Field(p: { range: Range; value: number; onChange: (v: number) => void; slider?: boolean; id?: string }) {
+export function Field(p: { range: Range; value: number; onChange: (v: number) => void; slider?: boolean; id?: string; parse?: (text: string) => number | null }) {
   const [text, setText] = useState<string | null>(null);
   const { range: r } = p;
   const commit = (): void => {
-    const v = Number(text);
+    const v = p.parse ? (p.parse(text ?? '') ?? Number.NaN) : Number(text);
     if (text !== null && text.trim() !== '' && Number.isFinite(v)) p.onChange(P.clamp(v, r.min, r.max));
     setText(null);
   };

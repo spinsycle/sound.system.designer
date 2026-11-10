@@ -7,7 +7,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
-git -C $Plugin diff --quiet $Tag -- Source
+# FactoryPresets.h is data (preset values), not part of what the dump evaluates, so a preset-only change does not matter here
+git -C $Plugin diff --quiet $Tag -- Source ':!Source/FactoryPresets.h'
 if ($LASTEXITCODE -ne 0) { throw "Plugin Source differs from $Tag (or the tag is missing). Check out the tag first." }
 
 $vcvars = Get-ChildItem 'C:\Program Files\Microsoft Visual Studio\2022' -Recurse -Filter vcvars64.bat | Select-Object -First 1 -ExpandProperty FullName

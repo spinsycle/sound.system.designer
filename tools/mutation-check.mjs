@@ -17,6 +17,7 @@ const ly = app('layout3d.ts');
 const br = app('brief.ts');
 const ol = app('ollama.ts');
 const pf = app('projectfile.ts');
+const un = app('units.ts');
 
 // [file, find (first occurrence), replace]
 const mutations = [
@@ -364,16 +365,12 @@ const mutations = [
   [ex, ".replace(/&/g, '&amp;')", ''],
   [ex, '.replace(/</g, \'&lt;\')', ''],
   [ex, '.replace(/"/g, \'&quot;\')', ''],
-  [ex, 'width="${L}mm" height="${W}mm"', 'width="${L}mm" height="${L}mm"'],
   [ex, 'x.placement.sheet === sheet', 'x.placement.sheet !== sheet'],
   [ex, 'r="${mm(h.r)}"', 'r="${mm(h.r) * 2}"'],
-  [ex, 'pair(70, 4)', 'pair(70, 1)'],
   [ex, "pair(1, 'AC1009')", "pair(1, 'AC1015')"],
-  [ex, 'const y0 = W - mm(py) - mm(h);', 'const y0 = W - mm(py);'],
   [ex, "rect('SHEET', 0, 0, L, W)", "rect('SHEET', 0, 0, W, L)"],
   [ex, 'pair(11, x2) + pair(21, y2)', 'pair(11, y2) + pair(21, x2)'],
   [ex, 'line(layer, x, y + h, x, y);', 'line(layer, x, y + h, x, y + 1);'],
-  [ex, 'pair(40, 20)', 'pair(40, 10)'],
   [ex, ".replace(/[\\r\\n]/g, ' ')", ''],
   [ly, "add('panel', [g.wO, g.hO, t], 0, 0, g.dO / 2 - t / 2)", "add('panel', [g.wO, g.hO, t], 0, 0, -g.dO / 2 + t / 2)"],
   [ly, 'g.hO / 2 - t / 2, 0); // top', 'g.hO / 2 + t / 2, 0); // top'],
@@ -450,6 +447,43 @@ const mutations = [
   [pf, 'FILE_VERSION = 1', 'FILE_VERSION = 2'],
   [pf, "FILE_KIND = 'sound-system-designer-project'", "FILE_KIND = 'project'"],
   [pf, 'sanitizeProject(f.project)', '(f.project as Project)'],
+  // inch units
+  [un, "MM_PER_IN = 25.4", "MM_PER_IN = 25"],
+  [un, "u === 'in' ? mm / MM_PER_IN : mm", "u === 'in' ? mm * MM_PER_IN : mm"],
+  [un, "u === 'in' ? v * MM_PER_IN : v", "u === 'in' ? v / MM_PER_IN : v"],
+  [un, "if (u === 'mm') return String(Math.round(mm));", "if (u === 'in') return String(Math.round(mm));"],
+  [un, '* 16);', '* 8);'],
+  [un, 'const whole = Math.floor(sixteenths / 16);', 'const whole = Math.round(sixteenths / 16);'],
+  [un, 'if (rest === 0) return String(whole);', 'if (rest === 1) return String(whole);'],
+  [un, 'while (n > 0 && n % 2 === 0) {', 'while (n > 0 && n % 2 === 1) {'],
+  [un, 'return whole === 0 ? `${n}/${d}` : `${whole} ${n}/${d}`;', 'return `${whole} ${n}/${d}`;'],
+  [un, 'Math.round(mm * 10) / 10', 'Math.round(mm)'],
+  [un, '(mm / MM_PER_IN) * 1000) / 1000', '(mm / MM_PER_IN) * 100) / 100'],
+  [un, "unit = m[1] === 'mm' ? 'mm' : 'in';", "unit = 'in';"],
+  [un, 'v = Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);', 'v = Number(mixed[1]) * Number(mixed[2]) / Number(mixed[3]);'],
+  [un, 'v = Number(frac[1]) / Number(frac[2]);', 'v = Number(frac[2]) / Number(frac[1]);'],
+  [un, '/^\\d*\\.?\\d+$/.test(t) || /^\\d+\\.$/.test(t)', '/^\\d*\\.?\\d+$/.test(t)'],
+  [un, 'return Number.isFinite(v) ? toMm(v, unit) : null;', 'return toMm(v, unit);'],
+  [un, "const [from, next] = to === 'in' ? [DEFAULT_SHOP_MM, DEFAULT_SHOP_IN] : [DEFAULT_SHOP_IN, DEFAULT_SHOP_MM];", "const [from, next] = to === 'in' ? [DEFAULT_SHOP_IN, DEFAULT_SHOP_MM] : [DEFAULT_SHOP_MM, DEFAULT_SHOP_IN];"],
+  [un, '(shop[k] === from[k] ? next[k] : shop[k])', '(shop[k] === from[k] ? next[k] : next[k])'],
+  [un, 'thicknessMm: 19.05, sheetLmm: 2438.4, sheetWmm: 1219.2, kerfMm: 3.175 };', 'thicknessMm: 19, sheetLmm: 2438.4, sheetWmm: 1219.2, kerfMm: 3.175 };'],
+  [un, "{ label: '5/8 in MDF', thicknessMm: 15.875 }", "{ label: '5/8 in MDF', thicknessMm: 16 }"],
+  [ex, "u === 'in' ? `${Math.round((sizeMm / MM_PER_IN) * 1e4) / 1e4}in` : `${sizeMm}mm`", "u === 'in' ? `${sizeMm}in` : `${sizeMm}mm`"],
+  [ex, "pair(70, u === 'in' ? 1 : 4)", 'pair(70, 4)'],
+  [ex, "const textHeight = u === 'in' ? 0.75 : 20;", 'const textHeight = 20;'],
+  [ex, "const inset = u === 'in' ? 0.375 : 10;", 'const inset = 10;'],
+  [ex, "u === 'in' ? Math.round(((m * 1000) / MM_PER_IN) * 1e4) / 1e4 : mm(m)", "u === 'in' ? mm(m) : mm(m)"],
+  [ex, 'const y0 = Math.round((W - out(py, u) - out(h, u)) * 1e4) / 1e4;', 'const y0 = W - out(py, u);'],
+  [ex, 'Math.round((p.shop.sheetLmm / MM_PER_IN) * 1e4) / 1e4', 'p.shop.sheetLmm'],
+  [bl, "const fl = (m: number, u: Units): string => `${formatLength(m * 1000, u)} ${u}`;", "const fl = (m: number, u: Units): string => `${formatLength(m * 1000, u)} mm`;"],
+  [bl, "(u === 'in' ? `${(m / 0.3048).toFixed(1)} ft` : `${m.toFixed(1)} m`)", "(u === 'in' ? `${m.toFixed(1)} ft` : `${m.toFixed(1)} m`)"],
+  [bl, 'bandBuild(b, bandName(p.nBands, k), p.shop, p.units)', "bandBuild(b, bandName(p.nBands, k), p.shop, 'mm')"],
+  [bl, '${formatLength(p.shop.sheetLmm, p.units)} x ${formatLength(p.shop.sheetWmm, p.units)} ${p.units}, ${fl(p.shop.thicknessMm / 1000, p.units)}', '${p.shop.sheetLmm} x ${p.shop.sheetWmm} mm, ${p.shop.thicknessMm} mm'],
+  [br, "const required = ['driver', 'type', 'volumeL', 'tuneHz', 'portDiameterCm', 'frontVolumeL'];", "const required = ['driver', 'type', 'volumeL', 'portDiameterCm', 'frontVolumeL'];"],
+  [br, "const required = ['driver', 'type', 'volumeL', 'tuneHz', 'portDiameterCm', 'frontVolumeL'];", "const required = ['driver', 'type', 'volumeL', 'tuneHz', 'frontVolumeL'];"],
+  [br, "const required = ['driver', 'type', 'volumeL', 'tuneHz', 'portDiameterCm', 'frontVolumeL'];", "const required = ['driver', 'type', 'volumeL', 'tuneHz', 'portDiameterCm'];"],
+  [br, 'ALWAYS include all three;', 'include all three;'],
+  [sys, "units: i.units === 'in' ? 'in' : 'mm',", "units: 'mm',"],
   // A3c amps and limits
   [sys, 'P.abs(x.raw(f).x) * P.abs(x.leg(f))', 'P.abs(x.raw(f).x)'],
   [sys, '[lowestHz, ...SYSTEM_FREQS.filter((f) => f > lowestHz)]', '[...SYSTEM_FREQS]'],
@@ -483,7 +517,17 @@ const mutations = [
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect
-const gate = () => spawnSync('npm run check', { cwd: root, shell: true, encoding: 'utf8' }).status;
+// A mutation can make code loop forever (a formula's loop guard broken): after 4 minutes the run is killed, including the
+// vitest workers it left behind, and the mutation counts as caught (a hang is a failure the check noticed).
+const gate = () => {
+  const r = spawnSync('npm run check', { cwd: root, shell: true, encoding: 'utf8', timeout: 240_000 });
+  if (r.error && r.error.code === 'ETIMEDOUT') {
+    spawnSync('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -match 'vitest' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"]);
+    process.stdout.write('T');
+    return 1;
+  }
+  return r.status;
+};
 
 if (gate() !== 0) {
   console.error('baseline gate fails: fix that first');

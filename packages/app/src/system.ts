@@ -4,6 +4,7 @@
 // polarity, solo and mute, summed as complex pressure in dB SPL. Pure functions; the page draws what computeSystem
 // returns. Spec: "Crossover network and band mixer" and "Absolute level, driver groups and limits".
 import * as P from '@soundsystemdesigner/physics';
+import { type Units } from './units';
 import { type BuildOpts, DEFAULT_BUILD, DEFAULT_SHOP, type Shop, sanitizeBuild, sanitizeShop } from './build';
 import { DEFAULT_DESIGN, type Design, type HornDesign, type Range, driverOf, rawEvaluator, sanitize } from './model';
 
@@ -45,6 +46,8 @@ export interface Project {
   shop: Shop;
   /** Used in exported file names. */
   name: string;
+  /** Lengths on the Build page and in exported files. */
+  units: Units;
   /** Band whose box is open in the designer. */
   selected: number;
   view: 'system' | 'box' | 'build';
@@ -122,6 +125,7 @@ export const DEFAULT_PROJECT: Project = {
   distanceM: 1,
   shop: DEFAULT_SHOP,
   name: 'sound-system',
+  units: 'mm',
   selected: 0,
   view: 'system',
 };
@@ -210,6 +214,7 @@ export function sanitizeProject(input: unknown): Project {
     distanceM: num(i.distanceM, DISTANCE_RANGE, d.distanceM),
     shop: sanitizeShop(i.shop),
     name: typeof i.name === 'string' ? i.name.slice(0, 60) : d.name,
+    units: i.units === 'in' ? 'in' : 'mm',
     selected: typeof i.selected === 'number' && Number.isInteger(i.selected) ? P.clamp(i.selected, 0, nBands - 1) : 0,
     view: i.view === 'box' || i.view === 'build' ? i.view : 'system',
   };

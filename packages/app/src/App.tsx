@@ -46,7 +46,7 @@ export function App() {
   const set = (patch: Partial<Project>): void => setProject((p) => sanitizeProject({ ...p, ...patch }));
   const loadSystem = (p: Project): void => {
     setUndo(project);
-    setProject(sanitizeProject({ ...p, name: project.name, shop: project.shop }));
+    setProject(sanitizeProject({ ...p, name: project.name, shop: project.shop, units: project.units }));
   };
   const loadBox = (design: Design): void => {
     setUndo(project);

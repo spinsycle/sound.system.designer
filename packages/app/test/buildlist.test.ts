@@ -251,3 +251,52 @@ describe('hole positions', () => {
     expect((a!.cy - a!.r + (b!.cy + b!.r)) / 2).toBeCloseTo(two.geometry.hO / 2, 12);
   });
 });
+
+describe('inch units', () => {
+  const inch = (more: Partial<S.Project> = {}): S.Project => ({ ...project([band(sealed(100))]), units: 'in', shop: { thicknessMm: 19.05, sheetLmm: 2438.4, sheetWmm: 1219.2, kerfMm: 3.175 }, ...more });
+
+  it('the project remembers its unit, and only mm or in', () => {
+    expect(S.DEFAULT_PROJECT.units).toBe('mm');
+    expect(S.sanitizeProject({ units: 'in' }).units).toBe('in');
+    expect(S.sanitizeProject({ units: 'cubits' }).units).toBe('mm');
+    expect(S.sanitizeProject({ units: 5 }).units).toBe('mm');
+    expect(S.sanitizeProject(inch())).toEqual(inch());
+  });
+
+  it('the bill of materials names the sheet and the port tube in inches', () => {
+    const p = inch({ bands: [band(design({ type: 'ported', volumeL: 100, tuneHz: 40, portDiameterCm: 10 })), ...S.DEFAULT_PROJECT.bands.slice(1)].map((b) => b) });
+    const v = L.computeBuild({ ...p, nBands: 1 });
+    expect(v.bom.find((b) => b.unit === 'sheets')!.item).toBe('Sheet 96 x 48 in, 3/4 in');
+    const tube = v.bom.find((b) => b.item.startsWith('Round port tube'))!.item;
+    expect(tube).toContain(' in inside');
+    expect(tube).toContain('3 15/16 in inside');
+    expect(tube).not.toContain('mm');
+    const screws = v.bom.find((b) => b.item === 'Wood screws')!.note;
+    expect(screws).toContain('one per 5 7/8 in of joint');
+    expect(screws).toContain(' ft)');
+    expect(v.bom.find((b) => b.item === 'Wood glue')!.note).toBe('one per 32.8 ft of joint');
+    expect(v.notes.join(' ')).toContain('a window brace as a 1 15/16 in frame');
+  });
+
+  it('the same project in millimetres reads as before', () => {
+    const p = { ...inch(), units: 'mm' as const, shop: B.DEFAULT_SHOP };
+    const v = L.computeBuild(p);
+    expect(v.bom.find((b) => b.unit === 'sheets')!.item).toBe('Sheet 2440 x 1220 mm, 18 mm');
+    expect(v.bom.find((b) => b.item === 'Wood screws')!.note).toContain('one per 150 mm of joint');
+    expect(v.bom.find((b) => b.item === 'Wood glue')!.note).toBe('one per 10.0 m of joint');
+  });
+
+  it('warnings quote sizes in inches', () => {
+    const wide = L.computeBuild({ ...project([band(design({ driverClass: 3, type: 'sealed', volumeL: 30 }), { build: { rw: 0.2, rh: 5, rd: 5, brace: 'none' } })]), units: 'in' });
+    expect(wide.warnings.some((w) => / in hole does not fit the .* x .* in baffle/.test(w))).toBe(true);
+    expect(wide.warnings.join(' ')).not.toContain(' mm');
+    const small = L.computeBuild({ ...inch(), shop: { ...inch().shop, sheetLmm: 508, sheetWmm: 508 } });
+    expect(small.warnings.some((w) => w.includes('is larger than a 20 x 20 in sheet'))).toBe(true);
+  });
+
+  it('the cut list keeps millimetres inside: the unit only changes how it is shown', () => {
+    const a = L.computeBuild(project([band(sealed(100))]));
+    const b = L.computeBuild({ ...project([band(sealed(100))]), units: 'in' });
+    expect(b.cutList).toEqual(a.cutList);
+  });
+});
