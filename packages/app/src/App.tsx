@@ -3,7 +3,10 @@
 // The shell: owns the project, stores it in the browser, and shows either the system or one band's box.
 import { useEffect, useState } from 'react';
 import { BoxDesigner } from './BoxDesigner';
+import { APP_NAME, APP_VERSION, LICENCE, SOURCE_URL } from './about';
 import { BriefPanel } from './BriefPanel';
+import { openText, saveText } from './desktop';
+import { FILE_EXTENSION, parseProjectFile, serializeProject, suggestedName } from './projectfile';
 import { BuildView } from './BuildView';
 import { SystemView } from './SystemView';
 import { type Design, sanitize } from './model';
@@ -29,6 +32,8 @@ export function App() {
   const [project, setProject] = useState<Project>(load);
   /** The project before the last brief variant was loaded. */
   const [undo, setUndo] = useState<Project | null>(null);
+  /** The last thing Save or Open project did, in plain words. */
+  const [fileMsg, setFileMsg] = useState('');
 
   useEffect(() => {
     try {
@@ -46,6 +51,19 @@ export function App() {
   const loadBox = (design: Design): void => {
     setUndo(project);
     setProject(sanitizeProject({ ...project, bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) }));
+  };
+  const saveProject = (): void => {
+    void saveText(suggestedName(project), serializeProject(project), 'application/json').then((r) => setFileMsg(r.ok ? `Saved ${r.where}` : r.cancelled ? '' : r.error));
+  };
+  const openProject = (): void => {
+    void openText(['json']).then((r) => {
+      if (!r.ok) return setFileMsg(r.cancelled ? '' : r.error);
+      const o = parseProjectFile(r.text);
+      if (!o.ok || !o.project) return setFileMsg(o.error);
+      setUndo(project);
+      setProject(o.project);
+      setFileMsg(`Opened ${r.name}. "Undo last load" brings back what you had.`);
+    });
   };
   const box = project.view === 'box';
   const build = project.view === 'build';
@@ -68,6 +86,19 @@ export function App() {
             Build
           </button>
         </nav>
+        <div className="actions">
+          <button type="button" onClick={saveProject}>
+            Save project
+          </button>
+          <button type="button" onClick={openProject}>
+            Open project
+          </button>
+          {fileMsg && (
+            <span className="hint" role="status">
+              {fileMsg}
+            </span>
+          )}
+        </div>
       </header>
 
       {!build && <BriefPanel key={box ? 'box' : 'system'} mode={box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
@@ -79,6 +110,17 @@ export function App() {
       ) : (
         <SystemView project={project} onChange={setProject} />
       )}
+      <footer className="about">
+        <details>
+          <summary>
+            About {APP_NAME} {APP_VERSION}
+          </summary>
+          <p>
+            Version {APP_VERSION}. Free software under the {LICENCE}: you may use, change and share it under that licence, and the source is at {SOURCE_URL} (the repository is private until its author makes it public).
+          </p>
+          <p>Generic parts only: the driver classes are invented values, not products, and no brand, driver-model or named sound-system claims are made. Levels and limits are small-signal calculations, not measurements: check anything you build against real drivers and a real amplifier. Project files end in {FILE_EXTENSION}.</p>
+        </details>
+      </footer>
     </div>
   );
 }

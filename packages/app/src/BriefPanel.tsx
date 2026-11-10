@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { type BoxMetrics, type BriefMode, FLAVOURS, type Metrics, boxMetricsOf, metricsOf } from './brief';
 import type { Design } from './model';
+import { appFetch } from './desktop';
 import { type Config, DEFAULT_MODEL, DEFAULT_URL, OllamaError, designVariant, listModels, localOnly } from './ollama';
 import type { Project } from './system';
 import type { SystemAnswer } from './brief';
@@ -63,7 +64,7 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
       return;
     }
     try {
-      const names = await listModels(url);
+      const names = await listModels(url, await appFetch());
       if (mine !== checks.current) return;
       setModels(names);
       setInfo(names.length > 0 ? `Ollama is running at ${new URL(url).origin}: ${names.length} ${names.length === 1 ? 'model' : 'models'} available.` : '');
@@ -98,7 +99,7 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
       for (let i = 0; i < FLAVOURS.length; i++) {
         const f = FLAVOURS[i]!;
         put(i, { flavour: f.id, label: f.label, state: 'running' });
-        const r = await designVariant(mode, brief, f, cfg, fetch, ctl.signal);
+        const r = await designVariant(mode, brief, f, cfg, await appFetch(), ctl.signal);
         if (!r.ok) {
           put(i, { flavour: f.id, label: f.label, state: 'failed', errors: r.errors, attempts: r.attempts });
           continue;

@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
 import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
 import { type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
+import { saveText } from './desktop';
 import { baffleSvg, sheetDxf, sheetSvg, slug } from './export';
 import { layout3d } from './layout3d';
 import { Scene3D } from './Scene3D';
@@ -64,19 +65,14 @@ function Sheet({ v, sheet, p }: { v: Build; sheet: number; p: Project }) {
   );
 }
 
-/** Hands a string to the browser as a file. */
-function download(name: string, text: string, mime: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: mime }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 export function BuildView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
   const v = useMemo(() => computeBuild(project), [project]);
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState('');
+  /** Save a file, and say where it went (or why not). */
+  const download = (name: string, text: string, mime: string): void => {
+    void saveText(name, text, mime).then((r) => setSaved(r.ok ? `Saved ${r.where}` : r.cancelled ? '' : r.error));
+  };
   const [explode, setExplode] = useState(0);
   const [transparent, setTransparent] = useState(false);
   const layout = useMemo(() => layout3d(v, project), [v, project]);
@@ -177,11 +173,15 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             <button type="button" onClick={copy}>
               Copy cut list and parts as CSV
             </button>
+            <button type="button" onClick={() => download(`${base}-cut-list.csv`, csv(v), 'text/csv')}>
+              Save as CSV file
+            </button>
             <button type="button" onClick={() => window.print()}>
               Export PDF (print)
             </button>
             {copied && <span className="hint"> Copied.</span>}
           </div>
+          {saved && <p className="hint" role="status">{saved}</p>}
         </section>
 
         <section className="no-print">

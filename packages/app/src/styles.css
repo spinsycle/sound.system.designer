@@ -695,3 +695,19 @@ button:disabled {
     display: none !important;
   }
 }
+
+.about {
+  margin-top: 24px;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.about summary {
+  cursor: pointer;
+}
+
+@media print {
+  .about {
+    display: none !important;
+  }
+}

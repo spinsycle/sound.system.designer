@@ -1,66 +1,89 @@
 # Sound System Designer
 
-A desktop app (Windows first) that designs loudspeaker enclosures and whole sound systems from driver specs: sealed,
-ported, band-pass and horn-loaded boxes, and 2-way to 4-way systems with crossovers. Work in progress: so far this
-repository holds the physics library (milestone A0), a direct-radiator box designer that runs in the browser (A1:
-driver entry, sealed/ported/band-pass, response, excursion, impedance and group-delay plots) and a horn designer (A2:
-front-loaded horns and rear-loaded scoops; exponential, hyperbolic, tractrix and conical flares; a one-dimensional
-horn simulation; a profile drawing and a panel table for horns built from straight panels) and a system view (A3,
-up to four bands behind Linkwitz-Riley crossovers, trim, delay and polarity per band, drivers and wiring, an amp
-per band with load, power and excursion limits and a max-level table, the summed response in dB SPL, generic
-starting points) and a Build page (A4: wall material and sheet size, box shape and bracing per band, a cut list, baffle drawings, sheet layouts and a bill of materials, metric). A 3D preview, SVG and DXF export of the sheet layouts and baffles, and a print layout for PDF follow (A5). A Brief panel (A6) lets a local Ollama model propose three variants of a whole system or one box from a plain-language brief; the model only fills a strictly validated schema and the calculators judge the result. The desktop shell comes next.
+Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
+Version 1.0.0.
 
-The horn simulation is one-dimensional (plane waves) and lossless. It shows cutoff, mouth-reflection ripple and how
-the horn loads the driver. Its response is radiated power: it does not know about directivity or bends.
+- **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
+  exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
+- **Systems:** up to four bands behind Linkwitz-Riley crossovers; trim, delay and polarity per band; drivers and wiring; an
+  amplifier per band with load, power and excursion limits and a max-level table; the summed response in dB SPL; eight
+  generic starting points.
+- **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
+  materials (metric), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
+- **Brief:** describe a system or a box in words and a local [Ollama](https://ollama.com) model proposes three variants.
+  The model only picks parts and sizes into a strictly checked schema; the same calculators as everywhere else judge the
+  result. Everything stays on your computer: only an Ollama server on `localhost` is ever contacted.
+- **Projects:** Save project and Open project write and read a `.ssd.json` file; the app also remembers your last
+  project on its own.
 
-Sibling of the [Sound System](https://github.com/spinsycle/soundsystem) VST3 plugin. The two are independent products
-that implement one shared physics spec and assert the same test vectors.
+Generic parts only: the driver classes are invented values, not products, and no brand, driver-model or named
+sound-system claims are made. Levels and limits are small-signal calculations, not measurements: check anything you
+build against real drivers and a real amplifier.
 
-Generic parts only: the driver classes are invented values, not products. No brand, driver-model or named
-sound-system claims.
+## Install
 
-## Layout
+Run `Sound System Designer_1.0.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
+the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 
-```
-packages/physics/     pure TypeScript, no UI, no runtime dependencies
-  src/                drivers, sealed, ported, bandpass, horn (lumped bin), hornsim (flares and the horn
-                      simulation), power, crossover, box, impedance, system, room
-  test/               vectors.test.ts       the shared spec vectors (test-vectors.json)
-                      parity.test.ts        numbers computed by the plugin's own C++ (parity.jsonl)
-                      closed-forms.test.ts  what neither of those reaches
-packages/app/         the designer: Vite + React, plots as plain SVG
-  src/model.ts        one box or horn design and everything derived from it (pure, tested against the shared vectors)
-  src/system.ts       the whole system: bands, crossovers, levels, starting points (pure, tested the same way)
-  src/Chart.tsx       one log-frequency SVG chart
-  src/BoxDesigner.tsx, src/SystemView.tsx, src/App.tsx   the pages and the shell that stores the project
-tools/
-  sync-vectors.mjs    copies test-vectors.json from the spec folder
-  parity_dump.cpp     evaluates the plugin's headers; parity-dump.ps1 builds and runs it
-  mutation-check.mjs  breaks each formula in turn and requires the gate to fail
-```
+To use the Brief panel, install Ollama and pull a model once: `ollama pull llama3.1:8b`.
 
-## Commands
+## Use
+
+1. **System** page: pick a starting point or build your own bands; each band's box opens on its own page.
+2. **Build** page: choose wall material, sheet size, box proportions and bracing; read the cut list; save SVG, DXF or CSV
+   files, or print to PDF.
+3. **Brief** (top of the System and box pages): type what you need, press Design 3 variants, compare the table, Load one.
+   Undo last load brings your previous design back.
+
+## Known limits
+
+- The horn simulation is one-dimensional and lossless, half space only: no bends, directivity or losses. The response is
+  radiated power.
+- Systems use active crossovers, identical drivers per band summed as one source (optimistic for wide arrays), and
+  small-signal limits (no power compression or limiter).
+- Cut lists use butt joints and rectangular boxes; horn side panels are cut as bounding rectangles; hole sizes and the
+  driver's displacement are estimates.
+- The sheet layout is a simple heuristic, not an optimal nesting.
+- The Brief model is not deterministic and sometimes gives a poor or refused design; the warnings column is the
+  calculators judging it.
+- Windows only for now; metric only.
+
+## Develop
 
 ```
 npm install
 npm run dev         the designer in a browser, with live reload
 npm run gate        type check + tests + production build
-npm run mutation    mutation check (over ten minutes for the full list; do not run while `npm run dev` is open)
-                    npm run mutation -- hornsim model   only the mutations in files whose path contains a word
+npm run mutation    breaks each formula in turn and requires the gate to fail (over ten minutes for the full list;
+                    npm run mutation -- cabinet brief   only the files whose path contains a word; not while `npm run dev` is open)
 npm run sync-vectors
+npx tauri build     the Windows installer (needs Rust, stable MSVC); output in src-tauri/target/release/bundle/nsis/
 ```
 
-## Conventions
+Layout:
 
-- SI units inside the library (c = 343 m/s, rho = 1.18 kg/m3). User-facing units (litres, cm2, mm) appear only in
-  `BoxParams` and `CustomDriverFields`, named with their unit.
-- Everything is evaluated in the frequency domain. Functions that take an optional `sampleRate` give the ideal
-  analog curve without it and follow the plugin's digital filters with it.
-- Models are lossless Thiele-Small (no box or port losses). The horn is a lumped bin: cutoff, damping and
-  sensitivity, no mouth reflections.
-- `test-vectors.json` and `parity.jsonl` are generated. Never hand-edit them. A formula change starts in the spec's
-  `reference_vectors.py`.
+```
+packages/physics/   pure TypeScript, no UI: drivers, sealed, ported, bandpass, horn, hornsim, power, crossover, box,
+                    impedance, system, room, level, cabinet; tests assert the shared physics vectors and the plugin's numbers
+packages/app/       the designer: Vite + React, plots as plain SVG, three.js for the 3D view
+  src/model.ts, system.ts      one design and the whole system (pure)
+  src/build.ts, buildlist.ts   cut list, sheets, bill of materials (pure); export.ts, layout3d.ts (pure)
+  src/brief.ts, ollama.ts      the Ollama brief: schema, strict validators, prompt, client and runner
+  src/projectfile.ts           the project file; desktop.ts is the only place that knows about the desktop shell
+src-tauri/          the Tauri v2 shell: window, native Save and Open, and an HTTP client for Ollama
+tools/              sync-vectors, parity dump (builds the plugin's C++ headers), mutation-check
+```
+
+Conventions: SI units inside the libraries; everything is evaluated in the frequency domain; `test-vectors.json` and
+`parity.jsonl` are generated and never hand-edited (a formula change starts in the shared spec's `reference_vectors.py`).
+A real-model prompt check: `OLLAMA_EVAL=1 npx vitest run brief-eval`.
+
+Sibling of the [Sound System](https://github.com/spinsycle/soundsystem) VST3 plugin: two independent products that
+implement one shared physics spec and assert the same test vectors.
 
 ## Licence
 
-AGPL-3.0-only. See `LICENSE`.
+GNU Affero General Public License, version 3 only (`LICENSE`). Third-party components are listed in
+`THIRD-PARTY-NOTICES.md`. If you run a modified version as a network service, the AGPL requires you to offer its source;
+the source of this version is this repository (currently private).

@@ -55,7 +55,8 @@ async function call(url: string, init: RequestInit | undefined, fetchFn: FetchFn
     res = await fetchFn(url, init);
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e;
-    throw new OllamaError(`Ollama is not reachable at ${new URL(url).origin}. Start it (the Ollama app, or "ollama serve") and try again.`);
+    const why = e instanceof Error && e.message ? ` (${e.message})` : typeof e === 'string' && e ? ` (${e})` : '';
+    throw new OllamaError(`Ollama is not reachable at ${new URL(url).origin}${why}. Start it (the Ollama app, or "ollama serve") and try again.`);
   }
   if (!res.ok) {
     let detail = '';

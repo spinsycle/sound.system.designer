@@ -16,6 +16,7 @@ const ex = app('export.ts');
 const ly = app('layout3d.ts');
 const br = app('brief.ts');
 const ol = app('ollama.ts');
+const pf = app('projectfile.ts');
 
 // [file, find (first occurrence), replace]
 const mutations = [
@@ -433,6 +434,22 @@ const mutations = [
   [ol, "mode === 'system' ? validateSystem(raw) : validateDesign(raw, '$', true)", "mode === 'system' ? validateDesign(raw, '$', true) : validateSystem(raw)"],
   [ol, "{ role: 'assistant', content: reply }", "{ role: 'user', content: reply }"],
   [ol, "typeof content !== 'string'", "typeof content === 'number'"],
+  // A7 project file
+  [pf, 'text.length > MAX_FILE_BYTES', 'text.length > MAX_FILE_BYTES * 2'],
+  [pf, "|| raw === null || Array.isArray(raw)) return fail('That file is not a project file.')", "|| raw === null) return fail('That file is not a project file.')"],
+  [pf, 'f.kind !== FILE_KIND', 'f.kind === FILE_KIND'],
+  [pf, '!Number.isInteger(f.version) || f.version < 1', '!Number.isInteger(f.version)'],
+  [pf, 'f.version > FILE_VERSION', 'f.version >= FILE_VERSION'],
+  [pf, "typeof f.version !== 'number' ||", 'false ||'],
+  [pf, 'f.project === null || Array.isArray(f.project)', 'f.project === null'],
+  [pf, "view: 'system', selected: 0", "view: 'box', selected: 0"],
+  [pf, "view: 'system', selected: 0", "view: 'system', selected: 1"],
+  [pf, 'null, 2) + \'\\n\'', 'null, 2)'],
+  [pf, "FILE_EXTENSION = '.ssd.json'", "FILE_EXTENSION = '.json'"],
+  [pf, '`${slug(p.name)}${FILE_EXTENSION}`', '`${p.name}${FILE_EXTENSION}`'],
+  [pf, 'FILE_VERSION = 1', 'FILE_VERSION = 2'],
+  [pf, "FILE_KIND = 'sound-system-designer-project'", "FILE_KIND = 'project'"],
+  [pf, 'sanitizeProject(f.project)', '(f.project as Project)'],
   // A3c amps and limits
   [sys, 'P.abs(x.raw(f).x) * P.abs(x.leg(f))', 'P.abs(x.raw(f).x)'],
   [sys, '[lowestHz, ...SYSTEM_FREQS.filter((f) => f > lowestHz)]', '[...SYSTEM_FREQS]'],

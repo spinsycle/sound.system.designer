@@ -3,3 +3,5 @@ build/
 dist/
 *.obj
 *.exe
+src-tauri/target/
+src-tauri/gen/

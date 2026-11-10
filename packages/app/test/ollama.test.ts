@@ -136,6 +136,18 @@ describe('connection', () => {
     await expect(O.designVariant('box', 'x', B.FLAVOURS[0], cfg, script(new TypeError('fetch failed')).fn)).rejects.toThrow('not reachable');
   });
 
+  it('the reason the request failed is shown, so a blocked or refused connection can be told apart', async () => {
+    await expect(O.listModels(cfg.baseUrl, script(new TypeError('fetch failed')).fn)).rejects.toThrow('(fetch failed)');
+    const f: O.FetchFn = async () => {
+      throw 'url not allowed on the scope';
+    };
+    await expect(O.listModels(cfg.baseUrl, f)).rejects.toThrow('(url not allowed on the scope)');
+    const g: O.FetchFn = async () => {
+      throw 42;
+    };
+    await expect(O.listModels(cfg.baseUrl, g)).rejects.toThrow(/at http:\/\/localhost:11434\. Start it/);
+  });
+
   it('an error status is reported with the server message', async () => {
     const r = new Response(JSON.stringify({ error: 'model "x" not found' }), { status: 404 });
     await expect(O.chatJson(cfg, [], {}, script(r).fn)).rejects.toThrow('Ollama answered 404: model "x" not found.');
