@@ -89,8 +89,10 @@ export function App() {
   const d = c.driver;
   // the driver in datasheet units, in the Custom fields' order
   const sheet: P.CustomDriverFields = { fsHz: d.fs, qts: c.derived.qts, qms: d.qms, vasL: d.vasM3 * 1000, sdCm2: d.sd * 1e4, reOhm: d.re, xmaxMm: d.xmax * 1000, powerW: d.pe };
+  // a rear-loaded horn (scoop) has no sealed rear chamber: the chamber behind the cone is the one that feeds the throat
+  const isRear = isHorn && design.horn.loading === 'rear';
   const customKeys = Object.keys(CUSTOM_RANGES) as (keyof P.CustomDriverFields)[];
-  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz', 'portDiameterCm'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz', 'portDiameterCm'], horn: ['volumeL'] }[design.type] as BoxField[];
+  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz', 'portDiameterCm'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz', 'portDiameterCm'], horn: isRear ? [] : ['volumeL'] }[design.type] as BoxField[];
   const volumeLabel = { sealed: 'Volume', ported: 'Volume', bandpass: 'Rear volume', horn: 'Rear chamber' }[design.type];
   const hornFields: HornField[] = [...(flare === 'conical' ? [] : (['cutoffHz'] as HornField[])), ...(flare === 'hyperbolic' ? (['t'] as HornField[]) : []), 'throatCm2', 'mouthCm2', ...(flare === 'conical' ? (['lengthM'] as HornField[]) : []), 'throatChamberL'];
 
@@ -202,6 +204,13 @@ export function App() {
                   </button>
                 ))}
               </div>
+              <div className="segmented" role="radiogroup" aria-label="Horn loading">
+                {(['front', 'rear'] as const).map((k) => (
+                  <button key={k} type="button" role="radio" aria-checked={design.horn.loading === k} className={design.horn.loading === k ? 'on' : ''} onClick={() => setHorn({ loading: k })}>
+                    {k === 'front' ? 'Front-loaded' : 'Rear-loaded (scoop)'}
+                  </button>
+                ))}
+              </div>
               <div className="field">
                 <label htmlFor="flare">Flare</label>
                 <select id="flare" value={flare} onChange={(e) => setHorn({ flare: e.target.value as P.FlareKind })}>
@@ -213,7 +222,7 @@ export function App() {
                 </select>
               </div>
               {hornFields.map((k) => (
-                <Field key={k} slider range={HORN_RANGES[k]} value={design.horn[k]} onChange={(v) => setHorn({ [k]: v })} />
+                <Field key={k} slider range={k === 'throatChamberL' && isRear ? { ...HORN_RANGES[k], label: 'Chamber behind cone' } : HORN_RANGES[k]} value={design.horn[k]} onChange={(v) => setHorn({ [k]: v })} />
               ))}
               {flare !== 'conical' && (
                 <button type="button" onClick={() => setHorn({ mouthCm2: Math.ceil(P.hornMinMouthArea(design.horn.cutoffHz) * 1e4) })}>

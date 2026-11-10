@@ -23,6 +23,11 @@ export const FLARES: readonly { id: P.FlareKind; label: string }[] = [
 export const CUSTOM_CLASS = P.DRIVER_CLASSES.length;
 
 export interface HornDesign {
+  /**
+   * Front-loaded: the cone fires into the horn and has a sealed chamber behind it. Rear-loaded (scoop): the cone's
+   * front radiates directly and its rear drives the horn through the chamber behind it.
+   */
+  loading: 'front' | 'rear';
   flare: P.FlareKind;
   cutoffHz: number;
   /** Hyperbolic family parameter (1 = exponential, 0 = catenoidal). */
@@ -112,12 +117,13 @@ export const DEFAULT_DESIGN: Design = {
   portDiameterCm: 10,
   powerW: 100,
   plotRange: 'low',
-  horn: { flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '' },
+  horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '' },
 };
 
 /** Generic starting points. Invented values, not any product. */
 export const HORN_PRESETS: readonly { label: string; patch: Partial<Design> }[] = [
   { label: 'Bass horn', patch: { driverClass: 3, volumeL: 60, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn } } },
+  { label: 'Scoop', patch: { driverClass: 3, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn, loading: 'rear', throatCm2: 600, mouthCm2: 6000, throatChamberL: 40 } } },
   {
     label: 'Mid horn',
     patch: { driverClass: 5, volumeL: 6, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn, flare: 'hyperbolic', cutoffHz: 200, t: 0.7, throatCm2: 120, mouthCm2: 1500, throatChamberL: 0.3, widthCm: 30 } },
@@ -143,6 +149,7 @@ export function sanitize(input: unknown): Design {
   const horn: HornDesign = {
     ...d.horn,
     flare: FLARES.some((f) => f.id === h.flare) ? (h.flare as P.FlareKind) : d.horn.flare,
+    loading: h.loading === 'rear' ? 'rear' : 'front',
     panelsCm: typeof h.panelsCm === 'string' ? h.panelsCm.slice(0, 200) : d.horn.panelsCm,
   };
   for (const k of Object.keys(HORN_RANGES) as HornField[]) horn[k] = num(h[k], HORN_RANGES[k], d.horn[k]);
@@ -228,7 +235,7 @@ function toPoint(raw: (f: number) => Raw, d: Design, f: number): Point {
 }
 
 function hornRaw(d: Design, joints: readonly P.Joint[]): (f: number) => Raw {
-  const sys: P.HornSystem = { driver: driverOf(d), joints, throatChamberM3: d.horn.throatChamberL / 1000, rearVolumeM3: d.volumeL / 1000 };
+  const sys: P.HornSystem = { driver: driverOf(d), joints, throatChamberM3: d.horn.throatChamberL / 1000, rearVolumeM3: d.volumeL / 1000, rearLoaded: d.horn.loading === 'rear' };
   return (f) => P.hornSystem(sys, f);
 }
 
@@ -343,9 +350,14 @@ export function compute(d: Design): Computed {
       const ideal = sim(g.ideal);
       for (const k of KEYS) overlays[k] = [{ label: 'ideal flare', values: ideal[k] }];
     }
-    // the plugin's lumped horn bin for the same driver and geometry: no mouth reflections, same power normalisation
-    const bin = P.hornModel(driver, derived, vb, g.flare.throatM2, g.flare.mouthM2, g.lengthM);
-    overlays.responseDb = [...(overlays.responseDb ?? []), { label: 'plugin bin', values: freqs.map((f) => P.dB(P.abs(P.hornG(f, bin)))) }];
+    const rear = d.horn.loading === 'rear';
+    if (rear) {
+      notes.push('Rear-loaded: the cone and the mouth are added as if they sat in the same place. The distance between them in a real cabinet is not modelled.');
+    } else {
+      // the plugin's lumped horn bin (a front-loaded model) for the same driver and geometry: no mouth reflections, same power normalisation
+      const bin = P.hornModel(driver, derived, vb, g.flare.throatM2, g.flare.mouthM2, g.lengthM);
+      overlays.responseDb = [...(overlays.responseDb ?? []), { label: 'plugin bin', values: freqs.map((f) => P.dB(P.abs(P.hornG(f, bin)))) }];
+    }
 
     const stations = g.built ?? P.hornJoints(g.flare, 8);
     horn = { lengthM: g.lengthM, ideal: g.ideal, built: g.built, table: stations.map((j) => ({ xCm: j.x * 100, areaCm2: j.area * 1e4, heightCm: (j.area * 1e4) / d.horn.widthCm })) };

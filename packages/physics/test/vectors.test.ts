@@ -213,9 +213,11 @@ describe('shared vectors', () => {
       expectVec(id, 'zt_re', zt.re);
       expectVec(id, 'zt_im', zt.im);
     }
-    for (const id of ids('hornsim_front_')) {
+    for (const id of [...ids('hornsim_front_'), ...ids('hornsim_rear_')]) {
       const v = vec(id).inputs;
-      const r = P.hornSystem({ driver: spec, joints: P.hornJoints(flare(v), v.n!), throatChamberM3: v.vtc_m3!, rearVolumeM3: v.vr_m3! }, v.f!);
+      // the rear-loaded vectors carry no rear volume: there is no sealed chamber, and the library must not read one
+      const rearLoaded = id.startsWith('hornsim_rear_');
+      const r = P.hornSystem({ driver: spec, joints: P.hornJoints(flare(v), v.n!), throatChamberM3: v.vtc_m3!, rearVolumeM3: rearLoaded ? Number.NaN : v.vr_m3!, rearLoaded }, v.f!);
       expectVec(id, 'g_re', r.g.re);
       expectVec(id, 'g_im', r.g.im);
       expectVec(id, 'x_per_v', P.abs(r.x));

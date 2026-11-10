@@ -79,6 +79,30 @@ describe('horn designer', () => {
     }
   });
 
+  it('rear-loaded (scoop): plotted values equal the shared vectors; no plugin-bin overlay; a note on what is left out', () => {
+    const r0 = vec('hornsim_rear_40hz').inputs;
+    // a rear volume that would wreck the numbers if the scoop read it: it has no sealed chamber
+    const scoop: M.Design = {
+      ...base,
+      type: 'horn',
+      volumeL: 0.1,
+      horn: { ...M.DEFAULT_DESIGN.horn, loading: 'rear', flare: 'exponential', cutoffHz: r0.fc!, throatCm2: r0.st_m2! * 1e4, mouthCm2: r0.sm_m2! * 1e4, throatChamberL: r0.vtc_m3! * 1000 },
+    };
+    for (const id of ['hornsim_rear_20hz', 'hornsim_rear_40hz', 'hornsim_rear_80hz', 'hornsim_rear_200hz']) {
+      const v = vec(id);
+      const p = M.evaluateAt(scoop, v.inputs.f!);
+      near(p.responseDb, 20 * Math.log10(Math.hypot(v.outputs.g_re!, v.outputs.g_im!)));
+      near(p.excursionMm, v.outputs.x_per_v! * 1000);
+      near(p.impedanceOhm, v.outputs.z_ohm!);
+    }
+    const c = M.compute(scoop);
+    expect(c.overlays.responseDb).toBeUndefined();
+    expect(c.notes.some((n) => n.includes('Rear-loaded'))).toBe(true);
+    expect(M.compute(horn).notes.some((n) => n.includes('Rear-loaded'))).toBe(false);
+    expect(M.sanitize({ horn: { loading: 'rear' } }).horn.loading).toBe('rear');
+    expect(M.sanitize({ horn: { loading: 'sideways' } }).horn.loading).toBe('front');
+  });
+
   it('readouts: length, mouth size against the cutoff, volume, compression ratio', () => {
     const c = M.compute(horn);
     const get = (label: string): string => c.readouts.find((r) => r.label === label)!.value;

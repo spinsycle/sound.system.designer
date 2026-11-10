@@ -1888,6 +1888,94 @@
       "tol": {
         "rel": 1e-09
       }
+    },
+    {
+      "id": "hornsim_rear_20hz",
+      "desc": "Rear-loaded horn (scoop), reference driver, 40 L chamber behind the cone, exponential horn, at 20.0 Hz",
+      "inputs": {
+        "f": 20.0,
+        "vtc_m3": 0.04,
+        "flare": 0,
+        "st_m2": 0.05,
+        "sm_m2": 0.5,
+        "n": 100,
+        "fc": 40.0
+      },
+      "outputs": {
+        "g_re": 0.002722482346306498,
+        "g_im": -0.05394391681755864,
+        "x_per_v": 0.00041559888511740834,
+        "z_ohm": 61.55630779046451
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_rear_40hz",
+      "desc": "Rear-loaded horn (scoop), reference driver, 40 L chamber behind the cone, exponential horn, at 40.0 Hz",
+      "inputs": {
+        "f": 40.0,
+        "vtc_m3": 0.04,
+        "flare": 0,
+        "st_m2": 0.05,
+        "sm_m2": 0.5,
+        "n": 100,
+        "fc": 40.0
+      },
+      "outputs": {
+        "g_re": -0.4136620268168302,
+        "g_im": -0.3615587968280453,
+        "x_per_v": 0.00014263617993039875,
+        "z_ohm": 7.005248448824171
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_rear_80hz",
+      "desc": "Rear-loaded horn (scoop), reference driver, 40 L chamber behind the cone, exponential horn, at 80.0 Hz",
+      "inputs": {
+        "f": 80.0,
+        "vtc_m3": 0.04,
+        "flare": 0,
+        "st_m2": 0.05,
+        "sm_m2": 0.5,
+        "n": 100,
+        "fc": 40.0
+      },
+      "outputs": {
+        "g_re": 1.2801161622503379,
+        "g_im": 2.8791020351478416,
+        "x_per_v": 8.481219477582668e-05,
+        "z_ohm": 11.768329309450946
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_rear_200hz",
+      "desc": "Rear-loaded horn (scoop), reference driver, 40 L chamber behind the cone, exponential horn, at 200.0 Hz",
+      "inputs": {
+        "f": 200.0,
+        "vtc_m3": 0.04,
+        "flare": 0,
+        "st_m2": 0.05,
+        "sm_m2": 0.5,
+        "n": 100,
+        "fc": 40.0
+      },
+      "outputs": {
+        "g_re": -0.30981132458090654,
+        "g_im": 1.0540918652763571,
+        "x_per_v": 1.5045714824771579e-05,
+        "z_ohm": 5.572702904210315
+      },
+      "tol": {
+        "rel": 1e-09
+      }
     }
   ]
 }

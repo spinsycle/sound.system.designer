@@ -240,6 +240,14 @@ const mutations = [
   [app('model.ts'), "? 'cut short' : 'stretched'", "? 'stretched' : 'cut short'"],
   [app('model.ts'), 'P.C / (2 * Math.PI * Math.sqrt(g.flare.mouthM2 / Math.PI))', 'P.C / (Math.PI * Math.sqrt(g.flare.mouthM2 / Math.PI))'],
   [app('model.ts'), 'd.driverClass === CUSTOM_CLASS - 1', 'd.driverClass === CUSTOM_CLASS'],
+  // A2c rear-loaded horn
+  [src('hornsim.ts'), 'sys.rearLoaded ? pistonImpedance(k, d.sd) : div(cx(1), compliance(sys.rearVolumeM3))', 'div(cx(1), compliance(sys.rearVolumeM3))'],
+  [src('hornsim.ts'), 'sys.rearLoaded ? pistonImpedance(k, d.sd) :', 'sys.rearLoaded ? cx(0) :'],
+  [src('hornsim.ts'), 'sys.rearLoaded ? add(uc, scale(um, -1)) : um', 'sys.rearLoaded ? add(uc, um) : um'],
+  [src('hornsim.ts'), 'sys.rearLoaded ? add(uc, scale(um, -1)) : um;', 'sys.rearLoaded ? scale(um, -1) : um;'],
+  [app('model.ts'), "rearLoaded: d.horn.loading === 'rear' };", 'rearLoaded: false };'],
+  [app('model.ts'), "loading: h.loading === 'rear' ? 'rear' : 'front',", "loading: 'front',"],
+  [app('model.ts'), 'if (rear) {', 'if (!rear) {'],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect
