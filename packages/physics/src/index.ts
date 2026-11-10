@@ -7,6 +7,7 @@ export * from './sealed';
 export * from './ported';
 export * from './bandpass';
 export * from './horn';
+export * from './hornsim';
 export * from './power';
 export * from './crossover';
 export * from './box';

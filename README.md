@@ -2,9 +2,14 @@
 
 A desktop app (Windows first) that designs loudspeaker enclosures and whole sound systems from driver specs: sealed,
 ported, band-pass and horn-loaded boxes, and 2-way to 4-way systems with crossovers. Work in progress: so far this
-repository holds the physics library (milestone A0) and a direct-radiator box designer that runs in the browser (A1:
-driver entry, sealed/ported/band-pass, response, excursion, impedance and group-delay plots). The horn designer, whole
-systems, cut lists, exports and the desktop shell come next.
+repository holds the physics library (milestone A0), a direct-radiator box designer that runs in the browser (A1:
+driver entry, sealed/ported/band-pass, response, excursion, impedance and group-delay plots) and a front-loaded horn
+designer (A2: exponential, hyperbolic, tractrix and conical flares, a one-dimensional horn simulation, a profile
+drawing and a panel table for horns built from straight panels). The rear-loaded scoop, whole systems, cut lists,
+exports and the desktop shell come next.
+
+The horn simulation is one-dimensional (plane waves) and lossless. It shows cutoff, mouth-reflection ripple and how
+the horn loads the driver. Its response is radiated power: it does not know about directivity or bends.
 
 Sibling of the [Sound System](https://github.com/spinsycle/soundsystem) VST3 plugin. The two are independent products
 that implement one shared physics spec and assert the same test vectors.
@@ -16,7 +21,8 @@ sound-system claims.
 
 ```
 packages/physics/     pure TypeScript, no UI, no runtime dependencies
-  src/                drivers, sealed, ported, bandpass, horn, power, crossover, box, system, room
+  src/                drivers, sealed, ported, bandpass, horn (lumped bin), hornsim (flares and the horn
+                      simulation), power, crossover, box, impedance, system, room
   test/               vectors.test.ts       the shared spec vectors (test-vectors.json)
                       parity.test.ts        numbers computed by the plugin's own C++ (parity.jsonl)
                       closed-forms.test.ts  what neither of those reaches
@@ -36,7 +42,8 @@ tools/
 npm install
 npm run dev         the designer in a browser, with live reload
 npm run gate        type check + tests + production build
-npm run mutation    mutation check (several minutes; do not run while `npm run dev` is open)
+npm run mutation    mutation check (over ten minutes for the full list; do not run while `npm run dev` is open)
+                    npm run mutation -- hornsim model   only the mutations in files whose path contains a word
 npm run sync-vectors
 ```
 

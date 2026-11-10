@@ -151,10 +151,11 @@ const mutations = [
   [src('complex.ts'), 'return -dPhase / (2 * Math.PI * 2 * df);', 'return -dPhase / (2 * Math.PI * df);'],
   [src('complex.ts'), 'Math.atan2(b.im * a.re - b.re * a.im,', 'Math.atan2(b.re * a.im - b.im * a.re,'],
   // app model
-  [app('model.ts'), 'P.peakVoltsForPower(d.powerW, box.driver.re) * 1000', 'P.peakVoltsForPower(d.powerW, box.driver.re) * 100'],
-  [app('model.ts'), 'P.abs(P.boxDisplacement(box, f))', 'P.abs(P.boxResponse(box, f))'],
-  [app('model.ts'), 'impedanceOhm: P.abs(z)', 'impedanceOhm: z.re'],
-  [app('model.ts'), 'phaseDeg: P.phaseDeg(z)', 'phaseDeg: -P.phaseDeg(z)'],
+  [app('model.ts'), 'P.peakVoltsForPower(d.powerW, driverOf(d).re) * 1000', 'P.peakVoltsForPower(d.powerW, driverOf(d).re) * 100'],
+  [app('model.ts'), 'x: P.boxDisplacement(box, f)', 'x: P.boxResponse(box, f)'],
+  [app('model.ts'), 'responseDb: P.dB(P.abs(r.g))', 'responseDb: P.abs(r.g)'],
+  [app('model.ts'), 'impedanceOhm: P.abs(r.z)', 'impedanceOhm: r.z.re'],
+  [app('model.ts'), 'phaseDeg: P.phaseDeg(r.z)', 'phaseDeg: -P.phaseDeg(r.z)'],
   [app('model.ts'), 'P.portLengthM(chamberL / 1000, d.tuneHz, d.portDiameterCm / 100) * 100', 'P.portLengthM(chamberL / 1000, d.tuneHz, d.portDiameterCm / 100) * 10'],
   [app('model.ts'), 'port(d.frontVolumeL);', 'port(d.volumeL);'],
   [app('model.ts'), 'if (lengthCm <= 0)', 'if (lengthCm <= -1e9)'],
@@ -165,7 +166,80 @@ const mutations = [
   [app('model.ts'), 'P.sealedParams(driver.fs, derived.qts, driver.vasM3, vb)', 'P.sealedParams(driver.fs, derived.qts, driver.vasM3, d.volumeL)'],
   [app('model.ts'), 'P.ventedF3(driver.fs, derived.qts, driver.vasM3 / vb, d.tuneHz)', 'P.ventedF3(driver.fs, derived.qts, driver.vasM3 / d.volumeL, d.tuneHz)'],
   [app('model.ts'), 'P.clamp(v, r.min, r.max) : fallback', 'v : fallback'],
-  [app('model.ts'), "groupDelayMs: P.groupDelayS((x) => P.boxResponse(box, x), f) * 1000", "groupDelayMs: P.groupDelayS((x) => P.boxResponse(box, x), f)"],
+  [app('model.ts'), 'groupDelayMs: P.groupDelayS((x) => raw(x).g, f) * 1000', 'groupDelayMs: P.groupDelayS((x) => raw(x).g, f)'],
+  // A2 horn simulation: Bessel and Struve
+  [src('hornsim.ts'), 'return (-2 * tail) / x;', 'return -tail / x;'],
+  [src('hornsim.ts'), '((m + 1) * (m + 2))', '((m + 1) * (m + 1))'],
+  [src('hornsim.ts'), '(h * h * 8) / (3 * Math.PI)', '(h * h * 4) / (3 * Math.PI)'],
+  [src('hornsim.ts'), '((m + 1.5) * (m + 2.5))', '((m + 1.5) * (m + 1.5))'],
+  [src('hornsim.ts'), '0.1171875 / x ** 2', '0.12 / x ** 2'],
+  [src('hornsim.ts'), '0.375 / x', '0.38 / x'],
+  [src('hornsim.ts'), '+ 0.2775764465332031 / x ** 5', ''],
+  [src('hornsim.ts'), 'x - 0.75 * Math.PI', 'x - 0.25 * Math.PI'],
+  [src('hornsim.ts'), '(1 + 1 / x ** 2 - 3 / x ** 4', '(1 - 1 / x ** 2 - 3 / x ** 4'],
+  [src('hornsim.ts'), '45 / x ** 6', '15 / x ** 6'],
+  [src('hornsim.ts'), 'BESSEL_SWITCH = 20', 'BESSEL_SWITCH = 10'],
+  [src('hornsim.ts'), 'SERIES_TERMS = 60', 'SERIES_TERMS = 30'],
+  [src('hornsim.ts'), 'pistonRadiation(2 * k * Math.sqrt(areaM2 / Math.PI))', 'pistonRadiation(k * Math.sqrt(areaM2 / Math.PI))'],
+  [src('hornsim.ts'), 'scale(cx(r1, x1), (RHO * C) / areaM2)', 'scale(cx(r1, x1), RHO / areaM2)'],
+  // flares
+  [src('hornsim.ts'), 'return a * Math.log((a + q) / r) - q;', 'return a * Math.log((a + q) / r) + q;'],
+  [src('hornsim.ts'), 'Math.PI * (C / (2 * Math.PI * cutoffHz)) ** 2', 'Math.PI * (C / (Math.PI * cutoffHz)) ** 2'],
+  [src('hornsim.ts'), 'const x0 = C / (2 * Math.PI * fl.cutoffHz);', 'const x0 = C / (Math.PI * fl.cutoffHz);'],
+  [src('hornsim.ts'), "const t = fl.kind === 'exponential' ? 1 : fl.t;\n  const ratio", 'const t = fl.t;\n  const ratio'],
+  [src('hornsim.ts'), 'ratio * ratio - (1 - t * t)', 'ratio * ratio - (1 - t)'],
+  [src('hornsim.ts'), '/ (1 + t));', '/ 2);'],
+  [src('hornsim.ts'), '* x) / fl.lengthM) ** 2', '* x)) ** 2'],
+  [src('hornsim.ts'), 'for (let i = 0; i < 60; ++i)', 'for (let i = 0; i < 20; ++i)'],
+  [src('hornsim.ts'), 'if (fromThroat - tractrixXm(x0, mid) < x) lo = mid;', 'if (fromThroat - tractrixXm(x0, mid) > x) lo = mid;'],
+  [src('hornsim.ts'), "const t = fl.kind === 'exponential' ? 1 : fl.t;\n  return fl.throatM2", 'const t = fl.t;\n  return fl.throatM2'],
+  [src('hornsim.ts'), 'Math.cosh(x / x0) + t * Math.sinh(x / x0)', 'Math.cosh(x / x0) + t * Math.cosh(x / x0)'],
+  [src('hornsim.ts'), '((b.x - a.x) / 3)', '((b.x - a.x) / 2)'],
+  [src('hornsim.ts'), 'a.area + b.area + Math.sqrt(a.area * b.area)', 'a.area + b.area + a.area'],
+  // segment matrices
+  [src('hornsim.ts'), '<= 1e-9 * r1)', '<= 1e-1 * r1)'],
+  [src('hornsim.ts'), 'const x1 = (length * r1) / (r2 - r1);', 'const x1 = (length * r2) / (r2 - r1);'],
+  [src('hornsim.ts'), 'a: (x2 / x1) * cs - sn / (k * x1),', 'a: (x2 / x1) * cs + sn / (k * x1),'],
+  [src('hornsim.ts'), 'bi: ((RHO * C) / s2) * (x2 / x1) * sn,', 'bi: ((RHO * C) / s1) * (x2 / x1) * sn,'],
+  [src('hornsim.ts'), '(x2 / x1 + 1 / (k * x1) ** 2) * sn', '(x2 / x1 + 1 / (k * x1)) * sn'],
+  [src('hornsim.ts'), '- ((length / x1) * cs) / (k * x1)),', '),'],
+  [src('hornsim.ts'), 'd: (x1 / x2) * cs + sn / (k * x2),', 'd: (x1 / x2) * cs - sn / (k * x2),'],
+  [src('hornsim.ts'), 'a: m.a * s.a - m.bi * s.ci,', 'a: m.a * s.a + m.bi * s.ci,'],
+  [src('hornsim.ts'), 'd: m.d * s.d - m.ci * s.bi }', 'd: m.d * s.d + m.ci * s.bi }'],
+  [src('hornsim.ts'), 'bi: m.a * s.bi + m.bi * s.d,', 'bi: m.a * s.bi + m.bi * s.a,'],
+  [src('hornsim.ts'), 'ci: m.ci * s.a + m.d * s.ci,', 'ci: m.ci * s.d + m.d * s.ci,'],
+  [src('hornsim.ts'), 'add(scale(zl, m.a), cx(0, m.bi))', 'add(scale(zl, m.a), cx(m.bi))'],
+  // driver coupling
+  [src('hornsim.ts'), 'sys.throatChamberM3 > 0 ?', 'sys.throatChamberM3 < 0 ?'],
+  [src('hornsim.ts'), 'scale(s, v / (RHO * C * C))', 'scale(s, v / (RHO * C))'],
+  [src('hornsim.ts'), 'cx(r.rms, w * r.mms - 1 / (w * r.cms))', 'cx(r.rms, w * r.mms)'],
+  [src('hornsim.ts'), 'add(cx(r.rms, w * r.mms - 1 / (w * r.cms)), scale(zf, sd2))', 'add(cx(r.rms, w * r.mms - 1 / (w * r.cms)), zf)'],
+  [src('hornsim.ts'), 'div(cx(1), compliance(sys.rearVolumeM3))', 'compliance(sys.rearVolumeM3)'],
+  [src('hornsim.ts'), 'add(zm, cx(r.bl * blRe))', 'zm'],
+  [src('hornsim.ts'), 'Math.sqrt(8 * pistonRadiation(xm).r1) / xm', '1'],
+  [src('hornsim.ts'), '(d.re * r.mms) / (d.sd * r.bl)', 'd.re / (d.sd * r.bl)'],
+  [src('hornsim.ts'), 'x: div(v, s),', 'x: v,'],
+  [src('hornsim.ts'), 'z: add(cx(d.re), div(cx(r.bl * r.bl), zm)),', 'z: div(cx(r.bl * r.bl), zm),'],
+  // app horn model
+  [app('model.ts'), 'throat = Math.min(throat, 0.5 * full);', ''],
+  [app('model.ts'), 'mouth = Math.min(mouth, full);', ''],
+  [app('model.ts'), 'Math.max(mouth, throat * 1.05)', 'mouth'],
+  [app('model.ts'), 'IDEAL_SEGMENTS = 100', 'IDEAL_SEGMENTS = 50'],
+  [app('model.ts'), 'throatChamberM3: d.horn.throatChamberL / 1000', 'throatChamberM3: d.horn.throatChamberL'],
+  [app('model.ts'), 'rearVolumeM3: d.volumeL / 1000', 'rearVolumeM3: d.volumeL'],
+  [app('model.ts'), 'if (at >= 0.99 * lengthCm) break;', 'if (at >= 0.9 * lengthCm) break;'],
+  [app('model.ts'), 'curves = sim(g.built ?? g.ideal);', 'curves = sim(g.ideal);'],
+  [app('model.ts'), 'P.hornModel(driver, derived, vb,', 'P.hornModel(driver, derived, d.volumeL,'],
+  [app('model.ts'), 'P.hornJoints(g.flare, 8)', 'P.hornJoints(g.flare, 4)'],
+  [app('model.ts'), 'heightCm: (j.area * 1e4) / d.horn.widthCm', 'heightCm: j.area * 1e4'],
+  [app('model.ts'), 'if (pct < 99.5)', 'if (pct < 0)'],
+  [app('model.ts'), 'if (pct < 99.5) warnings', 'if (pct < 1e9) warnings'],
+  [app('model.ts'), 'P.hornVolume(g.built ?? g.ideal) * 1000', 'P.hornVolume(g.built ?? g.ideal)'],
+  [app('model.ts'), '(driver.sd / g.flare.throatM2).toFixed(2)', '(g.flare.throatM2 / driver.sd).toFixed(2)'],
+  [app('model.ts'), '> 0.01 * g.lengthM * 100) warnings', '> 1e9) warnings'],
+  [app('model.ts'), "? 'cut short' : 'stretched'", "? 'stretched' : 'cut short'"],
+  [app('model.ts'), 'P.C / (2 * Math.PI * Math.sqrt(g.flare.mouthM2 / Math.PI))', 'P.C / (Math.PI * Math.sqrt(g.flare.mouthM2 / Math.PI))'],
+  [app('model.ts'), 'd.driverClass === CUSTOM_CLASS - 1', 'd.driverClass === CUSTOM_CLASS'],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect
@@ -176,8 +250,16 @@ if (gate() !== 0) {
   process.exit(2);
 }
 
+// optional arguments: run only the mutations in files whose path contains one of them (e.g. `npm run mutation -- hornsim model`)
+const only = process.argv.slice(2);
+const selected = mutations.filter(([file]) => only.length === 0 || only.some((o) => file.includes(o)));
+if (selected.length === 0) {
+  console.error(`no mutation matches ${only.join(', ')}`);
+  process.exit(2);
+}
+
 const survivors = [];
-for (const [file, find, replace] of mutations) {
+for (const [file, find, replace] of selected) {
   const path = root + file;
   const original = readFileSync(path, 'utf8');
   if (!original.includes(find)) {
@@ -193,7 +275,7 @@ for (const [file, find, replace] of mutations) {
   process.stdout.write('.');
 }
 
-console.log(`\n${mutations.length - survivors.length} of ${mutations.length} mutations caught`);
+console.log(`\n${selected.length - survivors.length} of ${selected.length} mutations caught${only.length ? ` (files matching: ${only.join(', ')}; ${mutations.length} in the full list)` : ''}`);
 if (survivors.length) {
   console.error('SURVIVED:\n  ' + survivors.join('\n  '));
   process.exit(1);

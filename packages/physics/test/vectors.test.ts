@@ -173,6 +173,56 @@ describe('shared vectors', () => {
     }
   });
 
+  it('horn simulation', () => {
+    const KINDS: P.FlareKind[] = ['exponential', 'hyperbolic', 'tractrix', 'conical'];
+    const flare = (v: Record<string, number>): P.Flare => ({
+      kind: KINDS[v.flare!]!,
+      throatM2: v.st_m2!,
+      mouthM2: v.sm_m2 ?? P.tractrixFullMouth(v.fc!),
+      cutoffHz: v.fc ?? 0,
+      t: v.t ?? 0.3, // only the hyperbolic vectors carry t; an exponential flare must ignore whatever is here
+      lengthM: v.length_m ?? 0,
+    });
+    const k = (f: number): number => (2 * Math.PI * f) / P.C;
+
+    for (const id of ids('rad_piston_')) {
+      const r = P.pistonRadiation(vec(id).inputs.x_2ka!);
+      expectVec(id, 'r1', r.r1);
+      expectVec(id, 'x1', r.x1);
+    }
+    const cm = vec('cone_matrix').inputs;
+    const m = P.coneMatrix(k(cm.f!), cm.s1_m2!, cm.s2_m2!, cm.length_m!);
+    expectVec('cone_matrix', 'a', m.a);
+    expectVec('cone_matrix', 'b_im', m.bi);
+    expectVec('cone_matrix', 'c_im', m.ci);
+    expectVec('cone_matrix', 'd', m.d);
+
+    for (const id of ids('flare_')) {
+      const v = vec(id);
+      const fl = flare(v.inputs);
+      expectVec(id, 'area_m2', P.flareArea(fl, v.inputs.x_m!));
+      if ('length_m' in v.outputs) expectVec(id, 'length_m', P.flareLength(fl));
+      if ('sm_m2' in v.outputs) expectVec(id, 'sm_m2', fl.mouthM2);
+    }
+    const hv = vec('horn_volume').inputs;
+    expectVec('horn_volume', 'volume_m3', P.hornVolume(P.hornJoints(flare(hv), hv.n!)));
+
+    for (const id of ids('hornsim_zt_')) {
+      const v = vec(id).inputs;
+      const zt = P.hornThroatImpedance(k(v.f!), P.hornJoints(flare(v), v.n!));
+      expectVec(id, 'zt_re', zt.re);
+      expectVec(id, 'zt_im', zt.im);
+    }
+    for (const id of ids('hornsim_front_')) {
+      const v = vec(id).inputs;
+      const r = P.hornSystem({ driver: spec, joints: P.hornJoints(flare(v), v.n!), throatChamberM3: v.vtc_m3!, rearVolumeM3: v.vr_m3! }, v.f!);
+      expectVec(id, 'g_re', r.g.re);
+      expectVec(id, 'g_im', r.g.im);
+      expectVec(id, 'x_per_v', P.abs(r.x));
+      expectVec(id, 'z_ohm', P.abs(r.z));
+    }
+  });
+
   afterAll(() => {
     const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
     expect(missing, 'vector outputs never asserted').toEqual([]);

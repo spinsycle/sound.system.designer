@@ -1449,6 +1449,445 @@
       "tol": {
         "rel": 1e-09
       }
+    },
+    {
+      "id": "rad_piston_0p5",
+      "desc": "Baffled piston radiation impedance factors R1, X1 at 2ka = 0.5",
+      "inputs": {
+        "x_2ka": 0.5
+      },
+      "outputs": {
+        "r1": 0.030926169300504455,
+        "x1": 0.2086949769693643
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "rad_piston_2p0",
+      "desc": "Baffled piston radiation impedance factors R1, X1 at 2ka = 2.0",
+      "inputs": {
+        "x_2ka": 2.0
+      },
+      "outputs": {
+        "r1": 0.4232751922431266,
+        "x1": 0.6467637282835621
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "rad_piston_6p0",
+      "desc": "Baffled piston radiation impedance factors R1, X1 at 2ka = 6.0",
+      "inputs": {
+        "x_2ka": 6.0
+      },
+      "outputs": {
+        "r1": 1.0922279527091883,
+        "x1": 0.15939175046090145
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "rad_piston_19p9",
+      "desc": "Baffled piston radiation impedance factors R1, X1 at 2ka = 19.9",
+      "inputs": {
+        "x_2ka": 19.9
+      },
+      "outputs": {
+        "r1": 0.9949630728822777,
+        "x1": 0.04687764556541839
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "rad_piston_25p0",
+      "desc": "Baffled piston radiation impedance factors R1, X1 at 2ka = 25.0",
+      "inputs": {
+        "x_2ka": 25.0
+      },
+      "outputs": {
+        "r1": 1.0100280199362819,
+        "x1": 0.04310429020366567
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "rad_piston_80p0",
+      "desc": "Baffled piston radiation impedance factors R1, X1 at 2ka = 80.0",
+      "inputs": {
+        "x_2ka": 80.0
+      },
+      "outputs": {
+        "r1": 1.0014014324168894,
+        "x1": 0.017652877786831896
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "cone_matrix",
+      "desc": "Conical segment transfer matrix at 200 Hz: 100 cm2 to 500 cm2 over 0.4 m (B and C are imaginary)",
+      "inputs": {
+        "f": 200.0,
+        "s1_m2": 0.01,
+        "s2_m2": 0.05,
+        "length_m": 0.4
+      },
+      "outputs": {
+        "a": -0.6036989642074385,
+        "b_im": 18000.20786144459,
+        "c_im": 6.97127057636103e-05,
+        "d": 0.4221362126457864
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "flare_exp_area",
+      "desc": "Exponential flare: area 0.5 m from the throat",
+      "inputs": {
+        "flare": 0,
+        "fc": 51.78202798446118,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "x_m": 0.5
+      },
+      "outputs": {
+        "area_m2": 0.15491933384829665,
+        "length_m": 1.0
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "flare_hyp_area",
+      "desc": "Hyperbolic (hypex) flare, T 0.6, cutoff 40 Hz: length and area 0.5 m from the throat",
+      "inputs": {
+        "flare": 1,
+        "fc": 40.0,
+        "t": 0.6,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "x_m": 0.5
+      },
+      "outputs": {
+        "area_m2": 0.10025459050665149,
+        "length_m": 1.565086293033856
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "flare_tractrix_area",
+      "desc": "Tractrix, cutoff 300 Hz, throat 20 cm2, full mouth: mouth area, length and area 0.1 m from the throat",
+      "inputs": {
+        "flare": 2,
+        "fc": 300.0,
+        "st_m2": 0.002,
+        "x_m": 0.1
+      },
+      "outputs": {
+        "sm_m2": 0.10402455499899109,
+        "area_m2": 0.006124322874613488,
+        "length_m": 0.3045593792289013
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "flare_conical_area",
+      "desc": "Conical flare: area 0.5 m from the throat",
+      "inputs": {
+        "flare": 3,
+        "st_m2": 0.02,
+        "sm_m2": 0.3,
+        "length_m": 1.2,
+        "x_m": 0.5
+      },
+      "outputs": {
+        "area_m2": 0.09654289364368324
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "horn_volume",
+      "desc": "Air volume of the hyperbolic flare cut into 100 conical segments (m3)",
+      "inputs": {
+        "flare": 1,
+        "fc": 40.0,
+        "t": 0.6,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100
+      },
+      "outputs": {
+        "volume_m3": 0.26500848885999756
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_exp_40hz",
+      "desc": "Throat acoustic impedance of the exp horn (100 segments, baffled-piston mouth) at 40.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 40.0,
+        "flare": 0,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 51.78202798446118
+      },
+      "outputs": {
+        "zt_re": 55.61090040349207,
+        "zt_im": 2721.8453721874807
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_exp_150hz",
+      "desc": "Throat acoustic impedance of the exp horn (100 segments, baffled-piston mouth) at 150.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 150.0,
+        "flare": 0,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 51.78202798446118
+      },
+      "outputs": {
+        "zt_re": 2552.654645585495,
+        "zt_im": 1247.6766319103244
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_hyp_35hz",
+      "desc": "Throat acoustic impedance of the hyp horn (100 segments, baffled-piston mouth) at 35.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 35.0,
+        "flare": 1,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 40.0,
+        "t": 0.6
+      },
+      "outputs": {
+        "zt_re": 60.22612442994419,
+        "zt_im": 4185.859113504201
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_hyp_150hz",
+      "desc": "Throat acoustic impedance of the hyp horn (100 segments, baffled-piston mouth) at 150.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 150.0,
+        "flare": 1,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 40.0,
+        "t": 0.6
+      },
+      "outputs": {
+        "zt_re": 18956.25850619846,
+        "zt_im": 2871.5095341166375
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_tractrix_400hz",
+      "desc": "Throat acoustic impedance of the tractrix horn (100 segments, baffled-piston mouth) at 400.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 400.0,
+        "flare": 2,
+        "st_m2": 0.002,
+        "sm_m2": 0.10402455499899109,
+        "n": 100,
+        "fc": 300.0
+      },
+      "outputs": {
+        "zt_re": 75080.11759826474,
+        "zt_im": 226408.4274786516
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_tractrix_2000hz",
+      "desc": "Throat acoustic impedance of the tractrix horn (100 segments, baffled-piston mouth) at 2000.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 2000.0,
+        "flare": 2,
+        "st_m2": 0.002,
+        "sm_m2": 0.10402455499899109,
+        "n": 100,
+        "fc": 300.0
+      },
+      "outputs": {
+        "zt_re": 215723.2575573031,
+        "zt_im": 90467.88588990858
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_conical_80hz",
+      "desc": "Throat acoustic impedance of the conical horn (100 segments, baffled-piston mouth) at 80.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 80.0,
+        "flare": 3,
+        "st_m2": 0.02,
+        "sm_m2": 0.3,
+        "n": 100,
+        "length_m": 1.2
+      },
+      "outputs": {
+        "zt_re": 3511.6700194918817,
+        "zt_im": 20211.418438513094
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_zt_conical_500hz",
+      "desc": "Throat acoustic impedance of the conical horn (100 segments, baffled-piston mouth) at 500.0 Hz (Pa s/m3)",
+      "inputs": {
+        "f": 500.0,
+        "flare": 3,
+        "st_m2": 0.02,
+        "sm_m2": 0.3,
+        "n": 100,
+        "length_m": 1.2
+      },
+      "outputs": {
+        "zt_re": 17494.370345918123,
+        "zt_im": 2147.281471662158
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_front_30hz",
+      "desc": "Front-loaded horn, reference driver, rear 100 L, throat chamber 5 L, exponential horn, at 30.0 Hz",
+      "inputs": {
+        "f": 30.0,
+        "vr_m3": 0.1,
+        "vtc_m3": 0.005,
+        "flare": 0,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 51.78202798446118
+      },
+      "outputs": {
+        "g_re": -0.18588768732278385,
+        "g_im": 0.33638300038365454,
+        "x_per_v": 0.00024222620385499252,
+        "z_ohm": 10.205435205930833
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_front_60hz",
+      "desc": "Front-loaded horn, reference driver, rear 100 L, throat chamber 5 L, exponential horn, at 60.0 Hz",
+      "inputs": {
+        "f": 60.0,
+        "vr_m3": 0.1,
+        "vtc_m3": 0.005,
+        "flare": 0,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 51.78202798446118
+      },
+      "outputs": {
+        "g_re": 0.7301293976512949,
+        "g_im": 0.9067091593603434,
+        "x_per_v": 0.00011003402888386928,
+        "z_ohm": 8.573180012809798
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_front_150hz",
+      "desc": "Front-loaded horn, reference driver, rear 100 L, throat chamber 5 L, exponential horn, at 150.0 Hz",
+      "inputs": {
+        "f": 150.0,
+        "vr_m3": 0.1,
+        "vtc_m3": 0.005,
+        "flare": 0,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 51.78202798446118
+      },
+      "outputs": {
+        "g_re": -1.5000224078526465,
+        "g_im": -1.419816099195125,
+        "x_per_v": 2.5218460100674226e-05,
+        "z_ohm": 6.052537257579798
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "hornsim_front_600hz",
+      "desc": "Front-loaded horn, reference driver, rear 100 L, throat chamber 5 L, exponential horn, at 600.0 Hz",
+      "inputs": {
+        "f": 600.0,
+        "vr_m3": 0.1,
+        "vtc_m3": 0.005,
+        "flare": 0,
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "n": 100,
+        "fc": 51.78202798446118
+      },
+      "outputs": {
+        "g_re": 0.4056845742303083,
+        "g_im": 0.6130438628568005,
+        "x_per_v": 1.8897431266711847e-06,
+        "z_ohm": 5.083762105606756
+      },
+      "tol": {
+        "rel": 1e-09
+      }
     }
   ]
 }

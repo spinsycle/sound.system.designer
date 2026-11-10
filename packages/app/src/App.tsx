@@ -2,8 +2,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import * as P from '@soundsystemdesigner/physics';
 import { useEffect, useMemo, useState } from 'react';
-import { Chart, niceScale } from './Chart';
-import { BOX_KINDS, BOX_RANGES, type BoxField, CUSTOM_CLASS, CUSTOM_RANGES, type Design, type Range, compute, sanitize } from './model';
+import { Chart, ProfileChart, niceScale } from './Chart';
+import {
+  BOX_KINDS,
+  BOX_RANGES,
+  type BoxField,
+  CUSTOM_CLASS,
+  CUSTOM_RANGES,
+  type Design,
+  FLARES,
+  HORN_PRESETS,
+  HORN_RANGES,
+  type HornDesign,
+  type HornField,
+  PLOT_RANGES,
+  type PlotRange,
+  type Range,
+  compute,
+  sanitize,
+} from './model';
 
 const STORAGE_KEY = 'soundsystemdesigner.design.v1';
 
@@ -17,7 +34,7 @@ function load(): Design {
 
 const show = (v: number): string => String(Number(v.toPrecision(4)));
 
-/** A number box that accepts any typing and commits a clamped value on blur or Enter, with an optional log slider. */
+/** A number box that accepts any typing and commits a clamped value on blur or Enter, with an optional slider. */
 function Field(p: { range: Range; value: number; onChange: (v: number) => void; slider?: boolean }) {
   const [text, setText] = useState<string | null>(null);
   const { range: r } = p;
@@ -27,6 +44,9 @@ function Field(p: { range: Range; value: number; onChange: (v: number) => void; 
     setText(null);
   };
   const id = `f-${r.label.replace(/\W/g, '')}`;
+  // slider position 0..1: linear for ranges that start at zero, logarithmic otherwise
+  const toPos = (v: number): number => (r.linear ? (v - r.min) / (r.max - r.min) : Math.log(v / r.min) / Math.log(r.max / r.min));
+  const fromPos = (t: number): number => (r.linear ? r.min + t * (r.max - r.min) : r.min * (r.max / r.min) ** t);
   return (
     <div className="field">
       <label htmlFor={id}>{r.label}</label>
@@ -42,15 +62,7 @@ function Field(p: { range: Range; value: number; onChange: (v: number) => void; 
       />
       <span className="unit">{r.unit}</span>
       {p.slider && (
-        <input
-          type="range"
-          aria-label={`${r.label} slider`}
-          min={0}
-          max={1}
-          step={0.001}
-          value={Math.log(p.value / r.min) / Math.log(r.max / r.min)}
-          onChange={(e) => p.onChange(Number((r.min * (r.max / r.min) ** Number(e.target.value)).toPrecision(3)))}
-        />
+        <input type="range" aria-label={`${r.label} slider`} min={0} max={1} step={0.001} value={toPos(p.value)} onChange={(e) => p.onChange(Number(fromPos(Number(e.target.value)).toPrecision(3)))} />
       )}
     </div>
   );
@@ -70,25 +82,31 @@ export function App() {
   }, [design]);
 
   const set = (patch: Partial<Design>): void => setDesign((d) => sanitize({ ...d, ...patch }));
+  const setHorn = (patch: Partial<HornDesign>): void => set({ horn: { ...design.horn, ...patch } });
   const isCustom = design.driverClass === CUSTOM_CLASS;
+  const isHorn = design.type === 'horn';
+  const flare = design.horn.flare;
   const d = c.driver;
   // the driver in datasheet units, in the Custom fields' order
   const sheet: P.CustomDriverFields = { fsHz: d.fs, qts: c.derived.qts, qms: d.qms, vasL: d.vasM3 * 1000, sdCm2: d.sd * 1e4, reOhm: d.re, xmaxMm: d.xmax * 1000, powerW: d.pe };
   const customKeys = Object.keys(CUSTOM_RANGES) as (keyof P.CustomDriverFields)[];
-  const boxFields: BoxField[] = design.type === 'sealed' ? ['volumeL'] : design.type === 'ported' ? ['volumeL', 'tuneHz', 'portDiameterCm'] : ['volumeL', 'frontVolumeL', 'tuneHz', 'portDiameterCm'];
+  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz', 'portDiameterCm'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz', 'portDiameterCm'], horn: ['volumeL'] }[design.type] as BoxField[];
+  const volumeLabel = { sealed: 'Volume', ported: 'Volume', bandpass: 'Rear volume', horn: 'Rear chamber' }[design.type];
+  const hornFields: HornField[] = [...(flare === 'conical' ? [] : (['cutoffHz'] as HornField[])), ...(flare === 'hyperbolic' ? (['t'] as HornField[]) : []), 'throatCm2', 'mouthCm2', ...(flare === 'conical' ? (['lengthM'] as HornField[]) : []), 'throatChamberL'];
 
   const xmaxMm = d.xmax * 1000;
-  const respTop = Math.max(6, Math.ceil((Math.max(...c.curves.responseDb) + 1) / 6) * 6);
-  const exc = niceScale(Math.min(Math.max(...c.curves.excursionMm, xmaxMm * 1.2), xmaxMm * 3));
-  const imp = niceScale(Math.max(...c.curves.impedanceOhm));
-  const gd = niceScale(Math.min(Math.max(...c.curves.groupDelayMs), 100));
+  const top = (k: 'responseDb' | 'excursionMm' | 'impedanceOhm' | 'groupDelayMs'): number => Math.max(...c.curves[k], ...(c.overlays[k] ?? []).flatMap((o) => o.values));
+  const respTop = Math.min(48, Math.max(6, Math.ceil((top('responseDb') + 1) / 6) * 6));
+  const exc = niceScale(Math.min(Math.max(top('excursionMm'), xmaxMm * 1.2), xmaxMm * 3));
+  const imp = niceScale(top('impedanceOhm'));
+  const gd = niceScale(Math.min(Math.max(top('groupDelayMs'), 1), 100));
   const common = { freqs: c.freqs, hover, onHover: setHover, vLines: c.markers };
 
   return (
     <div className="app">
       <header>
         <h1>Sound System Designer</h1>
-        <p>Direct-radiator box designer. Lossless Thiele-Small models; generic driver classes are invented values, not products.</p>
+        <p>Box and horn designer. Lossless models; generic driver classes are invented values, not products.</p>
       </header>
 
       <main>
@@ -159,16 +177,51 @@ export function App() {
               ))}
             </div>
             {boxFields.map((k) => (
-              <Field
-                key={k}
-                slider
-                range={k === 'volumeL' && design.type === 'bandpass' ? { ...BOX_RANGES[k], label: 'Rear volume' } : BOX_RANGES[k]}
-                value={design[k]}
-                onChange={(v) => set({ [k]: v })}
-              />
+              <Field key={k} slider range={k === 'volumeL' ? { ...BOX_RANGES[k], label: volumeLabel } : BOX_RANGES[k]} value={design[k]} onChange={(v) => set({ [k]: v })} />
             ))}
             <Field slider range={BOX_RANGES.powerW} value={design.powerW} onChange={(v) => set({ powerW: v })} />
+            <div className="field">
+              <label htmlFor="plot-range">Plot range</label>
+              <select id="plot-range" value={design.plotRange} onChange={(e) => set({ plotRange: e.target.value as PlotRange })}>
+                {(Object.keys(PLOT_RANGES) as PlotRange[]).map((k) => (
+                  <option key={k} value={k}>
+                    {PLOT_RANGES[k].label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </section>
+
+          {isHorn && (
+            <section>
+              <h2>Horn</h2>
+              <div className="segmented" aria-label="Starting points">
+                {HORN_PRESETS.map((s) => (
+                  <button key={s.label} type="button" onClick={() => set(s.patch)}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <div className="field">
+                <label htmlFor="flare">Flare</label>
+                <select id="flare" value={flare} onChange={(e) => setHorn({ flare: e.target.value as P.FlareKind })}>
+                  {FLARES.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {hornFields.map((k) => (
+                <Field key={k} slider range={HORN_RANGES[k]} value={design.horn[k]} onChange={(v) => setHorn({ [k]: v })} />
+              ))}
+              {flare !== 'conical' && (
+                <button type="button" onClick={() => setHorn({ mouthCm2: Math.ceil(P.hornMinMouthArea(design.horn.cutoffHz) * 1e4) })}>
+                  Full-size mouth for the cutoff
+                </button>
+              )}
+            </section>
+          )}
 
           <section>
             <h2>Result</h2>
@@ -187,15 +240,53 @@ export function App() {
                 ))}
               </ul>
             )}
+            {c.notes.length > 0 && (
+              <ul className="notes">
+                {c.notes.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            )}
           </section>
+
+          {c.horn && (
+            <section>
+              <h2>Panels</h2>
+              <div className="field stacked">
+                <label htmlFor="panels">Straight panel lengths along the centreline, cm</label>
+                <input id="panels" type="text" className="left" placeholder="e.g. 40, 40, 50, 60 (empty: the ideal curve)" value={design.horn.panelsCm} onChange={(e) => setHorn({ panelsCm: e.target.value })} />
+              </div>
+              <Field range={HORN_RANGES.widthCm} value={design.horn.widthCm} onChange={(v) => setHorn({ widthCm: v })} />
+              <table>
+                <caption>{c.horn.built ? 'Areas at the panel joints' : 'The ideal flare at eight stations'}. No bend correction: lengths are along the centreline.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">From throat, cm</th>
+                    <th scope="col">Area, cm²</th>
+                    <th scope="col">Height, cm</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.horn.table.map((row) => (
+                    <tr key={row.xCm}>
+                      <td>{row.xCm.toFixed(1)}</td>
+                      <td>{row.areaCm2.toFixed(row.areaCm2 < 100 ? 1 : 0)}</td>
+                      <td>{row.heightCm.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
         </div>
 
         <div className="charts">
-          <Chart {...common} title="Response" unit="dB" values={c.curves.responseDb} yMin={-36} yMax={respTop} yStep={6} />
-          <Chart {...common} title={`Cone excursion at ${show(design.powerW)} W`} unit="mm peak" values={c.curves.excursionMm} yMin={0} yMax={exc.max} yStep={exc.step} hLine={{ y: xmaxMm, label: 'Xmax' }} />
-          <Chart {...common} title="Impedance" unit="Ω" values={c.curves.impedanceOhm} yMin={0} yMax={imp.max} yStep={imp.step} />
-          <Chart {...common} title="Impedance phase" unit="°" values={c.curves.phaseDeg} yMin={-90} yMax={90} yStep={30} />
-          <Chart {...common} title="Group delay" unit="ms" values={c.curves.groupDelayMs} yMin={0} yMax={gd.max} yStep={gd.step} />
+          {c.horn && <ProfileChart lengthM={c.horn.lengthM} ideal={c.horn.ideal} built={c.horn.built} />}
+          <Chart {...common} title="Response" unit="dB" values={c.curves.responseDb} overlays={c.overlays.responseDb} yMin={-36} yMax={respTop} yStep={respTop > 24 ? 12 : 6} />
+          <Chart {...common} title={`Cone excursion at ${show(design.powerW)} W`} unit="mm peak" values={c.curves.excursionMm} overlays={c.overlays.excursionMm} yMin={0} yMax={exc.max} yStep={exc.step} hLine={{ y: xmaxMm, label: 'Xmax' }} />
+          <Chart {...common} title="Impedance" unit="Ω" values={c.curves.impedanceOhm} overlays={c.overlays.impedanceOhm} yMin={0} yMax={imp.max} yStep={imp.step} />
+          <Chart {...common} title="Impedance phase" unit="°" values={c.curves.phaseDeg} overlays={c.overlays.phaseDeg} yMin={-90} yMax={90} yStep={30} />
+          <Chart {...common} title="Group delay" unit="ms" values={c.curves.groupDelayMs} overlays={c.overlays.groupDelayMs} yMin={0} yMax={gd.max} yStep={gd.step} />
         </div>
       </main>
     </div>
