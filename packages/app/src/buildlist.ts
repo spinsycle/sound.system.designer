@@ -84,6 +84,18 @@ export interface BuildView {
 
 const mm = (m: number): number => Math.round(m * 1000);
 
+/** Where a cabinet's baffle holes sit, to scale: centred across, stacked and centred down, y from the top edge (m). */
+export function holePositions(c: Cabinet): { kind: Cutout['kind']; cx: number; cy: number; r: number }[] {
+  const gap = 0.02;
+  const total = c.cutouts.reduce((a, h) => a + h.diameterM, 0) + gap * Math.max(c.cutouts.length - 1, 0);
+  let y = (c.geometry.hO - total) / 2;
+  return c.cutouts.map((h) => {
+    const cy = y + h.diameterM / 2;
+    y += h.diameterM + gap;
+    return { kind: h.kind, cx: c.geometry.wO / 2, cy, r: h.diameterM / 2 };
+  });
+}
+
 function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: number, divider: boolean, cutouts: Cutout[]): Cabinet {
   const o = b.build;
   const g = P.solveBox(vNetM3, dispM3, o.rw, o.rh, o.rd, tM, o.brace, divider);

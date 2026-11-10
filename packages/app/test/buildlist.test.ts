@@ -237,3 +237,17 @@ describe('details the first pass left uncovered', () => {
 function sealed(volumeL: number): M.Design {
   return design({ type: 'sealed', volumeL });
 }
+
+describe('hole positions', () => {
+  it('one hole is centred on the baffle; two are stacked 20 mm apart and centred as a pair', () => {
+    const solo = L.computeBuild(project([band(sealed(100))])).bands[0]!.cabinets[0]!;
+    const h = L.holePositions(solo);
+    expect(h.length).toBe(1);
+    expect(h[0]!.cx).toBeCloseTo(solo.geometry.wO / 2, 12);
+    expect(h[0]!.cy).toBeCloseTo(solo.geometry.hO / 2, 12);
+    const two = L.computeBuild(project([band(design({ type: 'ported', volumeL: 100, tuneHz: 40, portDiameterCm: 10 }))])).bands[0]!.cabinets[0]!;
+    const [a, b] = L.holePositions(two);
+    expect(b!.cy - a!.cy).toBeCloseTo(a!.r + 0.02 + b!.r, 12);
+    expect((a!.cy - a!.r + (b!.cy + b!.r)) / 2).toBeCloseTo(two.geometry.hO / 2, 12);
+  });
+});

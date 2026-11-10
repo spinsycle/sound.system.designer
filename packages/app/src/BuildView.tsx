@@ -5,7 +5,10 @@
 import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
 import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
-import { type Cabinet, type BuildView as Build, computeBuild } from './buildlist';
+import { type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
+import { baffleSvg, sheetDxf, sheetSvg, slug } from './export';
+import { layout3d } from './layout3d';
+import { Scene3D } from './Scene3D';
 import type { Band, Project } from './system';
 import { sanitizeProject } from './system';
 
@@ -20,20 +23,15 @@ function csv(v: Build): string {
 /** Front baffle to scale: the driver hole and port hole stacked in the middle. */
 function Baffle({ c }: { c: Cabinet }) {
   const g = c.geometry;
-  const gap = 0.02;
   const holes = c.cutouts;
-  const total = holes.reduce((a, h) => a + h.diameterM, 0) + gap * Math.max(holes.length - 1, 0);
-  let y = (g.hO - total) / 2;
   const pad = 0.03;
   return (
     <figure className="baffle">
       <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${g.hO + 2 * pad}`} role="img" aria-label={`${c.title} front baffle, ${mm(g.wO)} by ${mm(g.hO)} millimetres`}>
         <rect x={0} y={0} width={g.wO} height={g.hO} className="piece" />
-        {holes.map((h, i) => {
-          const cy = y + h.diameterM / 2;
-          y += h.diameterM + gap;
-          return <circle key={i} cx={g.wO / 2} cy={cy} r={h.diameterM / 2} className={h.kind === 'port' ? 'hole port-hole' : 'hole'} />;
-        })}
+        {holePositions(c).map((h, i) => (
+          <circle key={i} cx={h.cx} cy={h.cy} r={h.r} className={h.kind === 'port' ? 'hole port-hole' : 'hole'} />
+        ))}
       </svg>
       <figcaption>
         {c.title}: {mm(g.wO)} x {mm(g.hO)} x {mm(g.dO)} mm outside. {holes.map((h) => `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM)} mm`).join(', ')}.
@@ -66,9 +64,23 @@ function Sheet({ v, sheet, p }: { v: Build; sheet: number; p: Project }) {
   );
 }
 
+/** Hands a string to the browser as a file. */
+function download(name: string, text: string, mime: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function BuildView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
   const v = useMemo(() => computeBuild(project), [project]);
   const [copied, setCopied] = useState(false);
+  const [explode, setExplode] = useState(0);
+  const [transparent, setTransparent] = useState(false);
+  const layout = useMemo(() => layout3d(v, project), [v, project]);
+  const base = slug(project.name);
   const set = (patch: Partial<Project>): void => onChange(sanitizeProject({ ...project, ...patch }));
   const setShop = (patch: Partial<Project['shop']>): void => set({ shop: { ...project.shop, ...patch } });
   const setBuild = (k: number, patch: Partial<Band['build']>): void => set({ bands: project.bands.map((b, i) => (i === k ? { ...b, build: { ...b.build, ...patch } } : b)) });
@@ -95,7 +107,11 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
           <Field id="shop-l" range={SHOP_RANGES.sheetLmm} value={project.shop.sheetLmm} onChange={(x) => setShop({ sheetLmm: x })} />
           <Field id="shop-w" range={SHOP_RANGES.sheetWmm} value={project.shop.sheetWmm} onChange={(x) => setShop({ sheetWmm: x })} />
           <Field id="shop-k" range={SHOP_RANGES.kerfMm} value={project.shop.kerfMm} onChange={(x) => setShop({ kerfMm: x })} />
-          <p className="hint">Metric for now. The cut list is for one project: every band below.</p>
+          <div className="field">
+            <label htmlFor="project-name">Project name</label>
+            <input id="project-name" type="text" className="left" value={project.name} onChange={(e) => set({ name: e.target.value })} />
+          </div>
+          <p className="hint">Metric for now. The project name is used in exported file names.</p>
         </section>
         {project.bands.slice(0, project.nBands).map((band, k) => (
           <section key={k}>
@@ -157,16 +173,43 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
               ))}
             </tbody>
           </table>
-          <button type="button" onClick={copy}>
-            Copy cut list and parts as CSV
-          </button>
-          {copied && <span className="hint"> Copied.</span>}
+          <div className="actions">
+            <button type="button" onClick={copy}>
+              Copy cut list and parts as CSV
+            </button>
+            <button type="button" onClick={() => window.print()}>
+              Export PDF (print)
+            </button>
+            {copied && <span className="hint"> Copied.</span>}
+          </div>
+        </section>
+
+        <section className="no-print">
+          <h2>3D preview</h2>
+          <div className="actions">
+            <label htmlFor="explode">Explode</label>
+            <input id="explode" type="range" min={0} max={1} step={0.05} value={explode} onChange={(e) => setExplode(Number(e.target.value))} />
+            <button type="button" aria-pressed={transparent} className={transparent ? 'on' : ''} onClick={() => setTransparent(!transparent)}>
+              See through
+            </button>
+          </div>
+          <Scene3D layout={layout} explode={explode} transparent={transparent} />
+          <p className="hint">Drag to orbit, scroll or pinch to zoom. One cabinet per band is drawn; braces and dividers show when see-through or exploded. The driver hole is amber, the port blue.</p>
         </section>
 
         <section>
           <h2>Baffles</h2>
           <div className="drawings">
-            {v.bands.flatMap((b) => b.cabinets.map((c, i) => <Baffle key={`${b.name}-${i}`} c={{ ...c, title: `${b.name}: ${c.title}` }} />))}
+            {v.bands.flatMap((b) =>
+              b.cabinets.map((c, i) => (
+                <div key={`${b.name}-${i}`}>
+                  <Baffle c={{ ...c, title: `${b.name}: ${c.title}` }} />
+                  <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-${slug(c.title)}-baffle.svg`, baffleSvg(c, `${b.name}: ${c.title}`), 'image/svg+xml')}>
+                    Download SVG
+                  </button>
+                </div>
+              )),
+            )}
           </div>
         </section>
 
@@ -177,7 +220,17 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
           </p>
           <div className="drawings">
             {Array.from({ length: v.sheets }, (_, s) => (
-              <Sheet key={s} v={v} sheet={s} p={project} />
+              <div key={s} className="sheet-block">
+                <Sheet v={v} sheet={s} p={project} />
+                <div className="actions no-print">
+                  <button type="button" onClick={() => download(`${base}-sheet-${s + 1}.svg`, sheetSvg(v, project, s), 'image/svg+xml')}>
+                    Download SVG
+                  </button>
+                  <button type="button" onClick={() => download(`${base}-sheet-${s + 1}.dxf`, sheetDxf(v, project, s), 'application/dxf')}>
+                    Download DXF
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         </section>

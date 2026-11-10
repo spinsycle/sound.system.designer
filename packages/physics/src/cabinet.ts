@@ -91,6 +91,9 @@ export interface HornSection {
   /** Each of the two trapezoid sides, by bounding box. */
   sideLen: number;
   sideH: number;
+  /** Inside heights at the throat end and the mouth end. */
+  h1: number;
+  h2: number;
 }
 
 /** Straight horn sections between stations (distance along the axis, inside height), the horn `width` wide inside. */
@@ -100,7 +103,7 @@ export function hornPanels(stations: readonly { x: number; h: number }[], width:
     const a = stations[k]!;
     const b = stations[k + 1]!;
     const len = b.x - a.x;
-    out.push({ slant: Math.hypot(len, (b.h - a.h) / 2), width, sideLen: len, sideH: Math.max(a.h, b.h) + 2 * t });
+    out.push({ slant: Math.hypot(len, (b.h - a.h) / 2), width, sideLen: len, sideH: Math.max(a.h, b.h) + 2 * t, h1: a.h, h2: b.h });
   }
   return out;
 }

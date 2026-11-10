@@ -22,6 +22,13 @@ describe('braces', () => {
   });
 });
 
+describe('horn sections', () => {
+  it('keep the inside heights at their throat and mouth ends', () => {
+    const s = P.hornPanels([{ x: 0, h: 0.1 }, { x: 0.5, h: 0.18 }], 0.3, 0.018)[0]!;
+    expect([s.h1, s.h2]).toEqual([0.1, 0.18]);
+  });
+});
+
 describe('sheet packing', () => {
   const pk = (pieces: [number, number][], kerf = 0.003) => P.packSheets(pieces.map(([l, w]) => ({ l, w })), 2.44, 1.22, kerf);
 

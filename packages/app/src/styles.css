@@ -553,3 +553,95 @@ figcaption {
   fill: var(--text);
   font-size: 34px;
 }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.sheet-block {
+  grid-column: 1 / -1;
+}
+
+.scene3d {
+  width: 100%;
+  height: min(60vh, 460px);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.scene3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  :root,
+  body,
+  .app {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  header,
+  .controls,
+  .no-print,
+  .actions,
+  button {
+    display: none !important;
+  }
+
+  main,
+  .charts {
+    display: block !important;
+  }
+
+  section {
+    background: #fff !important;
+    border: 0 !important;
+    break-inside: avoid-page;
+  }
+
+  h2,
+  h3,
+  th,
+  td,
+  caption,
+  figcaption,
+  .hint,
+  .notes {
+    color: #000 !important;
+  }
+
+  .piece,
+  .stock,
+  .hole,
+  .cut {
+    fill: #fff !important;
+    stroke: #000 !important;
+  }
+
+  .cut-label {
+    fill: #000 !important;
+  }
+
+  figure.sheet {
+    break-inside: avoid;
+  }
+
+  .warnings {
+    color: #000 !important;
+    border-color: #000 !important;
+  }
+}

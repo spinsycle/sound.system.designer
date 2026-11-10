@@ -12,6 +12,8 @@ const sys = app('system.ts');
 const cab = src('cabinet.ts');
 const bl = app('buildlist.ts');
 const bd = app('build.ts');
+const ex = app('export.ts');
+const ly = app('layout3d.ts');
 
 // [file, find (first occurrence), replace]
 const mutations = [
@@ -352,6 +354,42 @@ const mutations = [
   [bd, 'rh: { label: \'Height\', unit: \'\', min: 0.2, max: 5 }', 'rh: { label: \'Height\', unit: \'\', min: 0.2, max: 8 }'],
   [bd, 'BRACES.some((b) => b.id === i.brace)', 'true'],
   [sys, "i.view === 'box' || i.view === 'build' ? i.view : 'system'", "i.view === 'box' ? i.view : 'system'"],
+  // A5 exports and 3D layout
+  [ex, 'm * 10000) / 10', 'm * 1000) / 1'],
+  [ex, '.replace(/^-+|-+$/g, \'\')', '.replace(/^-+/g, \'\')'],
+  [ex, "|| 'project'", "|| ''"],
+  [ex, ".replace(/&/g, '&amp;')", ''],
+  [ex, '.replace(/</g, \'&lt;\')', ''],
+  [ex, '.replace(/"/g, \'&quot;\')', ''],
+  [ex, 'width="${L}mm" height="${W}mm"', 'width="${L}mm" height="${L}mm"'],
+  [ex, 'x.placement.sheet === sheet', 'x.placement.sheet !== sheet'],
+  [ex, 'r="${mm(h.r)}"', 'r="${mm(h.r) * 2}"'],
+  [ex, 'pair(70, 4)', 'pair(70, 1)'],
+  [ex, "pair(1, 'AC1009')", "pair(1, 'AC1015')"],
+  [ex, 'const y0 = W - mm(py) - mm(h);', 'const y0 = W - mm(py);'],
+  [ex, "rect('SHEET', 0, 0, L, W)", "rect('SHEET', 0, 0, W, L)"],
+  [ex, 'pair(11, x2) + pair(21, y2)', 'pair(11, y2) + pair(21, x2)'],
+  [ex, 'line(layer, x, y + h, x, y);', 'line(layer, x, y + h, x, y + 1);'],
+  [ex, 'pair(40, 20)', 'pair(40, 10)'],
+  [ex, ".replace(/[\\r\\n]/g, ' ')", ''],
+  [ly, "add('panel', [g.wO, g.hO, t], 0, 0, g.dO / 2 - t / 2)", "add('panel', [g.wO, g.hO, t], 0, 0, -g.dO / 2 + t / 2)"],
+  [ly, 'g.hO / 2 - t / 2, 0); // top', 'g.hO / 2 + t / 2, 0); // top'],
+  [ly, 'g.wO / 2 - t / 2, 0, 0); // sides', 'g.wO / 2, 0, 0); // sides'],
+  [ly, '(g.dI * k) / (g.braces + 1)', '(g.dI * k) / g.braces'],
+  [ly, 'g.dI * dividerShare', 'g.dI * (1 - dividerShare)'],
+  [ly, 'g.hO - h.cy', 'h.cy'],
+  [ly, 'z0 + LIFT', 'z0 - LIFT'],
+  [ly, 'Math.min(b.port.lengthM, g.dI)', 'b.port.lengthM'],
+  [ly, 'radius: b.port.diameterM / 2', 'radius: b.port.diameterM'],
+  [ly, 'design.volumeL / (p.bands[band]!.design.volumeL +', 'design.frontVolumeL / (p.bands[band]!.design.volumeL +'],
+  [ly, '    x += GAP;\n  });', '  });'],
+  [ly, 'z += s.sideLen;', 'z += s.sideLen * 2;'],
+  [ly, 'quad(z, s.h1), ...quad(z + s.sideLen, s.h2)', 'quad(z, s.h2), ...quad(z + s.sideLen, s.h1)'],
+  [ly, 'maxZ - minZ]', 'maxZ + minZ]'],
+  [cab, 'h1: a.h, h2: b.h', 'h1: b.h, h2: a.h'],
+  [bl, 'const gap = 0.02;', 'const gap = 0.04;'],
+  [bl, '(c.geometry.hO - total) / 2;', 'c.geometry.hO - total;'],
+  [sys, 'i.name.slice(0, 60)', 'i.name.slice(0, 6)'],
   // A3c amps and limits
   [sys, 'P.abs(x.raw(f).x) * P.abs(x.leg(f))', 'P.abs(x.raw(f).x)'],
   [sys, '[lowestHz, ...SYSTEM_FREQS.filter((f) => f > lowestHz)]', '[...SYSTEM_FREQS]'],

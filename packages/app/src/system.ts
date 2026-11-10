@@ -43,6 +43,8 @@ export interface Project {
   distanceM: number;
   /** Wall material and sheet stock. */
   shop: Shop;
+  /** Used in exported file names. */
+  name: string;
   /** Band whose box is open in the designer. */
   selected: number;
   view: 'system' | 'box' | 'build';
@@ -119,6 +121,7 @@ export const DEFAULT_PROJECT: Project = {
   lowestHz: 40,
   distanceM: 1,
   shop: DEFAULT_SHOP,
+  name: 'sound-system',
   selected: 0,
   view: 'system',
 };
@@ -206,6 +209,7 @@ export function sanitizeProject(input: unknown): Project {
     lowestHz: num(i.lowestHz, LOWEST_RANGE, d.lowestHz),
     distanceM: num(i.distanceM, DISTANCE_RANGE, d.distanceM),
     shop: sanitizeShop(i.shop),
+    name: typeof i.name === 'string' ? i.name.slice(0, 60) : d.name,
     selected: typeof i.selected === 'number' && Number.isInteger(i.selected) ? P.clamp(i.selected, 0, nBands - 1) : 0,
     view: i.view === 'box' || i.view === 'build' ? i.view : 'system',
   };
