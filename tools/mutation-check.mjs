@@ -14,6 +14,8 @@ const bl = app('buildlist.ts');
 const bd = app('build.ts');
 const ex = app('export.ts');
 const ly = app('layout3d.ts');
+const br = app('brief.ts');
+const ol = app('ollama.ts');
 
 // [file, find (first occurrence), replace]
 const mutations = [
@@ -390,6 +392,47 @@ const mutations = [
   [bl, 'const gap = 0.02;', 'const gap = 0.04;'],
   [bl, '(c.geometry.hO - total) / 2;', 'c.geometry.hO - total;'],
   [sys, 'i.name.slice(0, 60)', 'i.name.slice(0, 6)'],
+  // A6 brief to design
+  [br, 'if (v < r.min)', 'if (v > r.min)'],
+  [br, 'else if (v > r.max)', 'else if (v < r.max)'],
+  [br, 'v.length > max)', 'v.length > max + 100)'],
+  [br, "v.trim() === ''", "v === ''"],
+  [br, "raw.driver === 'custom'", 'false'],
+  [br, 'CLASS_NAMES.indexOf(raw.driver)', '0'],
+  [br, "if (kind === 'ported' || kind === 'bandpass') {", "if (kind === 'ported') {"],
+  [br, "if (kind === 'bandpass') take('frontVolumeL'", "if (kind === 'ported') take('frontVolumeL'"],
+  [br, "h.loading !== 'front' && h.loading !== 'rear'", "h.loading !== 'front'"],
+  [br, "if (flare === 'conical') grab('lengthM');", "if (flare === 'conical') grab('cutoffHz');"],
+  [br, "if (flare === 'hyperbolic') grab('t');", "if (flare === 'tractrix') grab('t');"],
+  [br, 'horn.mouthCm2 <= horn.throatCm2', 'horn.mouthCm2 >= horn.throatCm2'],
+  [br, 'horn.cutoffHz >= 400 ?', 'horn.cutoffHz >= 4000 ?'],
+  [br, 'raw.xoverHz.length !== n - 1', 'raw.xoverHz.length !== n'],
+  [br, 'xs[i - 1]! * 1.2', 'xs[i - 1]! * 1.0'],
+  [br, 'count % series !== 0', 'count % series === 0'],
+  [br, '!AMP_LOADS.includes(b.ampLoadOhm)', 'AMP_LOADS.includes(b.ampLoadOhm)'],
+  [br, 'raw.bands.length !== n)', 'raw.bands.length !== n + 1)'],
+  [br, 'if (n !== null && !Number.isInteger(n))', 'if (n === null)'],
+  [br, 'const trims = levelTrims(base);', 'const trims = base.bands.map(() => 0);'],
+  [br, 'maxItems: MAX_BANDS - 1', 'maxItems: MAX_BANDS'],
+  [br, "required.push('label', 'note');", ''],
+  [br, 'errors.slice(0, 12)', 'errors.slice(0, 5)'],
+  [br, 'Brief: ${brief.trim()}', 'Brief: ${brief}'],
+  [br, 's.warnings.length + b.warnings.length', 's.warnings.length'],
+  [br, 'levelDb: s.limits.referenceDb', 'levelDb: s.limits.headroomDb'],
+  [br, 'c.readouts.slice(0, 3)', 'c.readouts.slice(0, 1)'],
+  [br, 'c.warnings.length + b.warnings.length', 'c.warnings.length'],
+  [ol, 'MAX_ATTEMPTS = 2', 'MAX_ATTEMPTS = 3'],
+  [ol, ".includes(u.hostname)", ".includes(u.hostname) || true"],
+  [ol, "u.protocol !== 'http:' && u.protocol !== 'https:'", "u.protocol !== 'http:' || u.protocol !== 'https:'"],
+  [ol, "url.replace(/\\/+$/, '')", 'url'],
+  [ol, 'if (!res.ok)', 'if (res.ok)'],
+  [ol, '.sort();', ';'],
+  [ol, "typeof n === 'string'", "typeof n !== 'undefined'"],
+  [ol, 'stream: false', 'stream: true'],
+  [ol, "if (e instanceof DOMException && e.name === 'AbortError') throw e;", ''],
+  [ol, "mode === 'system' ? validateSystem(raw) : validateDesign(raw, '$', true)", "mode === 'system' ? validateDesign(raw, '$', true) : validateSystem(raw)"],
+  [ol, "{ role: 'assistant', content: reply }", "{ role: 'user', content: reply }"],
+  [ol, "typeof content !== 'string'", "typeof content === 'number'"],
   // A3c amps and limits
   [sys, 'P.abs(x.raw(f).x) * P.abs(x.leg(f))', 'P.abs(x.raw(f).x)'],
   [sys, '[lowestHz, ...SYSTEM_FREQS.filter((f) => f > lowestHz)]', '[...SYSTEM_FREQS]'],

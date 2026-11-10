@@ -645,3 +645,48 @@ figcaption {
     border-color: #000 !important;
   }
 }
+
+.brief {
+  margin: 0 0 16px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.brief textarea {
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--text);
+  background: var(--panel-hi);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.brief details {
+  margin: 8px 0;
+}
+
+.brief summary {
+  cursor: pointer;
+  color: var(--dim);
+}
+
+.warnings-line {
+  color: var(--warn);
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media print {
+  .brief {
+    display: none !important;
+  }
+}

@@ -8,7 +8,7 @@ front-loaded horns and rear-loaded scoops; exponential, hyperbolic, tractrix and
 horn simulation; a profile drawing and a panel table for horns built from straight panels) and a system view (A3,
 up to four bands behind Linkwitz-Riley crossovers, trim, delay and polarity per band, drivers and wiring, an amp
 per band with load, power and excursion limits and a max-level table, the summed response in dB SPL, generic
-starting points) and a Build page (A4: wall material and sheet size, box shape and bracing per band, a cut list, baffle drawings, sheet layouts and a bill of materials, metric). A 3D preview, SVG and DXF export of the sheet layouts and baffles, and a print layout for PDF follow (A5). The desktop shell comes next.
+starting points) and a Build page (A4: wall material and sheet size, box shape and bracing per band, a cut list, baffle drawings, sheet layouts and a bill of materials, metric). A 3D preview, SVG and DXF export of the sheet layouts and baffles, and a print layout for PDF follow (A5). A Brief panel (A6) lets a local Ollama model propose three variants of a whole system or one box from a plain-language brief; the model only fills a strictly validated schema and the calculators judge the result. The desktop shell comes next.
 
 The horn simulation is one-dimensional (plane waves) and lossless. It shows cutoff, mouth-reflection ripple and how
 the horn loads the driver. Its response is radiated power: it does not know about directivity or bends.

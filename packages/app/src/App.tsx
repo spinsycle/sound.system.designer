@@ -3,9 +3,10 @@
 // The shell: owns the project, stores it in the browser, and shows either the system or one band's box.
 import { useEffect, useState } from 'react';
 import { BoxDesigner } from './BoxDesigner';
+import { BriefPanel } from './BriefPanel';
 import { BuildView } from './BuildView';
 import { SystemView } from './SystemView';
-import { sanitize } from './model';
+import { type Design, sanitize } from './model';
 import { DEFAULT_PROJECT, type Project, bandName, sanitizeProject } from './system';
 
 const PROJECT_KEY = 'soundsystemdesigner.project.v1';
@@ -26,6 +27,8 @@ function load(): Project {
 
 export function App() {
   const [project, setProject] = useState<Project>(load);
+  /** The project before the last brief variant was loaded. */
+  const [undo, setUndo] = useState<Project | null>(null);
 
   useEffect(() => {
     try {
@@ -36,6 +39,14 @@ export function App() {
   }, [project]);
 
   const set = (patch: Partial<Project>): void => setProject((p) => sanitizeProject({ ...p, ...patch }));
+  const loadSystem = (p: Project): void => {
+    setUndo(project);
+    setProject(sanitizeProject({ ...p, name: project.name, shop: project.shop }));
+  };
+  const loadBox = (design: Design): void => {
+    setUndo(project);
+    setProject(sanitizeProject({ ...project, bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) }));
+  };
   const box = project.view === 'box';
   const build = project.view === 'build';
 
@@ -58,6 +69,8 @@ export function App() {
           </button>
         </nav>
       </header>
+
+      {!build && <BriefPanel key={box ? 'box' : 'system'} mode={box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
 
       {build ? (
         <BuildView project={project} onChange={setProject} />
