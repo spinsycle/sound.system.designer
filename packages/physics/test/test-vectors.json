@@ -1976,6 +1976,253 @@
       "tol": {
         "rel": 1e-09
       }
+    },
+    {
+      "id": "sens_reference",
+      "desc": "Reference driver: efficiency (half space) and passband level at 1 m for 2.83 V and for 1 W into Re",
+      "inputs": {
+        "volts": 2.83
+      },
+      "outputs": {
+        "eta0": 0.013207211877213984,
+        "spl_2v83_db": 95.32350279458305,
+        "spl_1w_db": 93.27747412745744
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "wiring_1x_1s",
+      "desc": "1 identical drivers, 1 per series string",
+      "inputs": {
+        "n": 1,
+        "series": 1
+      },
+      "outputs": {
+        "load_factor": 1.0,
+        "volts_factor": 1.0,
+        "level_gain_db": 0.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "wiring_2x_1s",
+      "desc": "2 identical drivers, 1 per series string",
+      "inputs": {
+        "n": 2,
+        "series": 1
+      },
+      "outputs": {
+        "load_factor": 0.5,
+        "volts_factor": 1.0,
+        "level_gain_db": 6.020599913279624
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "wiring_2x_2s",
+      "desc": "2 identical drivers, 2 per series string",
+      "inputs": {
+        "n": 2,
+        "series": 2
+      },
+      "outputs": {
+        "load_factor": 2.0,
+        "volts_factor": 0.5,
+        "level_gain_db": 0.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "wiring_4x_2s",
+      "desc": "4 identical drivers, 2 per series string",
+      "inputs": {
+        "n": 4,
+        "series": 2
+      },
+      "outputs": {
+        "load_factor": 1.0,
+        "volts_factor": 0.5,
+        "level_gain_db": 6.020599913279624
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "wiring_4x_1s",
+      "desc": "4 identical drivers, 1 per series string",
+      "inputs": {
+        "n": 4,
+        "series": 1
+      },
+      "outputs": {
+        "load_factor": 0.25,
+        "volts_factor": 1.0,
+        "level_gain_db": 12.041199826559248
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "wiring_6x_3s",
+      "desc": "6 identical drivers, 3 per series string",
+      "inputs": {
+        "n": 6,
+        "series": 3
+      },
+      "outputs": {
+        "load_factor": 1.5,
+        "volts_factor": 0.3333333333333333,
+        "level_gain_db": 6.020599913279624
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "limit_thermal",
+      "desc": "Amp voltage at which each of two series drivers (600 W, 5 ohm) takes its rated power",
+      "inputs": {
+        "pe": 600.0,
+        "re": 5.0,
+        "series": 2
+      },
+      "outputs": {
+        "volts": 109.54451150103323
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "limit_excursion",
+      "desc": "Amp voltage at which a sine reaches Xmax 10 mm with 0.2 mm/V of peak displacement sensitivity",
+      "inputs": {
+        "xmax_m": 0.01,
+        "x_per_v": 0.0002,
+        "series": 1
+      },
+      "outputs": {
+        "volts": 35.35533905932738
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "limit_amp",
+      "desc": "Amp RMS voltage: 1000 W into 4 ohm",
+      "inputs": {
+        "power_w": 1000.0,
+        "load_ohm": 4.0
+      },
+      "outputs": {
+        "volts": 63.245553203367585
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "system_spl_40hz",
+      "desc": "Two-band system level at 1 m, 40.0 Hz (subs 2 x sealed 100 L in parallel; top sealed 20 L, -3 dB, inverted, 0.5 ms)",
+      "inputs": {
+        "f": 40.0,
+        "volts": 2.83,
+        "xover": 120.0,
+        "sub_n": 2,
+        "sub_series": 1,
+        "sub_vb_l": 100.0,
+        "top_vb_l": 20.0,
+        "top_trim_db": -3.0,
+        "top_delay_ms": 0.5
+      },
+      "outputs": {
+        "spl_db": 94.87864400873758,
+        "sub_spl_db": 94.88908050876675,
+        "top_spl_db": 39.16861262297413
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "system_spl_120hz",
+      "desc": "Two-band system level at 1 m, 120.0 Hz (subs 2 x sealed 100 L in parallel; top sealed 20 L, -3 dB, inverted, 0.5 ms)",
+      "inputs": {
+        "f": 120.0,
+        "volts": 2.83,
+        "xover": 120.0,
+        "sub_n": 2,
+        "sub_series": 1,
+        "sub_vb_l": 100.0,
+        "top_vb_l": 20.0,
+        "top_trim_db": -3.0,
+        "top_delay_ms": 0.5
+      },
+      "outputs": {
+        "spl_db": 88.8179315504332,
+        "sub_spl_db": 94.9614752689539,
+        "top_spl_db": 89.10600321528952
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "system_spl_200hz",
+      "desc": "Two-band system level at 1 m, 200.0 Hz (subs 2 x sealed 100 L in parallel; top sealed 20 L, -3 dB, inverted, 0.5 ms)",
+      "inputs": {
+        "f": 200.0,
+        "volts": 2.83,
+        "xover": 120.0,
+        "sub_n": 2,
+        "sub_series": 1,
+        "sub_vb_l": 100.0,
+        "top_vb_l": 20.0,
+        "top_trim_db": -3.0,
+        "top_delay_ms": 0.5
+      },
+      "outputs": {
+        "spl_db": 90.2465446140752,
+        "sub_spl_db": 82.4381213205454,
+        "top_spl_db": 92.69231235841062
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "system_spl_800hz",
+      "desc": "Two-band system level at 1 m, 800.0 Hz (subs 2 x sealed 100 L in parallel; top sealed 20 L, -3 dB, inverted, 0.5 ms)",
+      "inputs": {
+        "f": 800.0,
+        "volts": 2.83,
+        "xover": 120.0,
+        "sub_n": 2,
+        "sub_series": 1,
+        "sub_vb_l": 100.0,
+        "top_vb_l": 20.0,
+        "top_trim_db": -3.0,
+        "top_delay_ms": 0.5
+      },
+      "outputs": {
+        "spl_db": 92.42163136068609,
+        "sub_spl_db": 35.42187362873118,
+        "top_spl_db": 92.41170450031062
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
     }
   ]
 }

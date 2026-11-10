@@ -28,7 +28,7 @@ export interface ChartProps {
   yMax: number;
   yStep: number;
   /** Up to two comparison curves, drawn dashed behind the main one and named in a legend. */
-  overlays?: readonly { label: string; values: readonly number[] }[];
+  overlays?: readonly { label: string; values: readonly number[]; className?: string }[];
   hLine?: { y: number; label: string };
   vLines?: readonly { f: number; label: string }[];
   /** Index into freqs under the pointer, shared by every chart; null when the pointer is elsewhere. */
@@ -102,7 +102,7 @@ export function Chart(p: ChartProps) {
               </text>
             </g>
           )}
-          {p.overlays?.map((o) => <path key={o.label} className={overlayClass(o.label)} d={pathOf(o.values)} />)}
+          {p.overlays?.map((o) => <path key={o.label} className={o.className ?? overlayClass(o.label)} d={pathOf(o.values)} />)}
           <path className="curve" d={path} />
           {hv && <line className="cursor" x1={x(hv.f)} x2={x(hv.f)} y1={M.t} y2={H - M.b} />}
         </g>
@@ -113,7 +113,7 @@ export function Chart(p: ChartProps) {
           {p.overlays.map((o) => (
             <li key={o.label}>
               <svg viewBox="0 0 26 6" aria-hidden="true">
-                <line className={overlayClass(o.label)} x1="0" x2="26" y1="3" y2="3" />
+                <line className={o.className ?? overlayClass(o.label)} x1="0" x2="26" y1="3" y2="3" />
               </svg>
               {o.label}
             </li>

@@ -289,6 +289,108 @@ th {
   height: 6px;
 }
 
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+nav .on {
+  color: var(--bg);
+  background: var(--amber);
+  border-color: var(--amber);
+  font-weight: 600;
+}
+
+h3 {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.hint {
+  margin: 0 0 10px;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.field.stacked select {
+  width: 100%;
+}
+
+.checks {
+  display: flex;
+  gap: 14px;
+  margin: 2px 0 10px;
+}
+
+.checks label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checks input {
+  accent-color: var(--amber);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+/* one colour per band, on its card and on its curve */
+.band-0 {
+  --band: #6fb6c9;
+}
+
+.band-1 {
+  --band: #9ccf7a;
+}
+
+.band-2 {
+  --band: #d9a6e0;
+}
+
+.band-3 {
+  --band: #f08a6c;
+}
+
+.band .swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 2px;
+  background: var(--band);
+}
+
+.chart .overlay.band-line {
+  stroke: var(--band);
+  stroke-dasharray: none;
+  stroke-width: 1.2;
+}
+
+th.left,
+td.left {
+  text-align: left;
+  padding-left: 0;
+}
+
+tbody th {
+  color: var(--text);
+}
+
+tr.off {
+  opacity: 0.45;
+}
+
+.charts.one {
+  grid-template-columns: 1fr;
+}
+
 .charts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));

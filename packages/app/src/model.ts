@@ -217,7 +217,7 @@ export interface Point {
   groupDelayMs: number;
 }
 
-interface Raw {
+export interface Raw {
   g: P.Cx;
   x: P.Cx;
   z: P.Cx;
@@ -252,12 +252,19 @@ function hornGeometry(d: Design): { flare: P.Flare; lengthM: number; ideal: P.Jo
   return { flare, lengthM, ideal: P.hornJoints(flare, IDEAL_SEGMENTS), built: xs && P.hornJointsAt(flare, xs.map((x) => x / 100)) };
 }
 
-/** Everything the plots show at one frequency. compute() maps this over the plot frequencies. */
-export function evaluateAt(d: Design, f: number): Point {
-  if (d.type !== 'horn') return toPoint(directRaw(d), d, f);
+/**
+ * The design as a function of frequency: response g (relative to the driver's direct-radiator passband), cone
+ * displacement per volt x, and impedance z. A horn is simulated as built when panels are given. The geometry is
+ * worked out once, so call this once and reuse the function across frequencies.
+ */
+export function rawEvaluator(d: Design): (f: number) => Raw {
+  if (d.type !== 'horn') return directRaw(d);
   const g = hornGeometry(d);
-  return toPoint(hornRaw(d, g.built ?? g.ideal), d, f);
+  return hornRaw(d, g.built ?? g.ideal);
 }
+
+/** Everything the plots show at one frequency. compute() maps this over the plot frequencies. */
+export const evaluateAt = (d: Design, f: number): Point => toPoint(rawEvaluator(d), d, f);
 
 const N_POINTS = 280;
 export function plotFreqs(range: PlotRange): number[] {

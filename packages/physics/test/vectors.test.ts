@@ -225,6 +225,36 @@ describe('shared vectors', () => {
     }
   });
 
+  it('level, driver groups and limits', () => {
+    const sv = vec('sens_reference').inputs;
+    expectVec('sens_reference', 'eta0', P.efficiency(spec));
+    expectVec('sens_reference', 'spl_2v83_db', P.splDb(P.referencePressure(spec, sv.volts!)));
+    expectVec('sens_reference', 'spl_1w_db', P.splDb(P.referencePressure(spec, Math.sqrt(spec.re))));
+    for (const id of ids('wiring_')) {
+      const w = P.wiring(vec(id).inputs.n!, vec(id).inputs.series!);
+      expectVec(id, 'load_factor', w.loadFactor);
+      expectVec(id, 'volts_factor', w.voltsFactor);
+      expectVec(id, 'level_gain_db', w.levelGainDb);
+    }
+    const th = vec('limit_thermal').inputs;
+    expectVec('limit_thermal', 'volts', P.thermalLimitVolts(th.pe!, th.re!, th.series!));
+    const ex = vec('limit_excursion').inputs;
+    expectVec('limit_excursion', 'volts', P.excursionLimitVolts(ex.xmax_m!, ex.x_per_v!, ex.series!));
+    const am = vec('limit_amp').inputs;
+    expectVec('limit_amp', 'volts', P.ampVolts(am.power_w!, am.load_ohm!));
+
+    for (const id of ids('system_spl_')) {
+      const v = vec(id).inputs;
+      const legs = P.crossoverBands(v.f!, [v.xover!]);
+      const w = P.wiring(v.sub_n!, v.sub_series!);
+      const sub = P.scale(P.mul(legs[0]!, P.sealedG(v.f!, spec.fs, ref.qts, spec.vasM3, v.sub_vb_l! / 1000)), P.referencePressure(spec, v.volts! * w.voltsFactor) * v.sub_n!);
+      const top = P.scale(P.mul(legs[1]!, P.sealedG(v.f!, spec.fs, ref.qts, spec.vasM3, v.top_vb_l! / 1000)), -P.referencePressure(spec, v.volts! * 10 ** (v.top_trim_db! / 20)));
+      expectVec(id, 'sub_spl_db', P.splDb(P.abs(sub)));
+      expectVec(id, 'top_spl_db', P.splDb(P.abs(top)));
+      expectVec(id, 'spl_db', P.splDb(P.abs(P.systemPressure(v.f!, [{ pressure: sub, delayS: 0 }, { pressure: top, delayS: v.top_delay_ms! / 1000 }]))));
+    }
+  });
+
   afterAll(() => {
     const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
     expect(missing, 'vector outputs never asserted').toEqual([]);

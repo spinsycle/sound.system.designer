@@ -8,6 +8,7 @@ export * from './ported';
 export * from './bandpass';
 export * from './horn';
 export * from './hornsim';
+export * from './level';
 export * from './power';
 export * from './crossover';
 export * from './box';

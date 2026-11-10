@@ -5,8 +5,9 @@ ported, band-pass and horn-loaded boxes, and 2-way to 4-way systems with crossov
 repository holds the physics library (milestone A0), a direct-radiator box designer that runs in the browser (A1:
 driver entry, sealed/ported/band-pass, response, excursion, impedance and group-delay plots) and a horn designer (A2:
 front-loaded horns and rear-loaded scoops; exponential, hyperbolic, tractrix and conical flares; a one-dimensional
-horn simulation; a profile drawing and a panel table for horns built from straight panels). Whole systems, cut
-lists, exports and the desktop shell come next.
+horn simulation; a profile drawing and a panel table for horns built from straight panels) and a system view (A3,
+in progress: up to four bands behind Linkwitz-Riley crossovers, trim, delay and polarity per band, the summed
+response in dB SPL, generic starting points). Amps and limits, cut lists, exports and the desktop shell come next.
 
 The horn simulation is one-dimensional (plane waves) and lossless. It shows cutoff, mouth-reflection ripple and how
 the horn loads the driver. Its response is radiated power: it does not know about directivity or bends.
@@ -27,9 +28,10 @@ packages/physics/     pure TypeScript, no UI, no runtime dependencies
                       parity.test.ts        numbers computed by the plugin's own C++ (parity.jsonl)
                       closed-forms.test.ts  what neither of those reaches
 packages/app/         the designer: Vite + React, plots as plain SVG
-  src/model.ts        the design and everything derived from it (pure, tested against the shared vectors)
+  src/model.ts        one box or horn design and everything derived from it (pure, tested against the shared vectors)
+  src/system.ts       the whole system: bands, crossovers, levels, starting points (pure, tested the same way)
   src/Chart.tsx       one log-frequency SVG chart
-  src/App.tsx         the page
+  src/BoxDesigner.tsx, src/SystemView.tsx, src/App.tsx   the pages and the shell that stores the project
 tools/
   sync-vectors.mjs    copies test-vectors.json from the spec folder
   parity_dump.cpp     evaluates the plugin's headers; parity-dump.ps1 builds and runs it

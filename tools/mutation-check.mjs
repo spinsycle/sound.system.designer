@@ -8,6 +8,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const src = (f) => `packages/physics/src/${f}`;
 const test = (f) => `packages/physics/test/${f}`;
 const app = (f) => `packages/app/src/${f}`;
+const sys = app('system.ts');
 
 // [file, find (first occurrence), replace]
 const mutations = [
@@ -248,6 +249,46 @@ const mutations = [
   [app('model.ts'), "rearLoaded: d.horn.loading === 'rear' };", 'rearLoaded: false };'],
   [app('model.ts'), "loading: h.loading === 'rear' ? 'rear' : 'front',", "loading: 'front',"],
   [app('model.ts'), 'if (rear) {', 'if (!rear) {'],
+  // A3 level, driver groups, limits
+  [src('level.ts'), '(RHO * d.sd * m.bl * volts)', '(d.sd * m.bl * volts)'],
+  [src('level.ts'), '(2 * Math.PI * r * d.re * m.mms)', '(4 * Math.PI * r * d.re * m.mms)'],
+  [src('level.ts'), '20 * Math.log10(Math.abs(pressurePa) / P_REF)', '10 * Math.log10(Math.abs(pressurePa) / P_REF)'],
+  [src('level.ts'), 'P_REF = 20e-6', 'P_REF = 2e-6'],
+  [src('level.ts'), '(2 * Math.PI * C * m.mms * m.mms * d.re)', '(2 * Math.PI * C * m.mms * d.re)'],
+  [src('level.ts'), 'loadFactor: series / parallel', 'loadFactor: parallel / series'],
+  [src('level.ts'), 'voltsFactor: 1 / series', 'voltsFactor: 1'],
+  [src('level.ts'), '20 * Math.log10(n / series)', '20 * Math.log10(n)'],
+  [src('level.ts'), 'series * Math.sqrt(pe * re)', 'Math.sqrt(pe * re)'],
+  [src('level.ts'), 'series * Math.sqrt(pe * re)', 'series * Math.sqrt(pe / re)'],
+  [src('level.ts'), '(series * xmax) / (Math.SQRT2 * xPerVolt)', 'xmax / (Math.SQRT2 * xPerVolt)'],
+  [src('level.ts'), '(Math.SQRT2 * xPerVolt)', 'xPerVolt'],
+  [src('level.ts'), 'Math.sqrt(powerW * loadOhm)', 'Math.sqrt(powerW / loadOhm)'],
+  [src('level.ts'), 'const phase = -2 * Math.PI * f * b.delayS;', 'const phase = 2 * Math.PI * f * b.delayS;'],
+  // A3 system model
+  [sys, 'REF_VOLTS * P.wiring(b.count, b.series).voltsFactor) * b.count;', 'REF_VOLTS * P.wiring(b.count, b.series).voltsFactor);'],
+  [sys, 'REF_VOLTS * P.wiring(b.count, b.series).voltsFactor)', 'REF_VOLTS)'],
+  [sys, '10 ** (b.trimDb / 20)', '10 ** (b.trimDb / 10)'],
+  [sys, '(b.invert ? -1 : 1)', '1'],
+  [sys, 'audible: !b.mute && (!anySolo || b.solo)', 'audible: !b.mute'],
+  [sys, 'audible: !b.mute && (!anySolo || b.solo)', 'audible: !anySolo || b.solo'],
+  [sys, 'delayS: x.b.delayMs / 1000', 'delayS: x.b.delayMs'],
+  [sys, 'loHz: k === 0 ? p.lowestHz : xover[k - 1]!', 'loHz: k === 0 ? 20 : xover[k - 1]!'],
+  [sys, 'TOP_HZ = 12000', 'TOP_HZ = 16000'],
+  [sys, 'gain * P.abs(P.roomDirectResponse(room, f))', 'gain'],
+  [sys, 'P.crossoverBands(f, xover)[k]!', 'P.crossoverBands(f, xover)[0]!'],
+  [sys, 'if (short > 6)', 'if (short > 60)'],
+  [sys, 'if (short > 6)', 'if (short > -60)'],
+  [sys, 'if (!lower.audible || !upper.audible) return;', ''],
+  [sys, 'Math.abs(fx - p.xover[k]!) > 1e-9', 'Math.abs(fx - p.xover[k]!) > 1e9'],
+  [sys, 'Math.min(...native.filter(Number.isFinite))', 'Math.max(...native.filter(Number.isFinite))'],
+  [sys, 'Number.isFinite(v) ? Math.round((target - v) * 10) / 10 + 0 : 0', 'Math.round((target - v) * 10) / 10 + 0'],
+  [sys, 'n % series === 0 ? series : 1', 'n % series === 0 || true ? series : 1'],
+  [sys, 'trimDb: trims[k] ?? 0', 'trimDb: 0'],
+  [sys, '(4 * Math.PI * lengthM)', '(2 * Math.PI * lengthM)'],
+  [sys, "{ loading: 'rear', throatChamberL: chamberL }", '{ throatChamberL: chamberL }'],
+  [sys, 'P.clamp(i.nBands, 1, MAX_BANDS)', 'i.nBands'],
+  [sys, 'P.clamp(i.selected, 0, nBands - 1)', 'i.selected'],
+  [sys, 'if (anySolo) notes.push', 'if (!anySolo) notes.push'],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect

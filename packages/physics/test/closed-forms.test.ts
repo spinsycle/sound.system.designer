@@ -82,6 +82,11 @@ describe('closed forms', () => {
     }
   });
 
+  it('limits scale with the drivers in series: each takes its share of the voltage', () => {
+    expect(P.excursionLimitVolts(0.01, 2e-4, 3)).toBeCloseTo(3 * P.excursionLimitVolts(0.01, 2e-4, 1), 12);
+    expect(P.thermalLimitVolts(600, 5, 3)).toBeCloseTo(3 * P.thermalLimitVolts(600, 5, 1), 12);
+  });
+
   it('boundary shelf: full gain at DC, none at high frequency', () => {
     for (const n of [1, 2, 3]) {
       expect(P.dB(P.abs(P.boundaryShelf(0.01, n, 0.5)))).toBeCloseTo(P.boundaryGainDb(n), 3);
