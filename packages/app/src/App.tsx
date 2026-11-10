@@ -3,6 +3,7 @@
 // The shell: owns the project, stores it in the browser, and shows either the system or one band's box.
 import { useEffect, useState } from 'react';
 import { BoxDesigner } from './BoxDesigner';
+import { BuildView } from './BuildView';
 import { SystemView } from './SystemView';
 import { sanitize } from './model';
 import { DEFAULT_PROJECT, type Project, bandName, sanitizeProject } from './system';
@@ -36,6 +37,7 @@ export function App() {
 
   const set = (patch: Partial<Project>): void => setProject((p) => sanitizeProject({ ...p, ...patch }));
   const box = project.view === 'box';
+  const build = project.view === 'build';
 
   return (
     <div className="app">
@@ -43,7 +45,7 @@ export function App() {
         <h1>Sound System Designer</h1>
         <p>Boxes, horns and whole systems. Lossless models; generic driver classes are invented values, not products.</p>
         <nav aria-label="View">
-          <button type="button" className={box ? '' : 'on'} aria-current={box ? undefined : 'page'} onClick={() => set({ view: 'system' })}>
+          <button type="button" className={box || build ? '' : 'on'} aria-current={box || build ? undefined : 'page'} onClick={() => set({ view: 'system' })}>
             System
           </button>
           {project.bands.slice(0, project.nBands).map((_, k) => (
@@ -51,10 +53,15 @@ export function App() {
               {project.nBands === 1 ? 'Box' : `${bandName(project.nBands, k)} box`}
             </button>
           ))}
+          <button type="button" className={build ? 'on' : ''} aria-current={build ? 'page' : undefined} onClick={() => set({ view: 'build' })}>
+            Build
+          </button>
         </nav>
       </header>
 
-      {box ? (
+      {build ? (
+        <BuildView project={project} onChange={setProject} />
+      ) : box ? (
         <BoxDesigner design={project.bands[project.selected]!.design} onChange={(design) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) })} />
       ) : (
         <SystemView project={project} onChange={setProject} />

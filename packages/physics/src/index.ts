@@ -15,3 +15,4 @@ export * from './box';
 export * from './impedance';
 export * from './system';
 export * from './room';
+export * from './cabinet';

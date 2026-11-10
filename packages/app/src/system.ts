@@ -4,6 +4,7 @@
 // polarity, solo and mute, summed as complex pressure in dB SPL. Pure functions; the page draws what computeSystem
 // returns. Spec: "Crossover network and band mixer" and "Absolute level, driver groups and limits".
 import * as P from '@soundsystemdesigner/physics';
+import { type BuildOpts, DEFAULT_BUILD, DEFAULT_SHOP, type Shop, sanitizeBuild, sanitizeShop } from './build';
 import { DEFAULT_DESIGN, type Design, type HornDesign, type Range, driverOf, rawEvaluator, sanitize } from './model';
 
 export const MAX_BANDS = 4;
@@ -21,6 +22,8 @@ export interface Band {
   ampPowerW: number;
   ampLoadOhm: number;
   ampMinLoadOhm: number;
+  /** Box shape and bracing for the cut list. */
+  build: BuildOpts;
   trimDb: number;
   delayMs: number;
   invert: boolean;
@@ -38,9 +41,11 @@ export interface Project {
   lowestHz: number;
   /** Listening distance outdoors, m: the levels shown are at this distance. */
   distanceM: number;
+  /** Wall material and sheet stock. */
+  shop: Shop;
   /** Band whose box is open in the designer. */
   selected: number;
-  view: 'system' | 'box';
+  view: 'system' | 'box' | 'build';
 }
 
 export type BandField = 'trimDb' | 'delayMs' | 'ampPowerW' | 'ampMinLoadOhm';
@@ -66,6 +71,7 @@ const band = (design: Partial<Design>, more: Partial<Band> = {}): Band => ({
   count: 1,
   series: 1,
   ...AMP_DEFAULTS,
+  build: DEFAULT_BUILD,
   trimDb: 0,
   delayMs: 0,
   invert: false,
@@ -112,6 +118,7 @@ export const DEFAULT_PROJECT: Project = {
   bands: DEFAULT_BANDS(),
   lowestHz: 40,
   distanceM: 1,
+  shop: DEFAULT_SHOP,
   selected: 0,
   view: 'system',
 };
@@ -188,6 +195,7 @@ export function sanitizeProject(input: unknown): Project {
         ampPowerW: num(b.ampPowerW, BAND_RANGES.ampPowerW, AMP_DEFAULTS.ampPowerW),
         ampLoadOhm: AMP_LOADS.includes(b.ampLoadOhm as number) ? (b.ampLoadOhm as number) : AMP_DEFAULTS.ampLoadOhm,
         ampMinLoadOhm: num(b.ampMinLoadOhm, BAND_RANGES.ampMinLoadOhm, AMP_DEFAULTS.ampMinLoadOhm),
+        build: sanitizeBuild(b.build),
         trimDb: num(b.trimDb, BAND_RANGES.trimDb, 0),
         delayMs: num(b.delayMs, BAND_RANGES.delayMs, 0),
         invert: b.invert === true,
@@ -197,8 +205,9 @@ export function sanitizeProject(input: unknown): Project {
     }),
     lowestHz: num(i.lowestHz, LOWEST_RANGE, d.lowestHz),
     distanceM: num(i.distanceM, DISTANCE_RANGE, d.distanceM),
+    shop: sanitizeShop(i.shop),
     selected: typeof i.selected === 'number' && Number.isInteger(i.selected) ? P.clamp(i.selected, 0, nBands - 1) : 0,
-    view: i.view === 'box' ? 'box' : 'system',
+    view: i.view === 'box' || i.view === 'build' ? i.view : 'system',
   };
 }
 
@@ -265,7 +274,7 @@ export interface SystemView {
 
 const fmt = (v: number, digits = 1): string => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(digits));
 
-function summary(d: Design): string {
+export function summary(d: Design): string {
   const driver = driverOf(d).name;
   if (d.type === 'horn') return `${driver}, ${d.horn.loading === 'rear' ? 'scoop' : 'horn'}, ${fmt(d.horn.cutoffHz, 0)} Hz ${d.horn.flare}`;
   const box = { sealed: 'sealed', ported: `ported at ${fmt(d.tuneHz, 0)} Hz`, bandpass: `band-pass at ${fmt(d.tuneHz, 0)} Hz` }[d.type];

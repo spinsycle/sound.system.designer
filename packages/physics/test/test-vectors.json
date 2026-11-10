@@ -2224,6 +2224,248 @@
       "tol": {
         "abs_db": 1e-09
       }
+    },
+    {
+      "id": "cab_sealed",
+      "desc": "100 L sealed box, 1:1.5:1 inside, 18 mm, no braces",
+      "inputs": {
+        "v_net_m3": 0.1,
+        "disp_m3": 0.003717231832963879,
+        "rw": 1.0,
+        "rh": 1.5,
+        "rd": 1.0,
+        "t": 0.018,
+        "brace": 0,
+        "divider": 0
+      },
+      "outputs": {
+        "w_i": 0.41044334596745613,
+        "h_i": 0.6156650189511842,
+        "d_i": 0.41044334596745613,
+        "w_o": 0.4464433459674561,
+        "h_o": 0.6516650189511842,
+        "d_o": 0.4464433459674561,
+        "braces": 0,
+        "net_m3": 0.1
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "cab_single_brace",
+      "desc": "As cab_sealed with one window brace",
+      "inputs": {
+        "v_net_m3": 0.1,
+        "disp_m3": 0.003717231832963879,
+        "rw": 1.0,
+        "rh": 1.5,
+        "rd": 1.0,
+        "t": 0.018,
+        "brace": 1,
+        "divider": 0
+      },
+      "outputs": {
+        "w_i": 0.4126435410486419,
+        "h_i": 0.6189653115729629,
+        "d_i": 0.4126435410486419,
+        "w_o": 0.4486435410486419,
+        "h_o": 0.6549653115729629,
+        "d_o": 0.4486435410486419,
+        "braces": 1,
+        "net_m3": 0.10000000000000002
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "cab_window_brace",
+      "desc": "A deep 100 L box (1:1.5:3 inside) with window braces every 0.4 m",
+      "inputs": {
+        "v_net_m3": 0.1,
+        "disp_m3": 0.003717231832963879,
+        "rw": 1.0,
+        "rh": 1.5,
+        "rd": 3.0,
+        "t": 0.018,
+        "brace": 2,
+        "divider": 0
+      },
+      "outputs": {
+        "w_i": 0.286601128569893,
+        "h_i": 0.4299016928548395,
+        "d_i": 0.859803385709679,
+        "w_o": 0.322601128569893,
+        "h_o": 0.46590169285483946,
+        "d_o": 0.895803385709679,
+        "braces": 2,
+        "net_m3": 0.09999999999999998
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "cab_ported",
+      "desc": "As cab_sealed with a 10 cm round port, 30 cm long",
+      "inputs": {
+        "v_net_m3": 0.1,
+        "disp_m3": 0.006364651962143999,
+        "rw": 1.0,
+        "rh": 1.5,
+        "rd": 1.0,
+        "t": 0.018,
+        "brace": 0,
+        "divider": 0
+      },
+      "outputs": {
+        "w_i": 0.41390628538162705,
+        "h_i": 0.6208594280724405,
+        "d_i": 0.41390628538162705,
+        "w_o": 0.449906285381627,
+        "h_o": 0.6568594280724406,
+        "d_o": 0.449906285381627,
+        "braces": 0,
+        "net_m3": 0.10000000000000003
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "cab_bandpass",
+      "desc": "Band-pass: 60 L + 40 L in one box with a divider",
+      "inputs": {
+        "v_net_m3": 0.1,
+        "disp_m3": 0.005923415273947312,
+        "rw": 1.0,
+        "rh": 1.5,
+        "rd": 1.0,
+        "t": 0.018,
+        "brace": 0,
+        "divider": 1
+      },
+      "outputs": {
+        "w_i": 0.4194210903696649,
+        "h_i": 0.6291316355544974,
+        "d_i": 0.4194210903696649,
+        "w_o": 0.4554210903696649,
+        "h_o": 0.6651316355544974,
+        "d_o": 0.4554210903696649,
+        "braces": 0,
+        "net_m3": 0.09999999999992706
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "cab_panels",
+      "desc": "Cut list of the deep 100 L box with window braces (reference driver, Sd 0.085 m2): wood volume (shell panels) and panel areas (m2, m3)",
+      "inputs": {
+        "v_net_m3": 0.1,
+        "rd": 3.0,
+        "t": 0.018,
+        "sd_m2": 0.085
+      },
+      "outputs": {
+        "wood_m3": 0.028702975879247965,
+        "front_m2": 0.15030041191759486,
+        "top_m2": 0.27737354257815744,
+        "side_m2": 0.3696309310389135,
+        "brace_m2": 0.1232103103463045,
+        "brace_n": 2.0
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "cab_driver_disp",
+      "desc": "Driver displacement estimate for Sd 0.088 m2 and a 10 cm x 30 cm port tube (m3)",
+      "inputs": {
+        "sd_m2": 0.088,
+        "port_d": 0.1,
+        "port_l": 0.3
+      },
+      "outputs": {
+        "driver_m3": 0.003915752801186509,
+        "port_m3": 0.0026474201291801194
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "horn_panels_2seg",
+      "desc": "Two horn sections: stations (0, 0.10), (0.5, 0.18), (1.2, 0.40) m, 0.30 m wide, 18 mm",
+      "inputs": {
+        "x0": 0.0,
+        "h0": 0.1,
+        "x1": 0.5,
+        "h1": 0.18,
+        "x2": 1.2,
+        "h2": 0.4,
+        "width": 0.3,
+        "t": 0.018
+      },
+      "outputs": {
+        "slant_1": 0.5015974481593781,
+        "side_len_1": 0.5,
+        "side_h_1": 0.216,
+        "slant_2": 0.708590149522275,
+        "side_len_2": 0.7,
+        "side_h_2": 0.436
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "pack_sheets",
+      "desc": "Shelf packing of six rectangles onto 1220 x 2440 mm sheets, kerf 3 mm",
+      "inputs": {
+        "sheet_l": 2.44,
+        "sheet_w": 1.22,
+        "kerf": 0.003,
+        "l0": 1.2,
+        "w0": 0.6,
+        "l1": 1.2,
+        "w1": 0.6,
+        "l2": 0.9,
+        "w2": 0.5,
+        "l3": 1.0,
+        "w3": 1.0,
+        "l4": 1.0,
+        "w4": 0.2,
+        "l5": 2.5,
+        "w5": 1.0
+      },
+      "outputs": {
+        "sheets": 2.0,
+        "s0": 0.0,
+        "x0": 1.003,
+        "y0": 0.0,
+        "s1": 1.0,
+        "x1": 0.0,
+        "y1": 0.0,
+        "s2": 1.0,
+        "x2": 1.2029999999999998,
+        "y2": 0.0,
+        "s3": 0.0,
+        "x3": 0.0,
+        "y3": 0.0,
+        "s4": 0.0,
+        "x4": 0.0,
+        "y4": 1.003,
+        "s5": -1.0,
+        "x5": 0.0,
+        "y5": 0.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
     }
   ]
 }

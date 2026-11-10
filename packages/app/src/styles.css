@@ -492,3 +492,64 @@ section button + h3 {
     grid-template-columns: 1fr;
   }
 }
+
+.drawings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+}
+
+figure.baffle,
+figure.sheet {
+  margin: 0;
+}
+
+figure.sheet {
+  grid-column: 1 / -1;
+}
+
+figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+}
+
+figcaption {
+  margin-top: 4px;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.piece {
+  fill: var(--panel-hi);
+  stroke: var(--dim);
+  stroke-width: 0.004;
+}
+
+.hole {
+  fill: var(--bg);
+  stroke: var(--amber);
+  stroke-width: 0.004;
+}
+
+.hole.port-hole {
+  stroke: var(--bin);
+}
+
+.stock {
+  fill: var(--panel);
+  stroke: var(--line);
+  stroke-width: 6;
+}
+
+.cut {
+  fill: color-mix(in srgb, var(--band, var(--amber)) 28%, var(--panel));
+  stroke: var(--band, var(--amber));
+  stroke-width: 4;
+}
+
+.cut-label {
+  fill: var(--text);
+  font-size: 34px;
+}

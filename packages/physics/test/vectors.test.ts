@@ -255,6 +255,55 @@ describe('shared vectors', () => {
     }
   });
 
+  it('cabinet, cut list and sheets', () => {
+    const braceOf = (n: number): P.Brace => (['none', 'single', 'window'] as const)[n]!;
+    for (const id of ids('cab_').filter((i) => !['cab_panels', 'cab_driver_disp'].includes(i))) {
+      const v = vec(id).inputs;
+      const g = P.solveBox(v.v_net_m3!, v.disp_m3!, v.rw!, v.rh!, v.rd!, v.t!, braceOf(v.brace!), v.divider === 1);
+      expectVec(id, 'w_i', g.wI);
+      expectVec(id, 'h_i', g.hI);
+      expectVec(id, 'd_i', g.dI);
+      expectVec(id, 'w_o', g.wO);
+      expectVec(id, 'h_o', g.hO);
+      expectVec(id, 'd_o', g.dO);
+      expectVec(id, 'braces', g.braces);
+      expectVec(id, 'net_m3', g.netM3);
+      // the box holds what it was asked to
+      expect(g.netM3).toBeCloseTo(v.v_net_m3!, 9);
+    }
+    const dd = vec('cab_driver_disp').inputs;
+    expectVec('cab_driver_disp', 'driver_m3', P.driverDisplacement(dd.sd_m2!));
+    expectVec('cab_driver_disp', 'port_m3', P.portDisplacement(dd.port_d!, dd.port_l!));
+    const c = vec('cab_panels').inputs;
+    const g = P.solveBox(c.v_net_m3!, P.driverDisplacement(c.sd_m2!), 1, 1.5, c.rd!, c.t!, 'window', false);
+    const pan = P.boxPanels(g, c.t!, false);
+    expectVec('cab_panels', 'wood_m3', pan.slice(0, 4).reduce((a, p) => a + p.l * p.w * c.t! * p.qty, 0));
+    expectVec('cab_panels', 'front_m2', pan[0]!.l * pan[0]!.w);
+    expectVec('cab_panels', 'top_m2', pan[2]!.l * pan[2]!.w);
+    expectVec('cab_panels', 'side_m2', pan[3]!.l * pan[3]!.w);
+    expectVec('cab_panels', 'brace_m2', pan[4]!.l * pan[4]!.w);
+    expectVec('cab_panels', 'brace_n', pan[4]!.qty);
+
+    const h = vec('horn_panels_2seg').inputs;
+    const hp = P.hornPanels([{ x: h.x0!, h: h.h0! }, { x: h.x1!, h: h.h1! }, { x: h.x2!, h: h.h2! }], h.width!, h.t!);
+    expectVec('horn_panels_2seg', 'slant_1', hp[0]!.slant);
+    expectVec('horn_panels_2seg', 'side_len_1', hp[0]!.sideLen);
+    expectVec('horn_panels_2seg', 'side_h_1', hp[0]!.sideH);
+    expectVec('horn_panels_2seg', 'slant_2', hp[1]!.slant);
+    expectVec('horn_panels_2seg', 'side_len_2', hp[1]!.sideLen);
+    expectVec('horn_panels_2seg', 'side_h_2', hp[1]!.sideH);
+
+    const k = vec('pack_sheets').inputs;
+    const pcs = [0, 1, 2, 3, 4, 5].map((i) => ({ l: k[`l${i}`]!, w: k[`w${i}`]! }));
+    const pk = P.packSheets(pcs, k.sheet_l!, k.sheet_w!, k.kerf!);
+    expectVec('pack_sheets', 'sheets', pk.sheets);
+    pk.placements.forEach((p, i) => {
+      expectVec('pack_sheets', `s${i}`, p.sheet);
+      expectVec('pack_sheets', `x${i}`, p.x);
+      expectVec('pack_sheets', `y${i}`, p.y);
+    });
+  });
+
   afterAll(() => {
     const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
     expect(missing, 'vector outputs never asserted').toEqual([]);
