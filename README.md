@@ -3,10 +3,10 @@
 A desktop app (Windows first) that designs loudspeaker enclosures and whole sound systems from driver specs: sealed,
 ported, band-pass and horn-loaded boxes, and 2-way to 4-way systems with crossovers. Work in progress: so far this
 repository holds the physics library (milestone A0), a direct-radiator box designer that runs in the browser (A1:
-driver entry, sealed/ported/band-pass, response, excursion, impedance and group-delay plots) and a front-loaded horn
-designer (A2: exponential, hyperbolic, tractrix and conical flares, a one-dimensional horn simulation, a profile
-drawing and a panel table for horns built from straight panels). The rear-loaded scoop, whole systems, cut lists,
-exports and the desktop shell come next.
+driver entry, sealed/ported/band-pass, response, excursion, impedance and group-delay plots) and a horn designer (A2:
+front-loaded horns and rear-loaded scoops; exponential, hyperbolic, tractrix and conical flares; a one-dimensional
+horn simulation; a profile drawing and a panel table for horns built from straight panels). Whole systems, cut
+lists, exports and the desktop shell come next.
 
 The horn simulation is one-dimensional (plane waves) and lossless. It shows cutoff, mouth-reflection ripple and how
 the horn loads the driver. Its response is radiated power: it does not know about directivity or bends.
