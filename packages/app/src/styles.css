@@ -675,6 +675,11 @@ figcaption {
   color: var(--dim);
 }
 
+.ok-line {
+  color: var(--amber);
+  font-size: 13px;
+}
+
 .warnings-line {
   color: var(--warn);
   font-size: 13px;

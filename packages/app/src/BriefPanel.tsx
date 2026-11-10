@@ -33,6 +33,8 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
   const [cfg, setCfg] = useState<Config>(loadConfig);
   const [models, setModels] = useState<string[]>([]);
   const [status, setStatus] = useState('');
+  /** The result of the last check of the server: shown in the plain, not as a warning, when it is fine. */
+  const [info, setInfo] = useState('');
   const [brief, setBrief] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
@@ -51,8 +53,11 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
 
   const refresh = async (url: string, keep: string): Promise<void> => {
     const mine = ++checks.current;
+    setInfo('Checking Ollama…');
+    setStatus('');
     const bad = localOnly(url);
     if (bad) {
+      setInfo('');
       setModels([]);
       setStatus(bad);
       return;
@@ -61,10 +66,12 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
       const names = await listModels(url);
       if (mine !== checks.current) return;
       setModels(names);
+      setInfo(names.length > 0 ? `Ollama is running at ${new URL(url).origin}: ${names.length} ${names.length === 1 ? 'model' : 'models'} available.` : '');
       setStatus(names.length === 0 ? 'Ollama is running but has no models. Pull one (for example "ollama pull llama3.1:8b").' : '');
       if (names.length > 0 && !names.includes(keep)) save({ baseUrl: url, model: names.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : names[0]! });
     } catch (e) {
       if (mine !== checks.current) return;
+      setInfo('');
       setModels([]);
       setStatus(e instanceof OllamaError ? e.message : 'Could not reach Ollama.');
     }
@@ -160,7 +167,8 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
           Check Ollama
         </button>
       </details>
-      {status && <p className="warnings-line">{status}</p>}
+      {info && <p className="ok-line" role="status">{info}</p>}
+      {status && <p className="warnings-line" role="alert">{status}</p>}
 
       {rows.length > 0 && (
         <>
