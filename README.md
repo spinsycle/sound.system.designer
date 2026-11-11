@@ -4,7 +4,7 @@ Design loudspeaker enclosures and whole sound systems from driver specs. Windows
 Version 1.4.0.
 
 **[Download the Windows installer](https://github.com/spinsycle/sound.system.designer/releases/latest)** (unsigned: if
-SmartScreen warns, choose More info, then Run anyway).
+SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](docs/Sound-System-Designer-User-Guide.pdf) covers every page of the app.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
