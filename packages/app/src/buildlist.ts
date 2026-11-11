@@ -3,7 +3,7 @@
 // Cut list, sheet layout and bill of materials for a project. Pure functions; the Build page draws what comes back.
 // Spec: "Cabinet, cut list and sheets". Metric only (millimetres on the page, metres inside).
 import * as P from '@soundsystemdesigner/physics';
-import { mountDepthCm } from './carsub';
+import { computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
 import { arrangementOf, coneDiameterM, slotLabel } from './loudspeaker';
 import { compute, driverOf } from './model';
 import { type Band, type Project, bandName, summary } from './system';
@@ -466,10 +466,17 @@ export function computeBuild(p: Project): BuildView {
   const cabs = bands.reduce((a, b) => a + b.count * Math.max(b.cabinets.length, 1), 0);
   if (cabs > 0) bom.push({ item: 'Speaker terminal or connector', qty: bands.reduce((a, b) => a + b.count, 0), unit: 'pcs', note: p.kind === 'speaker' ? 'one per speaker' : p.kind === 'car' ? 'one per install' : 'one per driver cabinet' });
   const lining = bands.reduce((a, b) => a + b.count * b.cabinets.reduce((s, c) => s + c.liningM2, 0), 0);
+  if (p.kind === 'car') {
+    // the 12 V parts, sized by the electrical check: a power cable and an equal ground, the fuse and its holder at the battery
+    const e = computeCarElectric(p.car, computeCarSub(p.car).limits);
+    bom.push({ item: `Power cable, ${p.car.cableAwg} AWG`, qty: Math.round(p.car.cableM * 10) / 10, unit: 'm', note: 'battery to amplifier, through the fuse' });
+    bom.push({ item: `Ground cable, ${p.car.cableAwg} AWG`, qty: Math.round(p.car.cableM * 10) / 10, unit: 'm', note: 'the same gauge and length as the power cable (the model counts the return the same)' });
+    bom.push({ item: `Fuse and fuse holder, ${e.fuseA} A`, qty: 1, unit: 'pcs', note: 'within about 45 cm of the battery' });
+  }
   if (lining > 0) bom.push({ item: 'Damping material (wall lining)', qty: Math.round(lining * 10) / 10, unit: 'm2', note: 'all walls except the baffle' });
 
   const notes = [
-    ...(p.kind === 'car' ? ['The amplifier, its wiring kit, fuse and cable are not in this list (the 12 V checks come in a later step). A wedge is cut with plain butt joints: expect to bevel the baffle edges and the sides.'] : []),
+    ...(p.kind === 'car' ? ['The amplifier, ring terminals and the remote lead are not in this list; the cable and fuse follow the 12 V check. A wedge is cut with plain butt joints: expect to bevel the baffle edges and the sides.'] : []),
     ...(p.kind === 'speaker' ? ['The crossover is not part of this list: the speaker is designed with an active crossover. A passive network, its parts and the wiring are yours to add.'] : []),
     'Butt joints, no rabbets or mitres: add allowance yourself if you cut them. Hole sizes are estimates: check the driver datasheet.',
     'The shelf layout is a heuristic: a good hand layout, or a nesting tool, often saves a sheet. Pieces lie long side along the sheet, so grain direction is not respected.',

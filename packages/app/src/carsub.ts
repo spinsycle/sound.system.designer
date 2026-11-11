@@ -8,6 +8,7 @@ import { type BuildOpts, DEFAULT_BUILD, sanitizeBuild } from './build';
 import { DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
 export type CarBoxShape = 'box' | 'wedge';
+export type AmpClass = 'd' | 'ab';
 
 export interface VehicleSpace {
   id: string;
@@ -63,6 +64,14 @@ export interface CarSub {
   bridged: boolean;
   /** Lowest frequency the install is asked to play (a subsonic filter), Hz: the cone's worst case is taken from here up. */
   subsonicHz: number;
+  /** The 12 V side: amplifier class, supply voltage, the power cable (gauge and length, the ground return the same), the music duty, the alternator and the car's own loads. */
+  ampClass: AmpClass;
+  supplyV: number;
+  cableAwg: number;
+  cableM: number;
+  duty: number;
+  alternatorA: number;
+  otherLoadsA: number;
   space: { id: string; wCm: number; hCm: number; dCm: number };
   shape: CarBoxShape;
   /** Top depth / bottom depth of a wedge, in (0, 1]. */
@@ -70,11 +79,15 @@ export interface CarSub {
   build: BuildOpts;
 }
 
-export type CarField = 'ampPowerW' | 'subsonicHz' | 'taper';
+export type CarField = 'ampPowerW' | 'subsonicHz' | 'taper' | 'supplyV' | 'cableM' | 'alternatorA' | 'otherLoadsA';
 export const CAR_RANGES: Record<CarField, Range> = {
   ampPowerW: { label: 'Amp power', unit: 'W', min: 50, max: 20000 },
   subsonicHz: { label: 'Subsonic filter', unit: 'Hz', min: 10, max: 60, linear: true },
   taper: { label: 'Top depth / bottom depth', unit: '', min: 0.15, max: 1, linear: true },
+  supplyV: { label: 'Supply voltage', unit: 'V', min: 10, max: 15.5, linear: true },
+  cableM: { label: 'Cable length', unit: 'm', min: 0.5, max: 15, linear: true },
+  alternatorA: { label: 'Alternator', unit: 'A', min: 30, max: 400, linear: true },
+  otherLoadsA: { label: 'The car\u2019s other loads', unit: 'A', min: 0, max: 200, linear: true },
 };
 export const CAR_COUNT_RANGE: Range = { label: 'Subs', unit: '', min: 1, max: 4, linear: true };
 export const SPACE_RANGES: Record<'wCm' | 'hCm' | 'dCm', Range> = {
@@ -97,6 +110,13 @@ export const DEFAULT_CAR: CarSub = {
   ampMinLoadOhm: 1,
   bridged: false,
   subsonicHz: 25,
+  ampClass: 'd',
+  supplyV: 13.8,
+  cableAwg: 4,
+  cableM: 5,
+  duty: 0.125,
+  alternatorA: 120,
+  otherLoadsA: 40,
   space: { id: 'trunk-compact', ...pick(spaceOf('trunk-compact')) },
   shape: 'box',
   taper: 0.5,
@@ -145,6 +165,13 @@ export function sanitizeCar(input: unknown): CarSub {
     ampMinLoadOhm: CAR_AMP_MIN_LOADS.includes(i.ampMinLoadOhm as number) ? (i.ampMinLoadOhm as number) : d.ampMinLoadOhm,
     bridged: i.bridged === true,
     subsonicHz: num(i.subsonicHz, CAR_RANGES.subsonicHz, d.subsonicHz),
+    ampClass: i.ampClass === 'ab' ? 'ab' : 'd',
+    supplyV: num(i.supplyV, CAR_RANGES.supplyV, d.supplyV),
+    cableAwg: CABLE_AWGS.includes(i.cableAwg as number) ? (i.cableAwg as number) : d.cableAwg,
+    cableM: num(i.cableM, CAR_RANGES.cableM, d.cableM),
+    duty: MUSIC_DUTIES.some((m) => m.value === i.duty) ? (i.duty as number) : d.duty,
+    alternatorA: num(i.alternatorA, CAR_RANGES.alternatorA, d.alternatorA),
+    otherLoadsA: num(i.otherLoadsA, CAR_RANGES.otherLoadsA, d.otherLoadsA),
     space,
     shape: i.shape === 'wedge' ? 'wedge' : 'box',
     taper: num(i.taper, CAR_RANGES.taper, d.taper),
@@ -261,3 +288,52 @@ export function computeCarSub(c: CarSub): CarView {
   return { freqs, levelDb, freeDb, cabinDb, averageDb, limits, loadOhm: nominalLoad, warnings, notes };
 }
 
+/** Amplifier efficiency by class: rules of thumb (class D about 0.8 to 0.9, class AB about 0.5 to 0.65), not a measurement. */
+export const AMP_EFFICIENCY: Record<AmpClass, number> = { d: 0.85, ab: 0.6 };
+/** Cable gauges the page offers, thickest first. */
+export const CABLE_AWGS: readonly number[] = [0, 2, 4, 6, 8, 10, 12];
+/** Average-to-rated power on music: loud and compressed, typical, dynamic. */
+export const MUSIC_DUTIES: readonly { value: number; label: string }[] = [
+  { value: 0.25, label: 'Loud, compressed music (a quarter of rated power)' },
+  { value: 0.125, label: 'Typical music (an eighth)' },
+  { value: 0.0625, label: 'Dynamic music (a sixteenth)' },
+];
+/** The most the power cable and the ground return may drop, as a share of the supply voltage. */
+export const MAX_DROP_FRAC = 0.03;
+
+export interface CarElectric {
+  /** Power the amp makes into this install's load at full output, W (it can differ from the rating), and the current that takes. */
+  powerW: number;
+  peakA: number;
+  /** Music-average current, A, and the alternator's headroom over it and the car's own loads, A. */
+  musicA: number;
+  alternatorMarginA: number;
+  /** Cable and ground return: volts lost at the peak current, their share of the supply, and the thinnest gauge within the budget (-1: none). */
+  dropV: number;
+  dropFrac: number;
+  minAwg: number;
+  /** The fuse at the battery, A. */
+  fuseA: number;
+  warnings: string[];
+}
+
+/** The 12 V side of the install: what the amp draws, what the cable loses, which fuse, and whether the alternator keeps up. */
+export function computeCarElectric(c: CarSub, limits: CarLimits): CarElectric {
+  const eff = AMP_EFFICIENCY[c.ampClass];
+  const powerW = limits.ampIntoLoadW;
+  const peakA = P.ampCurrent(powerW, eff, c.supplyV);
+  const musicA = P.musicCurrent(powerW, eff, c.supplyV, c.duty);
+  const dropV = P.wireDropVolts(peakA, c.cableAwg, c.cableM);
+  const dropFrac = dropV / c.supplyV;
+  const thin = P.minAwg(peakA, c.cableM, c.supplyV, MAX_DROP_FRAC);
+  const fuseA = P.fuseAmps(peakA);
+  const alternatorMarginA = c.alternatorA - c.otherLoadsA - musicA;
+  const warnings: string[] = [];
+  if (dropFrac > MAX_DROP_FRAC + 1e-12)
+    warnings.push(
+      `The ${c.cableAwg} AWG cable and ground return lose ${fmt(dropV, 2)} V (${fmt(dropFrac * 100)} % of ${fmt(c.supplyV)} V) at ${fmt(peakA, 0)} A over ${fmt(c.cableM)} m. ${thin >= 0 ? `Use ${thin} AWG or thicker, or a shorter run, to stay within ${fmt(MAX_DROP_FRAC * 100, 0)} %.` : `Even 0 AWG loses more than ${fmt(MAX_DROP_FRAC * 100, 0)} % over this length: shorten the run.`}`,
+    );
+  if (alternatorMarginA < 0)
+    warnings.push(`On music the amp draws about ${fmt(musicA)} A on average and the car's own loads ${fmt(c.otherLoadsA, 0)} A: more than the ${fmt(c.alternatorA, 0)} A alternator makes, by ${fmt(-alternatorMarginA)} A. The battery covers it for a while; a bigger alternator or a second battery is the cure.`);
+  return { powerW, peakA, musicA, alternatorMarginA, dropV, dropFrac, minAwg: thin, fuseA, warnings };
+}

@@ -8,13 +8,18 @@ import { Field } from './BoxDesigner';
 import { BRACES, BUILD_RANGES } from './build';
 import { computeBuild } from './buildlist';
 import {
+  AMP_EFFICIENCY,
+  CABLE_AWGS,
   CAR_AMP_LOADS,
   CAR_AMP_MIN_LOADS,
   CAR_COUNT_RANGE,
   CAR_RANGES,
+  MAX_DROP_FRAC,
+  MUSIC_DUTIES,
   type CarSub,
   SPACES,
   SPACE_RANGES,
+  computeCarElectric,
   computeCarSub,
   sanitizeCar,
   spaceOf,
@@ -35,6 +40,7 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
   const c = project.car;
   const d = c.design;
   const v = useMemo(() => computeCarSub(c), [c]);
+  const el = useMemo(() => computeCarElectric(c, v.limits), [c, v]);
   const build = useMemo(() => computeBuild(project).bands[0]!, [project]);
 
   const setCar = (next: CarSub): void => onChange(sanitizeProject({ ...project, car: sanitizeCar(next) }));
@@ -240,6 +246,43 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
             Cut list and drawings
           </button>
         </section>
+
+        <section>
+          <h2>12 V supply</h2>
+          <div className="segmented" role="radiogroup" aria-label="Amplifier class">
+            {(['d', 'ab'] as const).map((k) => (
+              <button key={k} type="button" role="radio" aria-checked={c.ampClass === k} className={c.ampClass === k ? 'on' : ''} onClick={() => set({ ampClass: k })}>
+                {k === 'd' ? 'Class D' : 'Class AB'}
+              </button>
+            ))}
+          </div>
+          <p className="hint">Efficiency {AMP_EFFICIENCY[c.ampClass]} (a rule of thumb: class D about 0.85, class AB about 0.6).</p>
+          <Field id="car-supply" range={CAR_RANGES.supplyV} value={c.supplyV} onChange={(x) => set({ supplyV: x })} />
+          <div className="field">
+            <label htmlFor="car-awg">Cable gauge</label>
+            <select id="car-awg" value={c.cableAwg} onChange={(e) => set({ cableAwg: Number(e.target.value) })}>
+              {CABLE_AWGS.map((a) => (
+                <option key={a} value={a}>
+                  {a === 0 ? '0 AWG (1/0)' : `${a} AWG`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Field id="car-cable" range={CAR_RANGES.cableM} value={c.cableM} onChange={(x) => set({ cableM: x })} />
+          <div className="field stacked">
+            <label htmlFor="car-duty">On music the amp averages</label>
+            <select id="car-duty" value={c.duty} onChange={(e) => set({ duty: Number(e.target.value) })}>
+              {MUSIC_DUTIES.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Field id="car-alt" range={CAR_RANGES.alternatorA} value={c.alternatorA} onChange={(x) => set({ alternatorA: x })} />
+          <Field id="car-other" range={CAR_RANGES.otherLoadsA} value={c.otherLoadsA} onChange={(x) => set({ otherLoadsA: x })} />
+          <p className="hint">The cable is the power run from the battery; the ground return is taken as the same gauge and length.</p>
+        </section>
       </div>
 
       <div className="charts one">
@@ -292,6 +335,36 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
               </tr>
               <tr>
                 <th scope="row" className="left">
+                  Supply current
+                </th>
+                <td>
+                  {fmt(el.peakA, 0)} A at full power ({fmt(el.powerW, 0)} W out), about {fmt(el.musicA)} A on music
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" className="left">
+                  Cable
+                </th>
+                <td className={el.dropFrac > MAX_DROP_FRAC ? 'warn' : ''}>
+                  {c.cableAwg} AWG, {fmt(c.cableM)} m: loses {fmt(el.dropV, 2)} V ({fmt(el.dropFrac * 100)} %); {el.minAwg >= 0 ? `${el.minAwg} AWG is the thinnest within ${fmt(MAX_DROP_FRAC * 100, 0)} %` : 'no gauge holds it within the budget'}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" className="left">
+                  Fuse at the battery
+                </th>
+                <td>{el.fuseA} A</td>
+              </tr>
+              <tr>
+                <th scope="row" className="left">
+                  Alternator
+                </th>
+                <td className={el.alternatorMarginA < 0 ? 'warn' : ''}>
+                  {fmt(el.alternatorMarginA, 0)} A spare after the car and the amp on music ({fmt(c.alternatorA, 0)} A rated)
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" className="left">
                   Headroom, maximum level
                 </th>
                 <td>
@@ -300,9 +373,9 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
               </tr>
             </tbody>
           </table>
-          {(v.warnings.length > 0 || build.warnings.length > 0) && (
+          {(v.warnings.length > 0 || build.warnings.length > 0 || el.warnings.length > 0) && (
             <ul className="warnings">
-              {[...v.warnings, ...build.warnings].map((w) => (
+              {[...v.warnings, ...el.warnings, ...build.warnings].map((w) => (
                 <li key={w}>{w}</li>
               ))}
             </ul>

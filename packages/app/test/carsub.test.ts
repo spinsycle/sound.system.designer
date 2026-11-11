@@ -417,7 +417,7 @@ describe('the enclosure', () => {
     expect(bom.get('12 in car sub driver')).toBe(2);
     expect(v.bom.find((b) => b.item.startsWith('Round port tube'))).toMatchObject({ qty: 2 });
     expect(v.bom.find((b) => b.item === 'Speaker terminal or connector')).toMatchObject({ qty: 1, note: 'one per install' });
-    expect(v.notes[0]).toContain('amplifier, its wiring kit');
+    expect(v.notes[0]).toContain('The amplifier, ring terminals and the remote lead are not in this list');
   });
   it('a PA system and a home speaker are unchanged by the car install in the project', () => {
     const roots = S.applyTemplate(S.DEFAULT_PROJECT, 4);
@@ -425,3 +425,101 @@ describe('the enclosure', () => {
     expect(S.computeSystem({ ...roots, car: car() }).levelDb).toEqual(S.computeSystem(roots).levelDb);
   });
 });
+
+describe('the 12 V check (C2)', () => {
+  const el = (e: (x: C.CarSub) => void = () => {}): C.CarElectric => {
+    const c = car(e);
+    return C.computeCarElectric(c, C.computeCarSub(c).limits);
+  };
+  const build = (c: C.CarSub): B.BuildView => B.computeBuild(project(c));
+
+  it('sanitise: class, supply, gauge, length, duty, alternator and loads are made valid', () => {
+    const s = C.sanitizeCar({ ampClass: 'x', supplyV: 99, cableAwg: 3, cableM: 0, duty: 0.3, alternatorA: 1, otherLoadsA: -5 });
+    expect(s).toMatchObject({ ampClass: 'd', supplyV: 15.5, cableAwg: C.DEFAULT_CAR.cableAwg, cableM: 0.5, duty: 0.125, alternatorA: 30, otherLoadsA: 0 });
+    expect(C.sanitizeCar({ ampClass: 'ab', cableAwg: 0, duty: 0.25, supplyV: 12.6 })).toMatchObject({ ampClass: 'ab', cableAwg: 0, duty: 0.25, supplyV: 12.6 });
+    expect(C.CABLE_AWGS).toEqual([0, 2, 4, 6, 8, 10, 12]);
+    expect(C.AMP_EFFICIENCY).toEqual({ d: 0.85, ab: 0.6 });
+    expect(C.MUSIC_DUTIES.map((m) => m.value)).toEqual([0.25, 0.125, 0.0625]);
+    expect(C.MAX_DROP_FRAC).toBe(0.03);
+  });
+  it('the default install is clean: a few amps, a thick short cable, a 15 A fuse, plenty of alternator', () => {
+    const e = el();
+    expect(e.warnings).toEqual([]);
+    expect(e.peakA).toBeGreaterThan(5);
+    expect(e.peakA).toBeLessThan(20);
+    expect(e.fuseA).toBe(15);
+    expect(e.alternatorMarginA).toBeGreaterThan(50);
+  });
+  it('the current is the power the amp makes into this load over efficiency and supply volts; music is a fraction of it', () => {
+    const c = car((x) => { x.ampPowerW = 1000; x.ampLoadOhm = 2; x.coilSeries = 2; x.ampMinLoadOhm = 2; }); // 7.2 ohm
+    const v = C.computeCarSub(c);
+    const e = C.computeCarElectric(c, v.limits);
+    expect(e.powerW).toBeCloseTo((1000 * 2) / 7.2, 9);
+    expect(e.peakA).toBeCloseTo(P.ampCurrent((1000 * 2) / 7.2, 0.85, 13.8), 9);
+    expect(e.musicA).toBeCloseTo(e.peakA * 0.125, 9);
+    expect(el((x) => (x.duty = 0.25)).musicA).toBeCloseTo(2 * el().musicA, 9);
+    expect(el((x) => (x.ampClass = 'ab')).peakA).toBeCloseTo((el().peakA * 0.85) / 0.6, 9);
+    expect(el((x) => (x.supplyV = 12)).peakA).toBeCloseTo((el().peakA * 13.8) / 12, 9);
+  });
+  it('a bridged amp at a light load makes more power than its rating, and the current follows', () => {
+    const rated = el((x) => { x.bridged = false; x.ampPowerW = 500; x.ampLoadOhm = 2; });
+    const bridged = el((x) => { x.bridged = true; x.ampPowerW = 500; x.ampLoadOhm = 2; x.ampMinLoadOhm = 0.5; });
+    expect(bridged.powerW).toBeGreaterThan(rated.powerW * 3.9);
+    expect(bridged.peakA).toBeGreaterThan(rated.peakA * 3.9);
+  });
+  it('the cable drop is the current through the cable and the ground return; the thinnest gauge is the one the budget allows', () => {
+    const big = (x: C.CarSub): void => { x.ampPowerW = 2000; x.ampLoadOhm = 2; x.coils = 2; x.coilSeries = 1; x.ampMinLoadOhm = 1; };
+    const e = el(big);
+    expect(e.dropV).toBeCloseTo(P.wireDropVolts(e.peakA, 4, 5), 12);
+    expect(e.dropFrac).toBeCloseTo(e.dropV / 13.8, 12);
+    expect(e.minAwg).toBe(P.minAwg(e.peakA, 5, 13.8, 0.03));
+    expect(el((x) => { big(x); x.cableAwg = 12; }).dropV).toBeGreaterThan(e.dropV * 4);
+    expect(el((x) => { big(x); x.cableM = 10; }).dropV).toBeCloseTo(2 * e.dropV, 9);
+    expect(el((x) => { big(x); x.supplyV = 12; }).dropFrac).toBeGreaterThan(0);
+  });
+  it('a cable that loses more than 3 % warns, names the gauge to use, and says so when none will do', () => {
+    const e = el((x) => { x.ampPowerW = 1000; x.ampLoadOhm = 2; x.ampMinLoadOhm = 1; x.cableAwg = 12; });
+    expect(e.minAwg).toBeGreaterThanOrEqual(0);
+    expect(e.dropFrac).toBeGreaterThan(0.03);
+    expect(e.warnings.some((w) => w.includes('12 AWG') && w.includes(`Use ${e.minAwg} AWG or thicker`))).toBe(true);
+    const long = el((x) => { x.ampPowerW = 20000; x.ampLoadOhm = 1; x.ampMinLoadOhm = 0.5; x.cableAwg = 0; x.cableM = 15; });
+    expect(long.minAwg).toBe(-1);
+    expect(long.warnings.some((w) => w.includes('Even 0 AWG'))).toBe(true);
+    const ok = el((x) => { x.cableAwg = 0; });
+    expect(ok.warnings.some((w) => w.includes('lose'))).toBe(false);
+    // exactly at the budget is fine
+    const edge = el((x) => { x.ampPowerW = 600; });
+    expect(edge.dropFrac).toBeLessThan(0.03);
+  });
+  it('when 0 AWG is just thick enough the warning says use 0 AWG, not that no gauge will do', () => {
+    const e = el((x) => { x.ampPowerW = 1200; x.ampLoadOhm = 2; x.ampMinLoadOhm = 1; x.cableAwg = 12; });
+    expect(e.minAwg).toBe(0);
+    expect(e.warnings.some((w) => w.includes('Use 0 AWG or thicker'))).toBe(true);
+    expect(e.warnings.some((w) => w.includes('Even 0 AWG'))).toBe(false);
+  });
+  it('the fuse is the next standard value over 1.25 x the peak current', () => {
+    const e = el((x) => { x.ampPowerW = 1000; x.ampLoadOhm = 1; });
+    expect(e.fuseA).toBe(P.fuseAmps(e.peakA));
+    expect(e.fuseA).toBeGreaterThanOrEqual(1.25 * e.peakA);
+  });
+  it('the alternator margin is its rating less the loads of the car and the music current of the amp; a shortfall warns', () => {
+    const e = el((x) => { x.alternatorA = 100; x.otherLoadsA = 20; });
+    expect(e.alternatorMarginA).toBeCloseTo(100 - 20 - e.musicA, 12);
+    const short = el((x) => { x.ampPowerW = 6000; x.ampLoadOhm = 1; x.ampMinLoadOhm = 0.5; x.alternatorA = 60; x.otherLoadsA = 50; x.duty = 0.25; });
+    expect(short.alternatorMarginA).toBeLessThan(0);
+    expect(short.warnings.some((w) => w.includes('alternator makes'))).toBe(true);
+    expect(el().warnings.some((w) => w.includes('alternator'))).toBe(false);
+    expect(el((x) => { x.alternatorA = 30; x.otherLoadsA = 0; }).alternatorMarginA).toBeGreaterThan(0);
+  });
+  it('the bill of materials carries the cable, the ground and the fuse sized by the check; a PA project has none', () => {
+    const c = car((x) => { x.ampPowerW = 1000; x.cableAwg = 2; x.cableM = 6.5; });
+    const v = build(c);
+    const e = C.computeCarElectric(c, C.computeCarSub(c).limits);
+    expect(v.bom.find((b) => b.item === 'Power cable, 2 AWG')).toMatchObject({ qty: 6.5, unit: 'm' });
+    expect(v.bom.find((b) => b.item === 'Ground cable, 2 AWG')).toMatchObject({ qty: 6.5, unit: 'm' });
+    expect(v.bom.find((b) => b.item === `Fuse and fuse holder, ${e.fuseA} A`)).toMatchObject({ qty: 1, unit: 'pcs' });
+    const pa = B.computeBuild(S.applyTemplate(S.DEFAULT_PROJECT, 4));
+    expect(pa.bom.some((b) => b.item.includes('cable') || b.item.includes('Fuse'))).toBe(false);
+  });
+});
+
