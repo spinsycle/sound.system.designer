@@ -5,7 +5,7 @@
 // sum as complex pressure and the baffle step multiplies the sum. Pure functions; the page draws what computeLoudspeaker
 // returns. Spec: "Loudspeaker cabinets" (v0.11).
 import * as P from '@soundsystemdesigner/physics';
-import { DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
+import { BOX_RANGES, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
 export type Role = 'woofer' | 'mid' | 'tweeter';
 
@@ -196,7 +196,12 @@ export function loudspeakerEvaluator(sp: Loudspeaker) {
     };
     const delayS = s.backCm / 100 / P.C;
     const played = (f: number): P.Cx => P.scale(P.mul(leg(f), g(f)), pRef * gain);
-    return { spec, s, driver, leg, g, played, delayS };
+    /** The driver or group alone: no crossover leg, 0 dB trim. */
+    const box = (f: number): P.Cx => P.scale(g(f), pRef);
+    /** The range the slot plays, Hz: 0 and Infinity when it is not bounded on that side. */
+    const bottomHz = arr.kind === 'partition' ? (k > 0 ? xs[k - 1]! : 0) : k === 2 ? xs[1]! : 0;
+    const topHz = arr.kind === 'partition' ? (k < n - 1 ? xs[k]! : Infinity) : k === 0 ? xs[0]! : k === 1 ? xs[1]! : Infinity;
+    return { spec, s, driver, leg, g, played, box, delayS, bottomHz, topHz };
   });
   const step = (f: number): P.Cx => (sp.baffleStep ? P.baffleStepShelf(f, sp.baffleWidthCm / 100) : P.cx(1));
   const total = (f: number): P.Cx => P.mul(P.systemPressure(f, slots.map((x) => ({ pressure: x.played(f), delayS: x.delayS }))), step(f));
@@ -246,8 +251,8 @@ export function computeLoudspeaker(sp: Loudspeaker): LoudspeakerView {
   const widthM = sp.baffleWidthCm / 100;
   ev.slots.forEach((x, k) => {
     const name = slots[k]!.name;
-    const top = ev.arr.kind === 'partition' ? (k < ev.n - 1 ? ev.xover[k]! : Infinity) : k === 0 ? ev.xover[0]! : k === 1 ? ev.xover[1]! : Infinity;
-    const bottom = ev.arr.kind === 'partition' ? (k > 0 ? ev.xover[k - 1]! : 0) : k === 2 ? ev.xover[1]! : 0;
+    const top = x.topHz;
+    const bottom = x.bottomHz;
     if (bottom > 0 && bottom < MIN_XOVER_OVER_FS * x.driver.fs)
       warnings.push(`${name}: crossed at ${fmt(bottom, 0)} Hz, under twice its ${fmt(x.driver.fs, 0)} Hz resonance. It will be asked for more excursion than it has; cross higher.`);
     const dia = coneDiameterM(x.driver.sd);
@@ -262,4 +267,79 @@ export function computeLoudspeaker(sp: Loudspeaker): LoudspeakerView {
   if (sp.baffleStep) notes.push(`Baffle step: the bass falls 6 dB below about ${fmt(stepHz, 0)} Hz for a free-standing box on a ${fmt(sp.baffleWidthCm, 0)} cm baffle. Against a wall the step is smaller; turn it off for an in-wall speaker.`);
   notes.push(`Levels are for ${REF_VOLTS} V at each driver, on axis at 1 m in half space. Drivers are taken as wired in parallel behind an active crossover; vertical lobing between drivers, the tweeter's beaming and edge diffraction are not modelled.`);
   return { freqs, levelDb, slots, xover: ev.xover, stepHz, sensitivityDb, warnings, notes };
+}
+
+/**
+ * Bring each driver's own passband level (its box response over the range it plays, at 0 dB trim, 1 m) down to the quietest
+ * driver's, which stays at 0 dB. Rounded to 0.1 dB and limited to the trim range. A driver with no passband is left alone.
+ */
+export function nativeLevels(sp: Loudspeaker): number[] {
+  const ev = loudspeakerEvaluator(sp);
+  return ev.slots.map((x) => {
+    const lo = Math.max(x.bottomHz, LEVEL_LO_HZ);
+    const hi = Math.min(x.topHz, LEVEL_HI_HZ);
+    const inBand = SPEAKER_FREQS.filter((f) => f >= lo && f <= hi).map((f) => P.splDb(P.abs(x.box(f))));
+    return inBand.length ? inBand.reduce((a, b) => a + b, 0) / inBand.length : Number.NaN;
+  });
+}
+
+export function levelSpeaker(sp: Loudspeaker): Loudspeaker {
+  const arr = arrangementOf(sp.arrangement);
+  const native = nativeLevels(sp); // the box response has no trim in it, so old trims do not matter
+  const target = Math.min(...native.filter(Number.isFinite));
+  return sanitizeLoudspeaker({ ...sp, slots: sp.slots.map((s, k) => ({ ...s, trimDb: k < arr.slots.length && Number.isFinite(native[k]!) ? Math.round((target - native[k]!) * 10) / 10 + 0 : 0 })) });
+}
+
+/**
+ * A ported box's tuning and port for a slot: tuned at Fs (Vas / Vb)^0.31, a port half the cone's diameter, narrowed until
+ * its tube is at least 2 cm long (a wide port in a small chamber would have no length at all). The chamber is shared by
+ * `count` drivers, each with a port of this size.
+ */
+export function portedDefaults(d: Design, count = 1): Pick<Design, 'tuneHz' | 'portDiameterCm'> {
+  const driver = driverOf(d);
+  const each = d.volumeL / Math.max(count, 1);
+  const tune = P.clamp(Math.round(driver.fs * (driver.vasM3 / (each / 1000)) ** 0.31), BOX_RANGES.tuneHz.min, BOX_RANGES.tuneHz.max);
+  let dia = P.clamp(Math.round(coneDiameterM(driver.sd) * 50 * 10) / 10, BOX_RANGES.portDiameterCm.min, BOX_RANGES.portDiameterCm.max);
+  while (dia > BOX_RANGES.portDiameterCm.min && P.portLengthM(each / 1000, tune, dia / 100) < MIN_PORT_LENGTH_M) dia = Math.max(BOX_RANGES.portDiameterCm.min, Math.round(dia * 0.85 * 10) / 10);
+  return { tuneHz: tune, portDiameterCm: dia };
+}
+const MIN_PORT_LENGTH_M = 0.02;
+const LEVEL_LO_HZ = 200;
+const LEVEL_HI_HZ = 12000;
+
+export interface SpeakerTemplate {
+  label: string;
+  description: string;
+  speaker: Loudspeaker;
+}
+
+/** A starting design: the arrangement's defaults with the given drivers, a box for each, and the baffle; levelled on load. */
+function template(id: ArrangementId, baffle: [number, number], xover: number[], slots: { cls: string; volumeL: number; ported?: boolean }[], more: Partial<Loudspeaker> = {}): Loudspeaker {
+  const d = defaultSpeaker(id);
+  const arr = arrangementOf(id);
+  const built = d.slots.map((s, k) => {
+    const want = slots[k];
+    if (!want) return s;
+    const base: Design = { ...s.design, driverClass: classIndex(want.cls), volumeL: want.volumeL, type: 'sealed' };
+    return { ...s, design: want.ported ? { ...base, type: 'ported', ...portedDefaults(base, arr.slots[k]!.count) } : base };
+  });
+  return levelSpeaker(sanitizeLoudspeaker({ ...d, ...more, slots: built, xover: [...xover, ...d.xover.slice(xover.length)], baffleWidthCm: baffle[0], baffleHeightCm: baffle[1] }));
+}
+
+/** Generic starting points: invented driver values, no brand or model. Desktop to floorstanding. */
+export const SPEAKER_TEMPLATES: readonly SpeakerTemplate[] = [
+  { label: 'Desktop 2-way (4 in)', description: 'A small sealed speaker for a desk or shelf: 4 in woofer, 0.75 in dome, crossed at 3 kHz.', speaker: template('two-way', [14, 22], [3000], [{ cls: '4 in', volumeL: 3 }, { cls: '0.75 in dome', volumeL: 0.3 }]) },
+  { label: 'Bookshelf 2-way, sealed (5.25 in)', description: 'The classic bookshelf: 5.25 in woofer in 8 L sealed, 1 in dome, 2.5 kHz.', speaker: template('two-way', [20, 32], [2500], [{ cls: '5.25 in', volumeL: 8 }, { cls: '1 in dome', volumeL: 0.5 }]) },
+  { label: 'Bookshelf 2-way, ported (5.25 in)', description: 'The same drivers in a bigger ported box for more bass, 2.5 kHz.', speaker: template('two-way', [20, 36], [2500], [{ cls: '5.25 in', volumeL: 12, ported: true }, { cls: '1 in dome', volumeL: 0.5 }]) },
+  { label: 'Floorstander 2-way (8 in)', description: 'A tall ported speaker: 8 in woofer in 25 L, 1.25 in dome, crossed at 1.8 kHz.', speaker: template('two-way', [24, 95], [1800], [{ cls: '8 in', volumeL: 25, ported: true }, { cls: '1.25 in dome', volumeL: 0.6 }]) },
+  { label: "D'Appolito bookshelf (2 x 4 in)", description: 'MTM: two 4 in drivers either side of a dome, sealed, crossed at 2.5 kHz. Narrow, with a tall, even sound field.', speaker: template('mtm', [16, 40], [2500], [{ cls: '4 in mid', volumeL: 5 }, { cls: '1 in dome', volumeL: 0.5 }]) },
+  { label: 'MTM tower (2 x 5.25 in)', description: 'A ported tower: two 5.25 in drivers around a dome, 2.5 kHz.', speaker: template('mtm', [18, 100], [2500], [{ cls: '5.25 in', volumeL: 20, ported: true }, { cls: '1 in dome', volumeL: 0.6 }]) },
+  { label: '3-way floorstander', description: '10 in ported woofer, 4 in midrange, dome tweeter; 350 Hz and 3 kHz.', speaker: template('three-way', [28, 110], [350, 3000], [{ cls: '10 in', volumeL: 40, ported: true }, { cls: '4 in mid', volumeL: 2 }, { cls: '1 in dome', volumeL: 0.5 }]) },
+  { label: '2.5-way tower (2 x 5.25 in)', description: 'Two woofers, the lower playing only the bass (below 300 Hz), plus a dome; 2.5 kHz.', speaker: template('two-and-half', [20, 85], [300, 2500], [{ cls: '5.25 in', volumeL: 8 }, { cls: '5.25 in', volumeL: 8 }, { cls: '1 in dome', volumeL: 0.5 }]) },
+];
+
+/** A starting design as the speaker, keeping how many to build and the bracing. */
+export function applySpeakerTemplate(sp: Loudspeaker, index: number): Loudspeaker {
+  const t = SPEAKER_TEMPLATES[index]!.speaker;
+  return sanitizeLoudspeaker({ ...t, quantity: sp.quantity, brace: sp.brace, chambers: sp.chambers });
 }

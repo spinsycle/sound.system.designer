@@ -34,4 +34,14 @@ describe('driver classes (H1)', () => {
       expect(g(d.fs / 4), d.name).toBeLessThan(-15);
     }
   });
+
+  it('a tweeter is a few dB more efficient than a 5.25 in woofer, not a different order of magnitude', () => {
+    const eta = (d: P.DriverSpec): number => (4 * Math.PI ** 2 / P.C ** 3) * d.fs ** 3 * d.vasM3 / d.qes;
+    const woofer = P.ALL_DRIVER_CLASSES.find((d) => d.name === '5.25 in')!;
+    for (const d of P.ALL_DRIVER_CLASSES.filter((c) => c.name.includes('dome') || c.name.includes('Planar'))) {
+      const diff = 10 * Math.log10(eta(d) / eta(woofer));
+      expect(diff, d.name).toBeGreaterThan(-1);
+      expect(diff, d.name).toBeLessThan(8);
+    }
+  });
 });

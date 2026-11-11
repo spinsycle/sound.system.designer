@@ -9,6 +9,10 @@ import { BRACES } from './build';
 import { Chart } from './Chart';
 import {
   ARRANGEMENTS,
+  SPEAKER_TEMPLATES,
+  applySpeakerTemplate,
+  levelSpeaker,
+  portedDefaults,
   type ArrangementId,
   type Loudspeaker,
   QUANTITY_RANGE,
@@ -33,6 +37,7 @@ const SLOT_BOXES = [
 
 export function SpeakerView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
   const [hover, setHover] = useState<number | null>(null);
+  const [template, setTemplate] = useState(1);
   const sp = project.speaker;
   const arr = arrangementOf(sp.arrangement);
   const c = useMemo(() => computeLoudspeaker(sp), [sp]);
@@ -53,6 +58,20 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
         <section>
           <h2>Speaker</h2>
           <div className="field stacked">
+            <label htmlFor="sp-template">Starting point</label>
+            <select id="sp-template" value={template} onChange={(e) => setTemplate(Number(e.target.value))}>
+              {SPEAKER_TEMPLATES.map((t, i) => (
+                <option key={t.label} value={i}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="hint">{SPEAKER_TEMPLATES[template]!.description}</p>
+          <button type="button" onClick={() => setSpeaker(applySpeakerTemplate(sp, template))}>
+            Load it (replaces the drivers and the baffle)
+          </button>
+          <div className="field stacked">
             <label htmlFor="arrangement">Arrangement</label>
             <select id="arrangement" value={sp.arrangement} onChange={(e) => setSpeaker(applyArrangement(sp, e.target.value as ArrangementId))}>
               {ARRANGEMENTS.map((a) => (
@@ -63,6 +82,9 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
             </select>
           </div>
           <p className="hint">{arr.description}</p>
+          <button type="button" onClick={() => setSpeaker(levelSpeaker(sp))}>
+            Level the drivers
+          </button>
           <Field id="baffle-w" range={SPEAKER_RANGES.baffleWidthCm} value={sp.baffleWidthCm} onChange={(v) => set({ baffleWidthCm: v })} />
           <Field id="baffle-h" range={SPEAKER_RANGES.baffleHeightCm} value={sp.baffleHeightCm} onChange={(v) => set({ baffleHeightCm: v })} />
           <div className="checks">
@@ -144,7 +166,7 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
                 <>
                   <div className="field">
                     <label htmlFor={`sp-box-${k}`}>Box</label>
-                    <select id={`sp-box-${k}`} value={d.type === 'ported' ? 'ported' : 'sealed'} onChange={(e) => setDesign(k, { type: e.target.value as Design['type'] })}>
+                    <select id={`sp-box-${k}`} value={d.type === 'ported' ? 'ported' : 'sealed'} onChange={(e) => setDesign(k, e.target.value === 'ported' ? { type: 'ported', ...portedDefaults(d, spec.count) } : { type: 'sealed' })}>
                       {SLOT_BOXES.map((b) => (
                         <option key={b.id} value={b.id}>
                           {b.label}
