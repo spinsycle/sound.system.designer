@@ -6,7 +6,7 @@
 import * as P from '@soundsystemdesigner/physics';
 import { type BuildOpts, DEFAULT_BUILD, sanitizeBuild } from './build';
 import { type CarFront, DEFAULT_FRONT, checkFront, frontPressures, sanitizeFront } from './carfront';
-import { DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
+import { BOX_RANGES, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
 export type CarBoxShape = 'box' | 'wedge';
 export type AmpClass = 'd' | 'ab';
@@ -27,6 +27,7 @@ export const SPACES: readonly VehicleSpace[] = [
   { id: 'trunk-full', label: 'Trunk, full-size car', wCm: 110, hCm: 55, dCm: 55 },
   { id: 'hatch', label: 'Hatchback or SUV cargo floor', wCm: 100, hCm: 45, dCm: 60 },
   { id: 'under-seat', label: 'Under a seat', wCm: 60, hCm: 14, dCm: 30 },
+  { id: 'under-seat-flat', label: 'Under a seat, firing up or down', wCm: 60, hCm: 30, dCm: 14 },
   { id: 'behind-seat', label: 'Behind the seat of a truck cab', wCm: 120, hCm: 35, dCm: 25 },
   { id: 'custom', label: 'Custom size', wCm: 80, hCm: 40, dCm: 40 },
 ];
@@ -186,6 +187,21 @@ export function sanitizeCar(input: unknown): CarSub {
 
 /** The sub chosen as a class of its own and its box, keeping the install around it. */
 export const withDesign = (c: CarSub, patch: Partial<Design>): CarSub => sanitizeCar({ ...c, design: { ...c.design, ...patch } });
+
+/**
+ * A port for a sub: tuned at Fs (Vas / Vb)^0.31 for each sub's share of the air, with the diameter that gives a tube of
+ * `targetLengthM` (default 20 cm), within 4 to 25 cm across. A sub's port is sized by its length, not by half the cone: half the
+ * cone of a 12 in would be 12 cm across and most of a metre long.
+ */
+export function carPortedDefaults(d: Design, count = 1, targetLengthM = 0.2): Pick<Design, 'tuneHz' | 'portDiameterCm'> {
+  const driver = driverOf(d);
+  const each = d.volumeL / 1000 / Math.max(count, 1);
+  const tune = P.clamp(Math.round(driver.fs * (driver.vasM3 / each) ** 0.31), BOX_RANGES.tuneHz.min, BOX_RANGES.tuneHz.max);
+  // L = k d^2 - 0.732 d with k = c^2 pi / (16 pi^2 fb^2 V) per metre squared: solve for d
+  const k = P.C ** 2 / (16 * Math.PI * tune ** 2 * each);
+  const dM = (0.732 + Math.sqrt(0.732 ** 2 + 4 * k * targetLengthM)) / (2 * k);
+  return { tuneHz: tune, portDiameterCm: P.clamp(Math.round(dM * 1000) / 10, 4, 25) };
+}
 
 export const CAR_FREQS: readonly number[] = Array.from({ length: 240 }, (_, k) => 10 * 50 ** (k / 239));
 /** Top of the range averaged for a sub's level, Hz. */

@@ -20,12 +20,14 @@ import {
   SPACES,
   SPACE_RANGES,
   computeCarElectric,
+  carPortedDefaults,
   computeCarSub,
   computeCarSystem,
   levelFront,
   sanitizeCar,
   spaceOf,
 } from './carsub';
+import { CAR_TEMPLATES, applyCarTemplate } from './cartemplates';
 import { Chart } from './Chart';
 import {
   FRONT_COAX_CLASSES,
@@ -37,7 +39,6 @@ import {
   MOUNT_DEFAULTS,
   applyFront,
 } from './carfront';
-import { portedDefaults } from './loudspeaker';
 import { BOX_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, type Design } from './model';
 import { type Project, sanitizeProject } from './system';
 
@@ -49,6 +50,7 @@ const FIRST_CAR_CLASS = P.ALL_DRIVER_CLASSES.findIndex((d) => d.name.includes('c
 
 export function CarView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
   const [hover, setHover] = useState<number | null>(null);
+  const [template, setTemplate] = useState(0);
   const c = project.car;
   const d = c.design;
   const v = useMemo(() => computeCarSub(c), [c]);
@@ -89,6 +91,20 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
       <div className="controls">
         <section>
           <h2>Install</h2>
+          <div className="field stacked">
+            <label htmlFor="car-template">Starting point</label>
+            <select id="car-template" value={template} onChange={(e) => setTemplate(Number(e.target.value))}>
+              {CAR_TEMPLATES.map((t, i) => (
+                <option key={t.label} value={i}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="hint">{CAR_TEMPLATES[template]!.description}</p>
+          <button type="button" onClick={() => setCar(applyCarTemplate(c, template))}>
+            Load it (replaces the install, keeps your 12 V settings)
+          </button>
           <div className="field">
             <label htmlFor="car-cabin">Cabin</label>
             <select id="car-cabin" value={c.cabin} onChange={(e) => set({ cabin: e.target.value as P.CabinId })}>
@@ -193,7 +209,7 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
                 role="radio"
                 aria-checked={d.type === k}
                 className={d.type === k ? 'on' : ''}
-                onClick={() => setDesign(k === 'ported' ? { type: k, ...portedDefaults(d, c.count) } : { type: k })}
+                onClick={() => setDesign(k === 'ported' ? { type: k, ...carPortedDefaults(d, c.count) } : { type: k })}
               >
                 {{ sealed: 'Sealed', ported: 'Ported', bandpass: 'Band-pass' }[k]}
               </button>

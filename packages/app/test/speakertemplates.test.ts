@@ -130,18 +130,21 @@ describe('port defaults', () => {
     const two = L.portedDefaults(woofer('5.25 in', 12), 2);
     expect(two).toEqual(one);
   });
-  it('a port too wide for its chamber is narrowed until it can be cut, never below 2 cm', () => {
+  it('a port too narrow for its chamber has no length, so it is widened until the tube can be cut', () => {
     const got = L.portedDefaults(woofer('3 in', 900));
-    expect(got.portDiameterCm).toBeLessThan(L.coneDiameterM(P.ALL_DRIVER_CLASSES[cls('3 in')]!.sd) * 50);
-    expect(got.portDiameterCm).toBe(2);
+    expect(got.portDiameterCm).toBeGreaterThan(L.coneDiameterM(P.ALL_DRIVER_CLASSES[cls('3 in')]!.sd) * 50); // wider than half the cone
+    expect(got).toEqual({ tuneHz: 15, portDiameterCm: 8.4 }); // the widening steps are 15 % plus a millimetre
+    expect(L.portedDefaults(woofer('4 in', 300))).toEqual({ tuneHz: 24, portDiameterCm: 7.8 });
+    expect(P.portLengthM(0.9, got.tuneHz, got.portDiameterCm / 100)).toBeGreaterThanOrEqual(0.02);
     // a chamber that suits the driver keeps the full half-cone port
     const fine = L.portedDefaults(woofer('8 in', 25));
     expect(fine.portDiameterCm).toBeCloseTo(8.3, 6);
     expect(P.portLengthM(0.025, fine.tuneHz, fine.portDiameterCm / 100)).toBeGreaterThanOrEqual(0.02);
   });
-  it('the diameter never goes under 2 cm even when the half-cone port starts just above it', () => {
-    const custom: M.Design = { ...M.DEFAULT_DESIGN, driverClass: M.CUSTOM_CLASS, custom: { ...M.DEFAULT_DESIGN.custom, sdCm2: 15, fsHz: 20, vasL: 10 }, volumeL: 900, type: 'ported' };
-    expect(L.portedDefaults(custom).portDiameterCm).toBe(2);
+  it('widening stops at the widest port the page allows', () => {
+    const custom: M.Design = { ...M.DEFAULT_DESIGN, driverClass: M.CUSTOM_CLASS, custom: { ...M.DEFAULT_DESIGN.custom, sdCm2: 15, fsHz: 20, vasL: 1 }, volumeL: 1000, type: 'ported' };
+    expect(L.portedDefaults(custom).portDiameterCm).toBeLessThanOrEqual(M.BOX_RANGES.portDiameterCm.max);
+    expect(L.portedDefaults({ ...custom, volumeL: 20 }).portDiameterCm).toBeLessThan(M.BOX_RANGES.portDiameterCm.max);
   });
   it('the tuning stays in the allowed range', () => {
     for (const c of P.ALL_DRIVER_CLASSES) for (const v of [0.2, 5, 100, 900]) {

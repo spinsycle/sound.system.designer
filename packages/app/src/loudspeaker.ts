@@ -291,16 +291,16 @@ export function levelSpeaker(sp: Loudspeaker): Loudspeaker {
 }
 
 /**
- * A ported box's tuning and port for a slot: tuned at Fs (Vas / Vb)^0.31, a port half the cone's diameter, narrowed until
- * its tube is at least 2 cm long (a wide port in a small chamber would have no length at all). The chamber is shared by
- * `count` drivers, each with a port of this size.
+ * A ported box's tuning and port for a slot: tuned at Fs (Vas / Vb)^0.31, a port half the cone's diameter, widened until its
+ * tube is at least 2 cm long (a tube's length is k d^2 - 0.732 d, so a port too narrow for its chamber has no length at all:
+ * it grows with the diameter). The chamber is shared by `count` drivers, each with a port of this size.
  */
 export function portedDefaults(d: Design, count = 1): Pick<Design, 'tuneHz' | 'portDiameterCm'> {
   const driver = driverOf(d);
   const each = d.volumeL / Math.max(count, 1);
   const tune = P.clamp(Math.round(driver.fs * (driver.vasM3 / (each / 1000)) ** 0.31), BOX_RANGES.tuneHz.min, BOX_RANGES.tuneHz.max);
   let dia = P.clamp(Math.round(coneDiameterM(driver.sd) * 50 * 10) / 10, BOX_RANGES.portDiameterCm.min, BOX_RANGES.portDiameterCm.max);
-  while (dia > BOX_RANGES.portDiameterCm.min && P.portLengthM(each / 1000, tune, dia / 100) < MIN_PORT_LENGTH_M) dia = Math.max(BOX_RANGES.portDiameterCm.min, Math.round(dia * 0.85 * 10) / 10);
+  while (dia < BOX_RANGES.portDiameterCm.max && P.portLengthM(each / 1000, tune, dia / 100) < MIN_PORT_LENGTH_M) dia = Math.min(BOX_RANGES.portDiameterCm.max, Math.round(dia * 1.15 * 10) / 10 + 0.1);
   return { tuneHz: tune, portDiameterCm: dia };
 }
 const MIN_PORT_LENGTH_M = 0.02;

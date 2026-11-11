@@ -407,6 +407,10 @@ export function carBuild(p: Project): BandBuild {
   const depth = cabWedge ? Math.min(cabWedge.dBottomI, cabWedge.dTopI) : g.dI;
   if (need > 0 && depth < need) warnings.push(`${name}: the box is ${fl(depth, u)} deep inside and this driver needs about ${fl(need, u)} behind the baffle. Make it deeper or choose a shallow-mount sub.`);
 
+  // a port runs along the depth of the box: one longer than the inside is deep has to be folded
+  const longest = ports.length ? Math.max(...ports.map((x) => x.lengthM)) : 0;
+  const portRoom = cabWedge ? cabWedge.dTopI : g.dI;
+  if (longest > portRoom + 1e-9) warnings.push(`${name}: the ports are ${fl(longest, u)} long and the box is ${fl(portRoom, u)} deep inside. Fold them (a bent tube or a slot port), use a narrower port, tune higher or add air.`);
   const sp = c.space;
   const limited = sp.id !== 'none';
   const space: [number, number, number] | null = limited ? [sp.wCm / 100, sp.hCm / 100, sp.dCm / 100] : null;
