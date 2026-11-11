@@ -304,6 +304,38 @@ describe('shared vectors', () => {
     });
   });
 
+  it('loudspeaker cabinets (v0.11)', () => {
+    for (const id of ids('baffle_corner_')) expectVec(id, 'hz', P.baffleStepCornerHz(vec(id).inputs.width!));
+    for (const id of ids('baffle_step_')) expectVec(id, 'db', magDb(P.baffleStepShelf(vec(id).inputs.f!, vec(id).inputs.width!)));
+    for (const id of ids('open_baffle_')) {
+      const v = vec(id).inputs;
+      expectVec(id, 'db', magDb(P.openBaffleG(v.f!, v.fs!, v.qts!)));
+    }
+    // two reference drivers sharing one 60 L chamber behave as one driver in 30 L
+    const g = vec('group_sealed_shared').inputs;
+    const each = P.groupVolumeM3(g.v_total_m3!, g.n!);
+    const sp = P.sealedParams(spec.fs, ref.qts, spec.vasM3, each);
+    expectVec('group_sealed_shared', 'v_each_m3', each);
+    expectVec('group_sealed_shared', 'fc', sp.fc);
+    expectVec('group_sealed_shared', 'qtc', sp.qtc);
+
+    const mk = (fs: number, qes: number, qms: number, vas: number, sd: number, re: number): P.DriverSpec => ({ name: 'x', fs, qes, qms, vasM3: vas, sd, re, xmax: 0.005, pe: 50 });
+    const woofer = mk(50, 0.5, 4, 0.012, 0.014, 6);
+    const dome = mk(900, 1.0, 2.5, 0.0001, 0.0005, 4);
+    for (const id of ids('speaker_2way_')) {
+      const v = vec(id).inputs;
+      const legs = P.crossoverBands(v.f!, [v.xover!]);
+      const pw = P.scale(P.mul(legs[0]!, P.sealedG(v.f!, woofer.fs, P.deriveDriver(woofer).qts, woofer.vasM3, v.woofer_vb_l! / 1000)), P.referencePressure(woofer, v.volts!));
+      const pt = P.scale(P.mul(legs[1]!, P.sealedG(v.f!, dome.fs, P.deriveDriver(dome).qts, dome.vasM3, v.dome_vb_l! / 1000)), P.referencePressure(dome, v.volts! * 10 ** (v.tweeter_trim_db! / 20)));
+      const step = P.baffleStepShelf(v.f!, v.baffle_m!);
+      const sum = P.systemPressure(v.f!, [{ pressure: pw, delayS: 0 }, { pressure: pt, delayS: v.tweeter_back_m! / P.C }]);
+      expectVec(id, 'woofer_spl_db', P.splDb(P.abs(pw)));
+      expectVec(id, 'tweeter_spl_db', P.splDb(P.abs(pt)));
+      expectVec(id, 'step_db', magDb(step));
+      expectVec(id, 'spl_db', P.splDb(P.abs(P.mul(sum, step))));
+    }
+  });
+
   afterAll(() => {
     const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
     expect(missing, 'vector outputs never asserted').toEqual([]);

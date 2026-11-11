@@ -46,8 +46,11 @@ export const boundaryCornerHz = (distM: number): number => C / (4 * Math.max(dis
 /** The shelf (s + G w0)/(s + w0): gain 2^n at DC, 1 at high frequency, sqrt(2^n) at the corner. */
 export function boundaryShelf(f: number, n: number, distM: number, sampleRate?: number): Cx {
   if (n <= 0) return cx(1);
-  const g = 2 ** n;
-  const fc = boundaryCornerHz(distM);
+  return firstOrderShelf(f, 2 ** n, boundaryCornerHz(distM), sampleRate);
+}
+
+/** The shelf (s + g w0)/(s + w0), w0 = wc/sqrt(g): gain g at DC, 1 at high frequency, sqrt(g) at fc. g below 1 is a loss. */
+export function firstOrderShelf(f: number, g: number, fc: number, sampleRate?: number): Cx {
   const warp = (x: number): number => (sampleRate ? 2 * sampleRate * Math.tan((Math.PI * x) / sampleRate) : 2 * Math.PI * x);
   const w0 = warp(fc) / Math.sqrt(g);
   const w = warp(f);

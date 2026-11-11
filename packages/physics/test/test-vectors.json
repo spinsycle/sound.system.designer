@@ -2466,6 +2466,189 @@
       "tol": {
         "abs": 1e-12
       }
+    },
+    {
+      "id": "baffle_corner_20cm",
+      "desc": "Baffle-step -3 dB frequency of a 0.2 m wide baffle (115 / width)",
+      "inputs": {
+        "width": 0.2
+      },
+      "outputs": {
+        "hz": 575.0
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "baffle_corner_30cm",
+      "desc": "Baffle-step -3 dB frequency of a 0.3 m wide baffle (115 / width)",
+      "inputs": {
+        "width": 0.3
+      },
+      "outputs": {
+        "hz": 383.33333333333337
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "baffle_step_dc",
+      "desc": "Baffle step on a 0.25 m baffle at 0.0001 Hz: -6.02 dB far below, -3.01 dB at the corner, 0 dB far above",
+      "inputs": {
+        "f": 0.0001,
+        "width": 0.25
+      },
+      "outputs": {
+        "db": -6.020599913279315
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "baffle_step_corner",
+      "desc": "Baffle step on a 0.25 m baffle at 460.0 Hz: -6.02 dB far below, -3.01 dB at the corner, 0 dB far above",
+      "inputs": {
+        "f": 460.0,
+        "width": 0.25
+      },
+      "outputs": {
+        "db": -3.0102999566398116
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "baffle_step_hf",
+      "desc": "Baffle step on a 0.25 m baffle at 1000000.0 Hz: -6.02 dB far below, -3.01 dB at the corner, 0 dB far above",
+      "inputs": {
+        "f": 1000000.0,
+        "width": 0.25
+      },
+      "outputs": {
+        "db": -1.378450320754686e-06
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "open_baffle_at_fs",
+      "desc": "Open-baffle driver (Fs 1500, Qts 0.7) at Fs: 20 log10(Qts) dB",
+      "inputs": {
+        "f": 1500.0,
+        "fs": 1500.0,
+        "qts": 0.7
+      },
+      "outputs": {
+        "db": -3.0980391997148637
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "open_baffle_octave_below",
+      "desc": "Open-baffle driver (Fs 1500, Qts 0.7) at 750 Hz",
+      "inputs": {
+        "f": 750.0,
+        "fs": 1500.0,
+        "qts": 0.7
+      },
+      "outputs": {
+        "db": -12.345999157693985
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "group_sealed_shared",
+      "desc": "Two reference drivers sharing one 60 L chamber, solved directly: fc and Qtc equal one driver in 30 L",
+      "inputs": {
+        "n": 2,
+        "v_total_m3": 0.06
+      },
+      "outputs": {
+        "fc": 83.06623862918075,
+        "qtc": 1.0596024437424165,
+        "v_each_m3": 0.03
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "speaker_2way_500hz",
+      "desc": "Two-way in one box at 1 m, 500.0 Hz (woofer sealed 10 L, dome sealed 0.5 L, LR4 2.5 kHz, tweeter -3 dB and 0.02 m back, 0.2 m baffle)",
+      "inputs": {
+        "f": 500.0,
+        "volts": 2.83,
+        "xover": 2500.0,
+        "woofer_vb_l": 10.0,
+        "dome_vb_l": 0.5,
+        "tweeter_trim_db": -3.0,
+        "tweeter_back_m": 0.02,
+        "baffle_m": 0.2
+      },
+      "outputs": {
+        "spl_db": 84.53561649180114,
+        "step_db": -3.41262538703205,
+        "woofer_spl_db": 87.95491410857728,
+        "tweeter_spl_db": 33.014556826024666
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "speaker_2way_2500hz",
+      "desc": "Two-way in one box at 1 m, 2500.0 Hz (woofer sealed 10 L, dome sealed 0.5 L, LR4 2.5 kHz, tweeter -3 dB and 0.02 m back, 0.2 m baffle)",
+      "inputs": {
+        "f": 2500.0,
+        "volts": 2.83,
+        "xover": 2500.0,
+        "woofer_vb_l": 10.0,
+        "dome_vb_l": 0.5,
+        "tweeter_trim_db": -3.0,
+        "tweeter_back_m": 0.02,
+        "baffle_m": 0.2
+      },
+      "outputs": {
+        "spl_db": 96.09818310638111,
+        "step_db": -0.32338786550725085,
+        "woofer_spl_db": 81.97781119287725,
+        "tweeter_spl_db": 94.74094625067309
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "speaker_2way_8000hz",
+      "desc": "Two-way in one box at 1 m, 8000.0 Hz (woofer sealed 10 L, dome sealed 0.5 L, LR4 2.5 kHz, tweeter -3 dB and 0.02 m back, 0.2 m baffle)",
+      "inputs": {
+        "f": 8000.0,
+        "volts": 2.83,
+        "xover": 2500.0,
+        "woofer_vb_l": 10.0,
+        "dome_vb_l": 0.5,
+        "tweeter_trim_db": -3.0,
+        "tweeter_back_m": 0.02,
+        "baffle_m": 0.2
+      },
+      "outputs": {
+        "spl_db": 100.50576685772704,
+        "step_db": -0.03343782204968321,
+        "woofer_spl_db": 47.50501190593767,
+        "tweeter_spl_db": 100.55734304661561
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
     }
   ]
 }
