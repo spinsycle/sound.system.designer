@@ -1,13 +1,17 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.1.0.
+Version 1.2.0.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
 - **Systems:** up to four bands behind Linkwitz-Riley crossovers; trim, delay and polarity per band; drivers and wiring; an
   amplifier per band with load, power and excursion limits and a max-level table; the summed response in dB SPL; eight
   generic starting points.
+- **Home speakers:** a second mode for one cabinet with several drivers, desktop to floorstanding: 2-way, MTM (D'Appolito),
+  WTW, TMM, 3-way and 2.5-way, with dome, planar and woofer classes from 0.75 in to 21 in, a baffle step from the
+  baffle width, a crossover between the drivers, and eight starting points. It builds a one-cabinet cut list with the
+  drivers placed on the baffle, chamber partitions and a port per ported driver.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
   materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
 - **Brief:** describe a system or a box in words and a local [Ollama](https://ollama.com) model proposes three variants.
@@ -22,7 +26,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.1.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.2.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 
@@ -30,7 +34,8 @@ To use the Brief panel, install Ollama and pull a model once: `ollama pull llama
 
 ## Use
 
-1. **System** page: pick a starting point or build your own bands; each band's box opens on its own page.
+1. **System** page: pick a starting point or build your own bands; each band's box opens on its own page. For a stereo
+   speaker switch to **Home speaker** at the top, pick a starting point and press Load it.
 2. **Build** page: choose Millimetres or Inches, wall material, sheet size (fractions like 3/4 or 1 1/2 work in inches), box proportions and bracing; read the cut list; save SVG, DXF or CSV
    files, or print to PDF.
 3. **Brief** (top of the System and box pages): type what you need, press Design 3 variants, compare the table, Load one.
@@ -47,6 +52,9 @@ To use the Brief panel, install Ollama and pull a model once: `ollama pull llama
 - The sheet layout is a simple heuristic, not an optimal nesting.
 - The Brief model is not deterministic and sometimes gives a poor or refused design; the warnings column is the
   calculators judging it.
+- Home speakers use an active crossover (no passive parts list), on-axis response only (no vertical lobing between the
+  drivers of an MTM, no tweeter beaming or edge diffraction), and build a ported slot with front ports. A project saved by
+  1.2 does not open in 1.1 (the file version is 2); 1.1 files open in 1.2.
 - Windows only for now. Lengths on the Build page and in the exported files can be millimetres or inches; the box pages (volumes, areas, port sizes) stay metric.
 
 ## Develop
