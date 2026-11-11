@@ -127,6 +127,9 @@ const mutations = [
   [src('room.ts'), '0.1068', '0.107'],
   [src('room.ts'), '4.04e4', '4.05e4'],
   // car starting points and sub ports (C4)
+  [app('carsub.ts'), "mean(fp.tweeter, 4000, 12000)", "mean(fp.tweeter, 200, 12000)"],
+  [app('carsub.ts'), "Math.round((front - mean(fp.tweeter, 4000, 12000)) * 10) / 10 + 0", "Math.round((mean(fp.tweeter, 4000, 12000) - front) * 10) / 10 + 0"],
+  [app('carsub.ts'), "const tweeterTrimDb = fp.tweeter ?", "const tweeterTrimDb = true ?"],
   [app('cartemplates.ts'), "const design: Design = s.type === 'ported' ? { ...base, ...carPortedDefaults(base, count) } : base;", "const design: Design = base;"],
   [app('cartemplates.ts'), "const v = Math.min(own.heatV, own.excursionV) * 0.99;", "const v = Math.min(own.heatV, own.excursionV) * 1.2;"],
   [app('cartemplates.ts'), "const v = Math.min(own.heatV, own.excursionV) * 0.99;", "const v = own.heatV * 0.99;"],

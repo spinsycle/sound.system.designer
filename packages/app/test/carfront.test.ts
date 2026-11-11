@@ -224,6 +224,16 @@ describe('levelling the fronts to the sub', () => {
     expect(Number.isFinite(lev.front.trimDb)).toBe(true);
     expect(lev.front.trimDb).not.toBe(c.front.trimDb); // it moved
     expect(C.levelFront(lev).front.trimDb).toBe(lev.front.trimDb); // pressing it twice changes nothing
+    // a component set's tweeter is levelled to the woofer too
+    const tw = F.frontPressures(lev.front).tweeter!;
+    const hi = C.CAR_FREQS_WIDE.filter((f) => f >= 4000 && f <= 12000).map((f) => P.splDb(P.abs(tw(f))));
+    const twAvg = hi.reduce((a, b) => a + b, 0) / hi.length + lev.front.trimDb + lev.front.tweeterTrimDb;
+    expect(Math.abs(twAvg - C.computeCarSub(c).averageDb)).toBeLessThan(0.11);
+    expect(lev.front.tweeterTrimDb).toBeLessThan(0); // the dome is louder than the woofer
+    expect(C.levelFront(lev).front.tweeterTrimDb).toBe(lev.front.tweeterTrimDb);
+    // a coaxial has no tweeter trim to set
+    const cx = C.levelFront(car((f) => { f.type = 'coaxial'; f.wooferClass = cls('6.5 in coax'); f.tweeterTrimDb = 3; }));
+    expect(cx.front.tweeterTrimDb).toBe(0);
     expect(lev.front.enabled).toBe(true);
   });
 });

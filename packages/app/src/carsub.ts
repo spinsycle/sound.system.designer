@@ -351,13 +351,21 @@ export function computeCarSystem(c: CarSub): CarSystemView {
 /** The wide frequency axis of the system plot, Hz: the sub's bass to the top of the tweeter. */
 export const CAR_FREQS_WIDE: readonly number[] = Array.from({ length: 320 }, (_, k) => 20 * 1000 ** (k / 319));
 
-/** Bring the fronts' level to the sub's: the trim that makes the front woofer's average from 200 Hz to 2 kHz equal the sub's average from 25 to 120 Hz. */
+/**
+ * Bring the fronts' level to the sub's: the front trim makes the front woofer's average from 200 Hz to 2 kHz equal the sub's average
+ * from 25 to 120 Hz, and a component set's tweeter trim makes the tweeter's average from 4 to 12 kHz equal the woofer's (a dome is a
+ * few dB more efficient than a woofer, which would otherwise stick out as a step at the top).
+ */
 export function levelFront(c: CarSub): CarSub {
   const sub = computeCarSub(c).averageDb;
   const fp = frontPressures(c.front);
-  const band = CAR_FREQS_WIDE.filter((fr) => fr >= 200 && fr <= 2000).map((fr) => P.splDb(P.abs(fp.woofer(fr))));
-  const front = band.reduce((a, b) => a + b, 0) / band.length;
-  return sanitizeCar({ ...c, front: { ...c.front, trimDb: Math.round((sub - front) * 10) / 10 + 0 } });
+  const mean = (p: (fr: number) => P.Cx, lo: number, hi: number): number => {
+    const xs = CAR_FREQS_WIDE.filter((fr) => fr >= lo && fr <= hi).map((fr) => P.splDb(P.abs(p(fr))));
+    return xs.reduce((a, b) => a + b, 0) / xs.length;
+  };
+  const front = mean(fp.woofer, 200, 2000);
+  const tweeterTrimDb = fp.tweeter ? Math.round((front - mean(fp.tweeter, 4000, 12000)) * 10) / 10 + 0 : 0;
+  return sanitizeCar({ ...c, front: { ...c.front, trimDb: Math.round((sub - front) * 10) / 10 + 0, tweeterTrimDb } });
 }
 
 /** Amplifier efficiency by class: rules of thumb (class D about 0.8 to 0.9, class AB about 0.5 to 0.65), not a measurement. */

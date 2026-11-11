@@ -1,7 +1,7 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.2.0.
+Version 1.3.0.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
@@ -12,6 +12,10 @@ Version 1.2.0.
   WTW, TMM, 3-way and 2.5-way, with dome, planar and woofer classes from 0.75 in to 21 in, a baffle step from the
   baffle width, a crossover between the drivers, and eight starting points. It builds a one-cabinet cut list with the
   drivers placed on the baffle, a shelf between separate woofer chambers and a port per ported driver.
+- **Car audio:** a third mode for a car install: one to four subs (single or dual voice coil, series or parallel) in one
+  shared box or a wedge, an amplifier (optionally bridged) with its load and limits, the cabin gain of the vehicle, a vehicle
+  space with a fit check, the 12 V side (supply current, cable gauge and drop, fuse, alternator), front speakers (a component
+  set or a coaxial in a door, kick panel or the dash, with adapter rings), the whole system in one plot, and nine starting points.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
   materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
 - **Brief:** describe a system or a box in words and a local [Ollama](https://ollama.com) model proposes three variants.
@@ -26,7 +30,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.2.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.3.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 
@@ -35,7 +39,8 @@ To use the Brief panel, install Ollama and pull a model once: `ollama pull llama
 ## Use
 
 1. **System** page: pick a starting point or build your own bands; each band's box opens on its own page. For a stereo
-   speaker switch to **Home speaker** at the top, pick a starting point and press Load it.
+   speaker switch to **Home speaker** at the top, pick a starting point and press Load it. For a car, switch to **Car
+   subwoofer**, pick a starting point and press Load it.
 2. **Build** page: choose Millimetres or Inches, wall material, sheet size (fractions like 3/4 or 1 1/2 work in inches), box proportions and bracing; read the cut list; save SVG, DXF or CSV
    files, or print to PDF.
 3. **Brief** (top of the System and box pages): type what you need, press Design 3 variants, compare the table, Load one.
@@ -55,6 +60,11 @@ To use the Brief panel, install Ollama and pull a model once: `ollama pull llama
 - Home speakers use an active crossover (no passive parts list), on-axis response only (no vertical lobing between the
   drivers of an MTM, no tweeter beaming or edge diffraction), and build a ported slot with front ports. A project saved by
   1.2 does not open in 1.1 (the file version is 2); 1.1 files open in 1.2.
+- Car audio: the cabin gain is a generic rule of thumb per vehicle type, not a measurement of any car; the sub's limits
+  are for a steady sine (an amplifier matched to them looks small beside the driver's rating); the front speakers sit in a
+  sealed box of the air you give them (a real door leaks); a wedge has no bracing and plain butt joints; no battery sag,
+  no time alignment, no rear speakers. A project saved by 1.3 opens in 1.2 as a PA system (the car install is ignored)
+  and 1.1 refuses it (file version 2).
 - Windows only for now. Lengths on the Build page and in the exported files can be millimetres or inches; the box pages (volumes, areas, port sizes) stay metric.
 
 ## Develop
