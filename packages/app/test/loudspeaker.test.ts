@@ -39,6 +39,11 @@ describe('sanitise', () => {
     expect(s.baffleStep).toBe(true); // only an explicit false turns it off
     expect(L.sanitizeLoudspeaker({ baffleStep: false }).baffleStep).toBe(false);
     expect(L.sanitizeLoudspeaker({ chambers: 'separate' }).chambers).toBe('separate');
+    expect(L.sanitizeLoudspeaker({ quantity: 99 }).quantity).toBe(8);
+    expect(L.sanitizeLoudspeaker({ quantity: 0 }).quantity).toBe(1);
+    expect(L.sanitizeLoudspeaker({ quantity: 3.4 }).quantity).toBe(3);
+    expect(L.sanitizeLoudspeaker({ brace: 'window' }).brace).toBe('window');
+    expect(L.sanitizeLoudspeaker({ brace: 'x' }).brace).toBe('none');
     expect(L.sanitizeLoudspeaker({ slots: [{ open: true, invert: true }] }).slots[0]).toMatchObject({ open: true, invert: true });
   });
   it('changing the arrangement keeps the drivers and restarts the crossovers', () => {
@@ -49,6 +54,36 @@ describe('sanitise', () => {
     expect(b.slots[0]!.design.volumeL).toBe(11);
     expect(b.xover).toEqual([400, 3000]);
     expect(L.applyArrangement(a, 'mtm').xover).toEqual([2500, 3000]);
+  });
+});
+
+describe('arrangement defaults and switching', () => {
+  const names = (sp: L.Loudspeaker): string[] => sp.slots.map((x) => P.ALL_DRIVER_CLASSES[x.design.driverClass]!.name);
+  it('each role starts with a driver that suits it, and air for all its drivers', () => {
+    expect(names(L.defaultSpeaker('two-way')).slice(0, 2)).toEqual(['5.25 in', '1 in dome']);
+    expect(names(L.defaultSpeaker('mtm')).slice(0, 2)).toEqual(['4 in mid', '1 in dome']);
+    expect(names(L.defaultSpeaker('three-way'))).toEqual(['8 in', '4 in mid', '1 in dome']);
+    expect(L.defaultSpeaker('wtw').slots[0]!.design.volumeL).toBe(16);
+    expect(L.defaultSpeaker('mtm').slots[0]!.design.volumeL).toBe(4);
+    expect(L.defaultSpeaker('three-way').slots[0]!.design.volumeL).toBe(25);
+    for (const a of L.ARRANGEMENTS) expect(L.computeLoudspeaker(L.defaultSpeaker(a.id)).warnings, a.id).toEqual([]);
+  });
+  it('the baffle and crossovers restart at the new arrangement, as do the slots whose role changed', () => {
+    const a = L.defaultSpeaker('two-way');
+    a.slots[0]!.design = { ...a.slots[0]!.design, driverClass: cls('6.5 in'), volumeL: 13 };
+    const b = L.applyArrangement(L.sanitizeLoudspeaker({ ...a, baffleWidthCm: 33 }), 'three-way');
+    expect(b.slots[0]!.design.driverClass).toBe(cls('6.5 in')); // woofer stays a woofer
+    expect(b.slots[0]!.design.volumeL).toBe(13);
+    expect(P.ALL_DRIVER_CLASSES[b.slots[1]!.design.driverClass]!.name).toBe('4 in mid'); // the tweeter is not the midrange now
+    expect(P.ALL_DRIVER_CLASSES[b.slots[2]!.design.driverClass]!.name).toBe('1 in dome');
+    expect([b.baffleWidthCm, b.baffleHeightCm]).toEqual([26, 85]);
+    const back = L.applyArrangement(b, 'two-way');
+    expect(P.ALL_DRIVER_CLASSES[back.slots[1]!.design.driverClass]!.name).toBe('1 in dome');
+    expect(back.slots[0]!.design.volumeL).toBe(13);
+  });
+  it('the 2.5-way names its two woofers apart', () => {
+    expect(L.computeLoudspeaker(L.defaultSpeaker('two-and-half')).slots.map((x) => x.name)).toEqual(['Bass woofer', 'Main woofer', 'Tweeter']);
+    expect(new Set(L.ARRANGEMENTS.flatMap((a) => [new Set(a.slots.map((_, k) => L.slotLabel(a, k))).size === a.slots.length])).size).toBe(1);
   });
 });
 

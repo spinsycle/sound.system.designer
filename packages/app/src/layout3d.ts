@@ -88,11 +88,14 @@ export function layout3d(v: BuildView, p: Project): Layout3 {
     b.cabinets.forEach((c, i) => {
       const g = c.geometry;
       const cx = x + g.wO / 2;
-      const share = b.cabinets.length === 1 && p.bands[band]!.design.type === 'bandpass' ? p.bands[band]!.design.volumeL / (p.bands[band]!.design.volumeL + p.bands[band]!.design.frontVolumeL) : null;
+      const share = p.kind === 'system' && b.cabinets.length === 1 && p.bands[band]!.design.type === 'bandpass' ? p.bands[band]!.design.volumeL / (p.bands[band]!.design.volumeL + p.bands[band]!.design.frontVolumeL) : null;
       const cz = cabinetBoxes(c, band, cx, t, 0, share, out);
-      if (b.port && i === 0) {
-        const port = holePositions(c).find((h) => h.kind === 'port');
-        if (port) out.tubes.push({ band, center: [cx + port.cx - g.wO / 2, g.hO - port.cy, 0], radius: b.port.diameterM / 2, length: Math.min(b.port.lengthM, g.dI) });
+      if (i === 0) {
+        const holes = holePositions(c).filter((h) => h.kind === 'port');
+        b.ports.forEach((pt, j) => {
+          const port = holes[j];
+          if (port) out.tubes.push({ band, center: [cx + port.cx - g.wO / 2, g.hO - port.cy, 0], radius: pt.diameterM / 2, length: Math.min(pt.lengthM, g.dI) });
+        });
       }
       x += g.wO;
       maxY = Math.max(maxY, g.hO);

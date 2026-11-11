@@ -136,7 +136,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
           </div>
           <p className="hint">Millimetres or inches (fractions such as 3/4 or 1 1/2 work in inches; the Build page and the exported files follow, the box pages stay metric). The project name is used in exported file names.</p>
         </section>
-        {project.bands.slice(0, project.nBands).map((band, k) => (
+        {project.kind === 'system' && project.bands.slice(0, project.nBands).map((band, k) => (
           <section key={k}>
             <h2>{v.bands[k]!.name}</h2>
             <p className="hint">{v.bands[k]!.summary}</p>

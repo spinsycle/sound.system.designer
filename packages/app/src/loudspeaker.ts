@@ -16,7 +16,7 @@ export interface Arrangement {
   label: string;
   description: string;
   /** Low to high frequency; `count` identical drivers per slot. */
-  slots: readonly { role: Role; count: number }[];
+  slots: readonly { role: Role; count: number; /** Shown instead of the role when two slots share one. */ name?: string }[];
   /** Where the slots sit on the baffle from top to bottom (indices into slots, a slot with 2 drivers appears twice). */
   layout: readonly number[];
   /**
@@ -25,15 +25,17 @@ export interface Arrangement {
    */
   kind: 'partition' | 'assist';
   xover: readonly number[];
+  /** Starting baffle, outside width and height, cm. */
+  baffleCm: readonly [number, number];
 }
 
 export const ARRANGEMENTS: readonly Arrangement[] = [
-  { id: 'two-way', label: '2-way', description: 'One woofer and one tweeter.', slots: [{ role: 'woofer', count: 1 }, { role: 'tweeter', count: 1 }], layout: [1, 0], kind: 'partition', xover: [2500] },
-  { id: 'mtm', label: 'MTM (D’Appolito)', description: 'Midrange, tweeter, midrange: the tweeter between two matched drivers.', slots: [{ role: 'mid', count: 2 }, { role: 'tweeter', count: 1 }], layout: [0, 1, 0], kind: 'partition', xover: [2500] },
-  { id: 'wtw', label: 'WTW', description: 'Woofer, tweeter, woofer: two woofers around the tweeter.', slots: [{ role: 'woofer', count: 2 }, { role: 'tweeter', count: 1 }], layout: [0, 1, 0], kind: 'partition', xover: [2200] },
-  { id: 'tmm', label: 'TMM', description: 'Tweeter on top of two matched drivers.', slots: [{ role: 'mid', count: 2 }, { role: 'tweeter', count: 1 }], layout: [1, 0, 0], kind: 'partition', xover: [2500] },
-  { id: 'three-way', label: '3-way', description: 'Woofer, midrange and tweeter.', slots: [{ role: 'woofer', count: 1 }, { role: 'mid', count: 1 }, { role: 'tweeter', count: 1 }], layout: [2, 1, 0], kind: 'partition', xover: [400, 3000] },
-  { id: 'two-and-half', label: '2.5-way', description: 'Two woofers, the second playing only the bass, plus a tweeter.', slots: [{ role: 'woofer', count: 1 }, { role: 'woofer', count: 1 }, { role: 'tweeter', count: 1 }], layout: [2, 1, 0], kind: 'assist', xover: [300, 2500] },
+  { id: 'two-way', label: '2-way', description: 'One woofer and one tweeter.', slots: [{ role: 'woofer', count: 1 }, { role: 'tweeter', count: 1 }], layout: [1, 0], kind: 'partition', xover: [2500], baffleCm: [20, 32] },
+  { id: 'mtm', label: 'MTM (D\u2019Appolito)', description: 'Midrange, tweeter, midrange: the tweeter between two matched drivers.', slots: [{ role: 'mid', count: 2 }, { role: 'tweeter', count: 1 }], layout: [0, 1, 0], kind: 'partition', xover: [2500], baffleCm: [16, 45] },
+  { id: 'wtw', label: 'WTW', description: 'Woofer, tweeter, woofer: two woofers around the tweeter.', slots: [{ role: 'woofer', count: 2 }, { role: 'tweeter', count: 1 }], layout: [0, 1, 0], kind: 'partition', xover: [2200], baffleCm: [20, 55] },
+  { id: 'tmm', label: 'TMM', description: 'Tweeter on top of two matched drivers.', slots: [{ role: 'mid', count: 2 }, { role: 'tweeter', count: 1 }], layout: [1, 0, 0], kind: 'partition', xover: [2500], baffleCm: [16, 45] },
+  { id: 'three-way', label: '3-way', description: 'Woofer, midrange and tweeter.', slots: [{ role: 'woofer', count: 1 }, { role: 'mid', count: 1 }, { role: 'tweeter', count: 1 }], layout: [2, 1, 0], kind: 'partition', xover: [400, 3000], baffleCm: [26, 85] },
+  { id: 'two-and-half', label: '2.5-way', description: 'Two woofers, the second playing only the bass, plus a tweeter.', slots: [{ role: 'woofer', count: 1, name: 'Bass woofer' }, { role: 'woofer', count: 1, name: 'Main woofer' }, { role: 'tweeter', count: 1 }], layout: [2, 1, 0], kind: 'assist', xover: [300, 2500], baffleCm: [20, 75] },
 ];
 
 export const arrangementOf = (id: ArrangementId): Arrangement => ARRANGEMENTS.find((a) => a.id === id) ?? ARRANGEMENTS[0]!;
@@ -60,6 +62,10 @@ export interface Loudspeaker {
   /** One chamber for a slot's drivers, or one each. The response is the same; the cut list differs. */
   chambers: 'shared' | 'separate';
   baffleStep: boolean;
+  /** Identical speakers to build (2 is a stereo pair). */
+  quantity: number;
+  /** Bracing across the cabinet, for the cut list. */
+  brace: P.Brace;
 }
 
 export type SpeakerField = 'baffleWidthCm' | 'baffleHeightCm';
@@ -71,6 +77,7 @@ export const SLOT_RANGES = {
   backCm: { label: 'Set back', unit: 'cm', min: 0, max: 30, linear: true },
   trimDb: { label: 'Trim', unit: 'dB', min: -20, max: 6, linear: true },
 } as const satisfies Record<string, Range>;
+export const QUANTITY_RANGE: Range = { label: 'Speakers to build', unit: '', min: 1, max: 8, linear: true };
 export const SPEAKER_XOVER_RANGE: Range = { label: 'Crossover', unit: 'Hz', min: 100, max: 8000 };
 
 const classIndex = (name: string): number => P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === name);
@@ -83,16 +90,28 @@ const slotOf = (cls: string, more: Partial<Design> = {}, open = false): Slot => 
   invert: false,
 });
 
-/** Where a speaker starts: a sensible small bookshelf with an arrangement's roles, one driver class per role. */
+/** A starting slot for a role in an arrangement: a driver that suits the role and air for all of its drivers. */
+function defaultSlot(id: ArrangementId, k: number): Slot {
+  const spec = arrangementOf(id).slots[k];
+  if (!spec) return slotOf('1 in dome', { volumeL: 0.5 });
+  if (spec.role === 'tweeter') return slotOf('1 in dome', { volumeL: 0.5 });
+  if (spec.role === 'mid') return slotOf('4 in mid', { volumeL: 2 * spec.count });
+  return id === 'three-way' ? slotOf('8 in', { volumeL: 25 }) : slotOf('5.25 in', { volumeL: 8 * spec.count });
+}
+
+/** Where a speaker starts: a sensible build of the arrangement, one driver class per role. */
 export function defaultSpeaker(id: ArrangementId = 'two-way'): Loudspeaker {
+  const arr = arrangementOf(id);
   return {
     arrangement: id,
-    slots: [slotOf('5.25 in', { volumeL: 8 }), slotOf('1 in dome', { volumeL: 0.5 }), slotOf('1 in dome', { volumeL: 0.5 })],
-    xover: [...arrangementOf(id).xover, ...[400, 3000].slice(arrangementOf(id).xover.length)],
-    baffleWidthCm: 20,
-    baffleHeightCm: 32,
+    slots: [0, 1, 2].map((k) => defaultSlot(id, k)),
+    xover: [...arr.xover, ...[400, 3000].slice(arr.xover.length)],
+    baffleWidthCm: arr.baffleCm[0],
+    baffleHeightCm: arr.baffleCm[1],
     chambers: 'shared',
     baffleStep: true,
+    quantity: 2,
+    brace: 'none',
   };
 }
 
@@ -123,12 +142,20 @@ export function sanitizeLoudspeaker(input: unknown): Loudspeaker {
     baffleHeightCm: num(i.baffleHeightCm, SPEAKER_RANGES.baffleHeightCm, d.baffleHeightCm),
     chambers: i.chambers === 'separate' ? 'separate' : 'shared',
     baffleStep: i.baffleStep !== false,
+    quantity: Math.round(num(i.quantity, QUANTITY_RANGE, d.quantity)),
+    brace: i.brace === 'single' || i.brace === 'window' ? i.brace : 'none',
   };
 }
 
-/** Change the arrangement, keeping each slot's design, the baffle and the stage settings; the crossover points restart at the arrangement's. */
+/**
+ * Change the arrangement. A slot keeps its driver and box when it has the same role as before and starts afresh when it
+ * does not (a tweeter must not become the midrange); the crossovers and the baffle restart at the arrangement's.
+ */
 export function applyArrangement(sp: Loudspeaker, id: ArrangementId): Loudspeaker {
-  return sanitizeLoudspeaker({ ...sp, arrangement: id, xover: defaultSpeaker(id).xover });
+  const before = arrangementOf(sp.arrangement).slots;
+  const d = defaultSpeaker(id);
+  const slots = d.slots.map((fresh, k) => (arrangementOf(id).slots[k]?.role !== undefined && arrangementOf(id).slots[k]!.role === before[k]?.role ? sp.slots[k]! : fresh));
+  return sanitizeLoudspeaker({ ...sp, arrangement: id, slots, xover: d.xover, baffleWidthCm: d.baffleWidthCm, baffleHeightCm: d.baffleHeightCm });
 }
 
 /** Diameter of a driver's cone (piston), m, from its area. */
@@ -139,6 +166,7 @@ export const BEAMING_KA = 3;
 /** A sealed dome or open-baffle driver should be crossed at least this many times above its Fs. */
 export const MIN_XOVER_OVER_FS = 2;
 
+export const slotLabel = (arr: Arrangement, k: number): string => arr.slots[k]!.name ?? slotName(arr.slots[k]!.role, arr.slots[k]!.count);
 export const slotName = (role: Role, count: number): string => `${count > 1 ? `${count} ` : ''}${{ woofer: 'Woofer', mid: 'Midrange', tweeter: 'Tweeter' }[role]}${count > 1 ? 's' : ''}`;
 
 const SENS_LO = 300;
@@ -206,7 +234,7 @@ export function computeLoudspeaker(sp: Loudspeaker): LoudspeakerView {
   const floor = (pa: number): number => P.splDb(Math.max(pa, 1e-12));
   const levelDb = freqs.map((f) => floor(P.abs(ev.total(f))));
   const slots: SlotView[] = ev.slots.map((x) => ({
-    name: slotName(x.spec.role, x.spec.count),
+    name: slotLabel(ev.arr, ev.slots.indexOf(x)),
     summary: `${x.driver.name}${x.spec.count > 1 ? ` x ${x.spec.count}` : ''}, ${x.s.open ? 'open baffle' : `${fmt(x.s.design.volumeL, x.s.design.volumeL < 10 ? 1 : 0)} L ${x.s.design.type}${x.spec.count > 1 ? ` (${sp.chambers})` : ''}`}`,
     levelDb: freqs.map((f) => floor(P.abs(x.played(f)))),
   }));
