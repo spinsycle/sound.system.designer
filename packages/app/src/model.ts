@@ -19,6 +19,9 @@ export const FLARES: readonly { id: P.FlareKind; label: string }[] = [
   { id: 'conical', label: 'Conical' },
 ];
 
+/** The voltage a driver at 0 dB trim receives; every level in the app is for this input. */
+export const REF_VOLTS = 2.83;
+
 /**
  * The stored value of the Custom driver. A fixed number, not "the end of the list", so adding classes never moves it
  * (project files and browser storage before version 2 stored it as 8; `migrate.ts` converts those).
