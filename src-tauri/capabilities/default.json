@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the main window may do: its own events, pick files to save or open, read and write only the files it picked, and talk to Ollama on this machine.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:allow-write-text-file",
+    "fs:allow-read-text-file",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "http://localhost:*/*" }, { "url": "http://127.0.0.1:*/*" }]
+    }
+  ]
+}

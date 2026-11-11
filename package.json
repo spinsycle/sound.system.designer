@@ -1,0 +1,26 @@
+{
+  "name": "soundsystemdesigner",
+  "version": "1.4.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p packages/physics --noEmit && tsc -p packages/app --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test",
+    "build": "vite build packages/app",
+    "dev": "vite packages/app",
+    "gate": "npm run check && npm run build",
+    "sync-vectors": "node tools/sync-vectors.mjs",
+    "mutation": "node tools/mutation-check.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
