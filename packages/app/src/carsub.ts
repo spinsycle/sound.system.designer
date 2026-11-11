@@ -5,6 +5,7 @@
 // Spec: "Car audio" (v0.12) and "Loudspeaker cabinets" (group volume).
 import * as P from '@soundsystemdesigner/physics';
 import { type BuildOpts, DEFAULT_BUILD, sanitizeBuild } from './build';
+import { type CarFront, DEFAULT_FRONT, checkFront, frontPressures, sanitizeFront } from './carfront';
 import { DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
 export type CarBoxShape = 'box' | 'wedge';
@@ -64,6 +65,8 @@ export interface CarSub {
   bridged: boolean;
   /** Lowest frequency the install is asked to play (a subsonic filter), Hz: the cone's worst case is taken from here up. */
   subsonicHz: number;
+  /** The front speakers (door, kick or dash), summed with the sub when enabled. */
+  front: CarFront;
   /** The 12 V side: amplifier class, supply voltage, the power cable (gauge and length, the ground return the same), the music duty, the alternator and the car's own loads. */
   ampClass: AmpClass;
   supplyV: number;
@@ -110,6 +113,7 @@ export const DEFAULT_CAR: CarSub = {
   ampMinLoadOhm: 1,
   bridged: false,
   subsonicHz: 25,
+  front: DEFAULT_FRONT,
   ampClass: 'd',
   supplyV: 13.8,
   cableAwg: 4,
@@ -165,6 +169,7 @@ export function sanitizeCar(input: unknown): CarSub {
     ampMinLoadOhm: CAR_AMP_MIN_LOADS.includes(i.ampMinLoadOhm as number) ? (i.ampMinLoadOhm as number) : d.ampMinLoadOhm,
     bridged: i.bridged === true,
     subsonicHz: num(i.subsonicHz, CAR_RANGES.subsonicHz, d.subsonicHz),
+    front: sanitizeFront(i.front),
     ampClass: i.ampClass === 'ab' ? 'ab' : 'd',
     supplyV: num(i.supplyV, CAR_RANGES.supplyV, d.supplyV),
     cableAwg: CABLE_AWGS.includes(i.cableAwg as number) ? (i.cableAwg as number) : d.cableAwg,
@@ -286,6 +291,57 @@ export function computeCarSub(c: CarSub): CarView {
   notes.push(`Wiring: ${c.count > 1 ? `${c.count} subs, ${c.series === 1 ? 'in parallel' : c.series === c.count ? 'in series' : `${c.series} in series per string`}; ` : ''}${c.coils === 2 ? `dual coils ${c.coilSeries === 2 ? 'in series' : 'in parallel'}; ` : ''}the amplifier sees ${fmt(driver.re * wire.loadFactor)} Ω nominal.`);
   notes.push('Limits are for a steady sine and ignore power compression, the amplifier’s supply and its clipping: treat them as ceilings.');
   return { freqs, levelDb, freeDb, cabinDb, averageDb, limits, loadOhm: nominalLoad, warnings, notes };
+}
+
+export interface CarSystemView {
+  freqs: readonly number[];
+  /** The whole system in the car: the sub and the fronts through their crossover legs, with the cabin gain, dB SPL at REF_VOLTS. */
+  totalDb: number[];
+  /** Each part through its leg and trim, in the car. */
+  subDb: number[];
+  wooferDb: number[];
+  /** Null for a coaxial. */
+  tweeterDb: number[] | null;
+  /** The crossover points in use (sub / front, then woofer / tweeter), Hz. */
+  xover: number[];
+  warnings: string[];
+}
+
+/**
+ * The sub and the front speakers as one system: a Linkwitz-Riley network (sub, front woofer, tweeter) with the fronts' trims, summed
+ * as complex pressure, then the cabin gain. Two speakers play at the front: a pair is 6 dB louder than one at 1 m, which is taken
+ * into the trim by the user (the levels here are for one speaker, like every other level in the app).
+ */
+export function computeCarSystem(c: CarSub): CarSystemView {
+  const f = c.front;
+  const sub = carEvaluator(c);
+  const fp = frontPressures(f);
+  const points = f.type === 'component' ? [f.xoverSubHz, f.xoverTweeterHz] : [f.xoverSubHz];
+  const xs = P.effectiveCrossovers(points, points.length + 1);
+  const gain = (db: number): number => 10 ** (db / 20);
+  const floor = (pa: number): number => P.splDb(Math.max(pa, 1e-12));
+  const legs = (fr: number): P.Cx[] => P.crossoverBands(fr, xs);
+  const subP = (fr: number): P.Cx => P.mul(legs(fr)[0]!, sub.free(fr));
+  const wooferP = (fr: number): P.Cx => P.scale(P.mul(legs(fr)[1]!, fp.woofer(fr)), gain(f.trimDb));
+  const tweeterP = (fr: number): P.Cx => (fp.tweeter ? P.scale(P.mul(legs(fr)[2]!, fp.tweeter(fr)), gain(f.trimDb + f.tweeterTrimDb)) : P.cx(0));
+  const cab = (fr: number): P.Cx => P.cabinGain(fr, c.cabin);
+  const freqs = CAR_FREQS_WIDE;
+  const inCar = (p: (fr: number) => P.Cx): number[] => freqs.map((fr) => floor(P.abs(P.mul(p(fr), cab(fr)))));
+  const totalDb = freqs.map((fr) => floor(P.abs(P.mul(P.systemPressure(fr, [{ pressure: subP(fr), delayS: 0 }, { pressure: wooferP(fr), delayS: 0 }, { pressure: tweeterP(fr), delayS: 0 }]), cab(fr)))));
+  const warnings = f.enabled ? checkFront(f).warnings : [];
+  return { freqs, totalDb, subDb: inCar(subP), wooferDb: inCar(wooferP), tweeterDb: fp.tweeter ? inCar(tweeterP) : null, xover: xs, warnings };
+}
+
+/** The wide frequency axis of the system plot, Hz: the sub's bass to the top of the tweeter. */
+export const CAR_FREQS_WIDE: readonly number[] = Array.from({ length: 320 }, (_, k) => 20 * 1000 ** (k / 319));
+
+/** Bring the fronts' level to the sub's: the trim that makes the front woofer's average from 200 Hz to 2 kHz equal the sub's average from 25 to 120 Hz. */
+export function levelFront(c: CarSub): CarSub {
+  const sub = computeCarSub(c).averageDb;
+  const fp = frontPressures(c.front);
+  const band = CAR_FREQS_WIDE.filter((fr) => fr >= 200 && fr <= 2000).map((fr) => P.splDb(P.abs(fp.woofer(fr))));
+  const front = band.reduce((a, b) => a + b, 0) / band.length;
+  return sanitizeCar({ ...c, front: { ...c.front, trimDb: Math.round((sub - front) * 10) / 10 + 0 } });
 }
 
 /** Amplifier efficiency by class: rules of thumb (class D about 0.8 to 0.9, class AB about 0.5 to 0.65), not a measurement. */

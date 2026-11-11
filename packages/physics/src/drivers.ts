@@ -55,6 +55,14 @@ export const EXTRA_DRIVER_CLASSES: readonly DriverSpec[] = [
   { name: '15 in car sub', fs: 28, qes: 0.45, qms: 5, vasM3: 0.12, sd: 0.085, re: 3.6, xmax: 0.016, pe: 1200 },
   { name: '10 in shallow sub', fs: 42, qes: 0.65, qms: 4, vasM3: 0.02, sd: 0.0335, re: 3.6, xmax: 0.013, pe: 400 },
   { name: '12 in shallow sub', fs: 36, qes: 0.6, qms: 4, vasM3: 0.035, sd: 0.049, re: 3.6, xmax: 0.015, pe: 600 },
+  // car door, kick and dash speakers (spec v0.12): component woofers and coaxials; a coaxial's tweeter is built in, so its class is
+  // the woofer's with the passband running to the top. Generic invented values.
+  { name: '5.25 in door', fs: 70, qes: 0.8, qms: 3.5, vasM3: 0.006, sd: 0.0088, re: 3.6, xmax: 0.005, pe: 80 },
+  { name: '6.5 in door', fs: 60, qes: 0.75, qms: 3.5, vasM3: 0.012, sd: 0.014, re: 3.6, xmax: 0.006, pe: 100 },
+  { name: '6x9 door', fs: 55, qes: 0.7, qms: 3.5, vasM3: 0.02, sd: 0.021, re: 3.6, xmax: 0.007, pe: 120 },
+  { name: '5.25 in coax', fs: 75, qes: 0.85, qms: 3.5, vasM3: 0.006, sd: 0.0088, re: 3.6, xmax: 0.005, pe: 70 },
+  { name: '6.5 in coax', fs: 65, qes: 0.8, qms: 3.5, vasM3: 0.012, sd: 0.014, re: 3.6, xmax: 0.006, pe: 90 },
+  { name: '6x9 coax', fs: 60, qes: 0.75, qms: 3.5, vasM3: 0.02, sd: 0.021, re: 3.6, xmax: 0.007, pe: 110 },
 ];
 
 /** Every class the app offers: the plugin's eight, then the app's own. Indices are stored in projects, so only ever append. */

@@ -3,6 +3,7 @@
 // File exports as plain strings: SVG of a sheet layout or a baffle, ASCII DXF (R12) of a sheet layout. Millimetres or inches, as the project's units say.
 // No dependencies; the page turns the strings into downloads.
 import { type BuildView, type Cabinet, holePositions } from './buildlist';
+import { type FrontRing, RING_SCREW_CM, ringScrews } from './carfront';
 import type { Project } from './system';
 import { MM_PER_IN, type Units, formatLength } from './units';
 
@@ -47,6 +48,19 @@ export function baffleSvg(c: Cabinet, title: string, u: Units = 'mm'): string {
   const W = mm(g.wO);
   const H = mm(g.hO);
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">\n<title>${esc(title)}</title>\n<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>\n${holes}\n</svg>\n`;
+}
+
+/** An adapter ring to scale, millimetres: the outside, the cut-out for the driver and four screw holes. Round, or oval for a 6x9. */
+export function ringSvg(r: FrontRing, u: Units = 'mm'): string {
+  const W = mm(r.outer.wCm / 100);
+  const H = mm(r.outer.hCm / 100);
+  const cx = W / 2;
+  const cy = H / 2;
+  const shape = (kind: 'round' | 'oval', w: number, h: number): string => (kind === 'round' ? `<circle cx="${cx}" cy="${cy}" r="${w / 2}" ${STYLE}/>` : `<ellipse cx="${cx}" cy="${cy}" rx="${w / 2}" ry="${h / 2}" ${STYLE}/>`);
+  const screws = ringScrews(r)
+    .map((s) => `<circle cx="${(cx + mm(s.x / 100)).toFixed(1)}" cy="${(cy + mm(s.y / 100)).toFixed(1)}" r="${mm(RING_SCREW_CM / 200).toFixed(2)}" ${STYLE}/>`)
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">\n<title>${esc(r.title)}</title>\n${shape(r.outer.kind, W, H)}\n${shape(r.inner.kind, mm(r.inner.wCm / 100), mm(r.inner.hCm / 100))}\n${screws}\n</svg>\n`;
 }
 
 const pair = (code: number, value: string | number): string => `${code}\n${value}\n`;

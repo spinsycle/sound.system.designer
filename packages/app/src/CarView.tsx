@@ -21,10 +21,22 @@ import {
   SPACE_RANGES,
   computeCarElectric,
   computeCarSub,
+  computeCarSystem,
+  levelFront,
   sanitizeCar,
   spaceOf,
 } from './carsub';
 import { Chart } from './Chart';
+import {
+  FRONT_COAX_CLASSES,
+  FRONT_COMPONENT_CLASSES,
+  FRONT_RANGES,
+  FRONT_TWEETER_CLASSES,
+  type CarFront,
+  type FrontMount,
+  MOUNT_DEFAULTS,
+  applyFront,
+} from './carfront';
 import { portedDefaults } from './loudspeaker';
 import { BOX_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, type Design } from './model';
 import { type Project, sanitizeProject } from './system';
@@ -41,6 +53,9 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
   const d = c.design;
   const v = useMemo(() => computeCarSub(c), [c]);
   const el = useMemo(() => computeCarElectric(c, v.limits), [c, v]);
+  const sys = useMemo(() => computeCarSystem(c), [c]);
+  const fr = c.front;
+  const setFront = (patch: Partial<CarFront>): void => setCar({ ...c, front: applyFront(fr, patch) });
   const build = useMemo(() => computeBuild(project).bands[0]!, [project]);
 
   const setCar = (next: CarSub): void => onChange(sanitizeProject({ ...project, car: sanitizeCar(next) }));
@@ -65,6 +80,7 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
 
   const peak = Math.max(...v.levelDb, ...v.freeDb);
   const yMax = Math.ceil((peak + 3) / 10) * 10;
+  const sysMax = Math.ceil((Math.max(...sys.totalDb) + 3) / 10) * 10;
   const lowLoad = v.limits.minLoadOhm < v.limits.amplifierMinLoadOhm;
   const fit = build.fit;
 
@@ -283,9 +299,91 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
           <Field id="car-other" range={CAR_RANGES.otherLoadsA} value={c.otherLoadsA} onChange={(x) => set({ otherLoadsA: x })} />
           <p className="hint">The cable is the power run from the battery; the ground return is taken as the same gauge and length.</p>
         </section>
+
+        <section>
+          <h2>Front speakers</h2>
+          <div className="checks">
+            <label>
+              <input type="checkbox" checked={fr.enabled} onChange={(e) => setFront({ enabled: e.target.checked })} />
+              Add front speakers (a pair) to the system
+            </label>
+          </div>
+          {fr.enabled && (
+            <>
+              <div className="segmented" role="radiogroup" aria-label="Front type">
+                {(['component', 'coaxial'] as const).map((k) => (
+                  <button key={k} type="button" role="radio" aria-checked={fr.type === k} className={fr.type === k ? 'on' : ''} onClick={() => setFront({ type: k })}>
+                    {k === 'component' ? 'Component set' : 'Coaxial'}
+                  </button>
+                ))}
+              </div>
+              <div className="segmented" role="radiogroup" aria-label="Mounting place">
+                {(Object.keys(MOUNT_DEFAULTS) as FrontMount[]).map((k) => (
+                  <button key={k} type="button" role="radio" aria-checked={fr.mount === k} className={fr.mount === k ? 'on' : ''} onClick={() => setFront({ mount: k })}>
+                    {MOUNT_DEFAULTS[k].label}
+                  </button>
+                ))}
+              </div>
+              <div className="field">
+                <label htmlFor="front-class">{fr.type === 'coaxial' ? 'Coaxial' : 'Woofer'}</label>
+                <select id="front-class" value={fr.wooferClass} onChange={(e) => setFront({ wooferClass: Number(e.target.value) })}>
+                  {(fr.type === 'coaxial' ? FRONT_COAX_CLASSES : FRONT_COMPONENT_CLASSES).map((n) => (
+                    <option key={n} value={P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === n)}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {fr.type === 'component' && (
+                <div className="field">
+                  <label htmlFor="front-tweeter">Tweeter</label>
+                  <select id="front-tweeter" value={fr.tweeterClass} onChange={(e) => setFront({ tweeterClass: Number(e.target.value) })}>
+                    {FRONT_TWEETER_CLASSES.map((n) => (
+                      <option key={n} value={P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === n)}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <Field id="front-air" slider range={FRONT_RANGES.airL} value={fr.airL} onChange={(x) => setFront({ airL: x })} />
+              <Field id="front-xsub" slider range={FRONT_RANGES.xoverSubHz} value={fr.xoverSubHz} onChange={(x) => setFront({ xoverSubHz: x })} />
+              {fr.type === 'component' && <Field id="front-xtw" slider range={FRONT_RANGES.xoverTweeterHz} value={fr.xoverTweeterHz} onChange={(x) => setFront({ xoverTweeterHz: x })} />}
+              <Field id="front-trim" slider range={FRONT_RANGES.trimDb} value={fr.trimDb} onChange={(x) => setFront({ trimDb: x })} />
+              {fr.type === 'component' && <Field id="front-twtrim" slider range={FRONT_RANGES.tweeterTrimDb} value={fr.tweeterTrimDb} onChange={(x) => setFront({ tweeterTrimDb: x })} />}
+              <button type="button" onClick={() => setCar(levelFront(c))}>
+                Level the fronts to the sub
+              </button>
+              <h3>Fit</h3>
+              <Field id="front-depth" range={FRONT_RANGES.depthCm} value={fr.depthCm} onChange={(x) => setFront({ depthCm: x })} />
+              <Field id="front-opening" range={FRONT_RANGES.openingCm} value={fr.openingCm} onChange={(x) => setFront({ openingCm: x })} />
+              <Field id="front-ring" range={FRONT_RANGES.ringCm} value={fr.ringCm} onChange={(x) => setFront({ ringCm: x })} />
+              <p className="hint">The air, depth and opening start at generic values for the place you chose: set your own. Levels are for one speaker. A door is leaky, so its air is a rough guess.</p>
+            </>
+          )}
+        </section>
       </div>
 
       <div className="charts one">
+        {fr.enabled ? (
+          <Chart
+            title="In-car level, sub and fronts"
+            unit="dB SPL"
+            freqs={sys.freqs}
+            values={sys.totalDb}
+            overlays={[
+              { label: 'Sub', values: sys.subDb, className: 'overlay band-line band-0' },
+              { label: fr.type === 'coaxial' ? 'Coaxial' : 'Front woofer', values: sys.wooferDb, className: 'overlay band-line band-1' },
+              ...(sys.tweeterDb ? [{ label: 'Tweeter', values: sys.tweeterDb, className: 'overlay band-line band-2' }] : []),
+            ]}
+            yMin={sysMax - 60}
+            yMax={sysMax}
+            yStep={10}
+            vLines={sys.xover.map((f, k) => ({ f, label: `x${k + 1}` }))}
+            hover={hover}
+            onHover={setHover}
+          />
+        ) : (
         <Chart
           title="In-car level"
           unit="dB SPL"
@@ -299,6 +397,7 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
           hover={hover}
           onHover={setHover}
         />
+        )}
         <section>
           <h2>How loud it goes</h2>
           <table>
@@ -373,9 +472,9 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
               </tr>
             </tbody>
           </table>
-          {(v.warnings.length > 0 || build.warnings.length > 0 || el.warnings.length > 0) && (
+          {(v.warnings.length > 0 || build.warnings.length > 0 || el.warnings.length > 0 || sys.warnings.length > 0) && (
             <ul className="warnings">
-              {[...v.warnings, ...el.warnings, ...build.warnings].map((w) => (
+              {[...new Set([...v.warnings, ...el.warnings, ...sys.warnings, ...build.warnings])].map((w) => (
                 <li key={w}>{w}</li>
               ))}
             </ul>

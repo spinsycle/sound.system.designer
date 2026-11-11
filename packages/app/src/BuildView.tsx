@@ -8,7 +8,8 @@ import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
 import type { Range } from './model';
 import { type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
 import { saveText } from './desktop';
-import { baffleSvg, sheetDxf, sheetSvg, slug } from './export';
+import { baffleSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
+import { type FrontRing, RING_SCREW_CM, ringScrews } from './carfront';
 import { layout3d } from './layout3d';
 import { Scene3D } from './Scene3D';
 import type { Band, Project } from './system';
@@ -56,6 +57,29 @@ function Baffle({ c, u }: { c: Cabinet; u: Units }) {
       </svg>
       <figcaption>
         {c.title}: {mm(c.outside?.[0] ?? g.wO, u)} x {mm(c.outside?.[1] ?? g.hO, u)} x {mm(c.outside?.[2] ?? g.dO, u)} {u} outside{c.wedge ? ` (baffle ${mm(g.wO, u)} x ${mm(g.hO, u)})` : ''}. {holes.map((h) => `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`).join(', ')}.
+      </figcaption>
+    </figure>
+  );
+}
+
+/** An adapter ring to scale: outside, the driver's cut-out and four screw holes. */
+function Ring({ r, u }: { r: FrontRing; u: Units }) {
+  const w = r.outer.wCm / 100;
+  const h = r.outer.hCm / 100;
+  const pad = 0.01;
+  const shape = (k: 'round' | 'oval', ww: number, hh: number, cls: string) => (k === 'round' ? <circle cx={w / 2} cy={h / 2} r={ww / 2} className={cls} /> : <ellipse cx={w / 2} cy={h / 2} rx={ww / 2} ry={hh / 2} className={cls} />);
+  return (
+    <figure className="baffle">
+      <svg viewBox={`${-pad} ${-pad} ${w + 2 * pad} ${h + 2 * pad}`} role="img" aria-label={`${r.title}, ${mm(w, u)} by ${mm(h, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>
+        {shape(r.outer.kind, w, h, 'piece')}
+        {shape(r.inner.kind, r.inner.wCm / 100, r.inner.hCm / 100, 'hole')}
+        {ringScrews(r).map((s, i) => (
+          <circle key={i} cx={w / 2 + s.x / 100} cy={h / 2 + s.y / 100} r={RING_SCREW_CM / 200} className="hole port-hole" />
+        ))}
+      </svg>
+      <figcaption>
+        {r.title}: outside {mm(w, u)} x {mm(h, u)} {u}, cut-out {mm(r.inner.wCm / 100, u)}
+        {r.inner.kind === 'oval' ? ` x ${mm(r.inner.hCm / 100, u)}` : ''} {u}, {r.thicknessCm > 0 ? `${mm(r.thicknessCm / 100, u)} ${u} thick` : 'no thickness'}, four screw holes.
       </figcaption>
     </figure>
   );
@@ -232,6 +256,16 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
                 <div key={`${b.name}-${i}`}>
                   <Baffle c={{ ...c, title: `${b.name}: ${c.title}` }} u={project.units} />
                   <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-${slug(c.title)}-baffle.svg`, baffleSvg(c, `${b.name}: ${c.title}`, project.units), 'image/svg+xml')}>
+                    Download SVG
+                  </button>
+                </div>
+              )),
+            )}
+            {v.bands.flatMap((b) =>
+              (b.rings ?? []).map((r, i) => (
+                <div key={`${b.name}-ring-${i}`}>
+                  <Ring r={r} u={project.units} />
+                  <button type="button" className="no-print" onClick={() => download(`${base}-${slug(r.title)}.svg`, ringSvg(r, project.units), 'image/svg+xml')}>
                     Download SVG
                   </button>
                 </div>

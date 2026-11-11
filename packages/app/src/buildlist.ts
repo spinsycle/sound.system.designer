@@ -3,6 +3,7 @@
 // Cut list, sheet layout and bill of materials for a project. Pure functions; the Build page draws what comes back.
 // Spec: "Cabinet, cut list and sheets". Metric only (millimetres on the page, metres inside).
 import * as P from '@soundsystemdesigner/physics';
+import { type FrontRing, checkFront, ringOf } from './carfront';
 import { computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
 import { arrangementOf, coneDiameterM, slotLabel } from './loudspeaker';
 import { compute, driverOf } from './model';
@@ -62,6 +63,10 @@ export interface BandBuild {
   port: { diameterM: number; lengthM: number } | null;
   /** Every port tube in one cabinet (a speaker may have one per ported driver); `port` is the first. */
   ports: { diameterM: number; lengthM: number }[];
+  /** Flat parts that are not panels of a box (adapter rings), listed by their bounding rectangle, in metres. */
+  parts?: { part: string; l: number; w: number; qty: number; note: string }[];
+  /** Adapter rings to draw. */
+  rings?: FrontRing[];
   /** Car install: whether the box fits its vehicle space (outside size and the space, m). */
   fit?: { fits: boolean; outside: [number, number, number]; space: [number, number, number] | null };
   warnings: string[];
@@ -408,11 +413,24 @@ export function carBuild(p: Project): BandBuild {
   const fits = !space || (outside[0] <= space[0] + 1e-9 && outside[1] <= space[1] + 1e-9 && outside[2] <= space[2] + 1e-9);
   if (space && !fits) warnings.push(`${name}: the box is ${formatLength(outside[0] * 1000, u)} x ${formatLength(outside[1] * 1000, u)} x ${fl(outside[2], u)} outside and the space is ${formatLength(space[0] * 1000, u)} x ${formatLength(space[1] * 1000, u)} x ${fl(space[2], u)}. Use Fit to the space, a smaller box, or a wedge.`);
 
+  // the front speakers: the adapter rings they sit on, and what the fit check says
+  const fr = c.front;
+  const ring = fr.enabled ? ringOf(fr) : null;
+  const frontDrivers: { name: string; qty: number }[] = [];
+  const parts: NonNullable<BandBuild['parts']> = [];
+  if (fr.enabled) {
+    warnings.push(...checkFront(fr).warnings);
+    const wName = P.ALL_DRIVER_CLASSES[fr.wooferClass]!.name;
+    frontDrivers.push({ name: `${wName} (front, one each side)`, qty: 2 });
+    if (fr.type === 'component') frontDrivers.push({ name: `${P.ALL_DRIVER_CLASSES[fr.tweeterClass]!.name} tweeter (front, one each side)`, qty: 2 });
+    if (ring) parts.push({ part: ring.title, l: ring.outer.wCm / 100, w: ring.outer.hCm / 100, qty: 2, note: `${fmtCm(ring.thicknessCm)} cm thick; cut ${ring.outer.kind === 'round' ? 'a round' : 'an oval'} ring: the size listed is the outside's bounding rectangle, the cut-out is ${ring.inner.kind === 'round' ? `${fmtCm(ring.inner.wCm)} cm round` : `${fmtCm(ring.inner.wCm)} x ${fmtCm(ring.inner.hCm)} cm oval`}` });
+  }
   const cab: Cabinet = { title: wedge ? 'Wedge box' : 'Box', geometry: g, panels, cutouts, holes, wedge: cabWedge, outside, liningM2: lining };
   const sum = `${c.count > 1 ? `${c.count} x ` : ''}${driver.name}, ${fmtL(d.volumeL)} L ${d.type}${wedge ? ' wedge' : ''}`;
-  return { name, summary: sum, count: 1, driver: dname, drivers: [{ name: dname, qty: c.count }], cabinets: [cab], horn: null, port: ports[0] ?? null, ports, warnings, fit: { fits, outside, space } };
+  return { name, summary: sum, count: 1, driver: dname, drivers: [{ name: dname, qty: c.count }, ...frontDrivers], cabinets: [cab], horn: null, port: ports[0] ?? null, ports, warnings, fit: { fits, outside, space }, parts, rings: ring ? [ring] : [] };
 }
 
+const fmtCm = (v: number): string => (Math.round(v * 10) / 10).toString();
 const fmtL = (v: number): string => (v < 10 ? v.toFixed(1) : v.toFixed(0));
 
 export function computeBuild(p: Project): BuildView {
@@ -428,6 +446,7 @@ export function computeBuild(p: Project): BuildView {
     for (const c of bb.cabinets) {
       for (const pn of c.panels) add(bb, bb.cabinets.length > 1 ? `${c.title}: ${pn.name}` : pn.name, pn.l, pn.w, pn.qty, pn.name.endsWith('frame') ? 'cut the window out' : '');
     }
+    for (const pt of bb.parts ?? []) add(bb, pt.part, pt.l, pt.w, pt.qty, pt.note);
     bb.horn?.sections.forEach((s, k) => {
       add(bb, `Horn ${k + 1}: top and bottom`, s.slant, s.width, 2, 'straight, across the horn width');
       add(bb, `Horn ${k + 1}: sides`, s.sideLen, s.sideH, 2, 'trapezoid, bounding box listed');
