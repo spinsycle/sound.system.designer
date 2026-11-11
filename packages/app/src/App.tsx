@@ -8,6 +8,7 @@ import { BriefPanel } from './BriefPanel';
 import { openText, saveText } from './desktop';
 import { FILE_EXTENSION, parseProjectFile, serializeProject, suggestedName } from './projectfile';
 import { BuildView } from './BuildView';
+import { CarView } from './CarView';
 import { SpeakerView } from './SpeakerView';
 import { SystemView } from './SystemView';
 import { type Design, sanitize } from './model';
@@ -72,7 +73,8 @@ export function App() {
     });
   };
   const speaker = project.kind === 'speaker';
-  const box = !speaker && project.view === 'box';
+  const car = project.kind === 'car';
+  const box = !speaker && !car && project.view === 'box';
   const build = project.view === 'build';
 
   return (
@@ -81,18 +83,21 @@ export function App() {
         <h1>Sound System Designer</h1>
         <p>Boxes, horns and whole systems. Lossless models; generic driver classes are invented values, not products.</p>
         <div className="segmented" role="radiogroup" aria-label="What to design">
-          <button type="button" role="radio" aria-checked={!speaker} className={speaker ? '' : 'on'} onClick={() => set({ kind: 'system', view: 'system' })}>
+          <button type="button" role="radio" aria-checked={!speaker && !car} className={speaker || car ? '' : 'on'} onClick={() => set({ kind: 'system', view: 'system' })}>
             PA system
           </button>
           <button type="button" role="radio" aria-checked={speaker} className={speaker ? 'on' : ''} onClick={() => set({ kind: 'speaker', view: 'system' })}>
             Home speaker
           </button>
+          <button type="button" role="radio" aria-checked={car} className={car ? 'on' : ''} onClick={() => set({ kind: 'car', view: 'system' })}>
+            Car subwoofer
+          </button>
         </div>
         <nav aria-label="View">
           <button type="button" className={box || build ? '' : 'on'} aria-current={box || build ? undefined : 'page'} onClick={() => set({ view: 'system' })}>
-            {speaker ? 'Speaker' : 'System'}
+            {speaker ? 'Speaker' : car ? 'Subwoofer' : 'System'}
           </button>
-          {!speaker && project.bands.slice(0, project.nBands).map((_, k) => (
+          {!speaker && !car && project.bands.slice(0, project.nBands).map((_, k) => (
             <button key={k} type="button" className={box && project.selected === k ? 'on' : ''} aria-current={box && project.selected === k ? 'page' : undefined} onClick={() => set({ view: 'box', selected: k })}>
               {project.nBands === 1 ? 'Box' : `${bandName(project.nBands, k)} box`}
             </button>
@@ -116,7 +121,7 @@ export function App() {
         </div>
       </header>
 
-      {!build && !speaker && <BriefPanel key={box ? 'box' : 'system'} mode={box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
+      {!build && !speaker && !car && <BriefPanel key={box ? 'box' : 'system'} mode={box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
 
       {build ? (
         <BuildView project={project} onChange={setProject} />
@@ -124,6 +129,8 @@ export function App() {
         <BoxDesigner design={project.bands[project.selected]!.design} onChange={(design) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) })} />
       ) : speaker ? (
         <SpeakerView project={project} onChange={setProject} />
+      ) : car ? (
+        <CarView project={project} onChange={setProject} />
       ) : (
         <SystemView project={project} onChange={setProject} />
       )}

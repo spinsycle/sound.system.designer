@@ -19,6 +19,8 @@ export interface Box3 {
 export interface Disc3 {
   band: number;
   kind: 'driver' | 'port';
+  /** Rotation about the x axis, radians, for a hole on a sloping baffle. */
+  tilt?: number;
   center: [number, number, number];
   radius: number;
 }
@@ -50,6 +52,47 @@ export interface Layout3 {
 export const GAP = 0.1;
 /** How far the front of a disc sits off the baffle, m. */
 const LIFT = 0.001;
+
+/**
+ * A wedge enclosure in 3D: back, top and bottom as boxes, the two trapezoid sides and the sloping baffle as prisms. z = 0 is the
+ * bottom front edge of the baffle, the back is at -(bottom depth), y up from the floor. Returns the lowest z.
+ */
+function wedgeBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout3): number {
+  const w = c.wedge!;
+  const { wO, hO, dBottomI: db, dTopI: dt } = w;
+  const delta = db - dt;
+  const origin: [number, number, number] = [cx, hO / 2, -db / 2];
+  const box = (size: Box3['size'], x: number, y: number, z: number): void => {
+    out.boxes.push({ band, kind: 'panel', size, center: [cx + x, y, z], origin });
+  };
+  box([wO, hO, t], 0, hO / 2, -db - t / 2); // back
+  box([wO, t, db], 0, t / 2, -db / 2); // bottom
+  box([wO, t, dt], 0, hO - t / 2, -db + dt / 2); // top
+  const side = (x0: number): void => {
+    const quad = (x: number): [number, number, number][] => [[x, 0, -db], [x, 0, 0], [x, hO, -delta], [x, hO, -db]];
+    out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)] });
+  };
+  side(cx - wO / 2);
+  side(cx + wO / 2 - t);
+  // the baffle: its outer face runs from the bottom front edge to the top front edge; the plate is t thick, towards the back
+  const len = Math.hypot(hO, delta);
+  const nz = -hO / len;
+  const ny = -delta / len;
+  const face = (x: number, y: number, z: number): [number, number, number] => [x, y, z];
+  const xl = cx - wO / 2;
+  const xr = cx + wO / 2;
+  const A = [face(xl, 0, 0), face(xr, 0, 0), face(xr, hO, -delta), face(xl, hO, -delta)];
+  const B = A.map(([x, y, z]) => face(x, y + t * ny, z + t * nz));
+  out.prisms.push({ band, points: [...A, ...B] });
+  // holes lie on the slope: cy runs down the baffle from its top edge
+  const tilt = -Math.atan2(delta, hO);
+  for (const h of holePositions(c)) {
+    const y = hO - (h.cy * hO) / len;
+    const z = -delta + (h.cy * delta) / len;
+    out.discs.push({ band, kind: h.kind, center: [cx + h.cx - wO / 2, y - LIFT * ny, z + LIFT * (hO / len)], radius: h.r, tilt });
+  }
+  return -db - t;
+}
 
 function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: number, dividerShare: number | null, out: Layout3): number {
   const g = c.geometry;
@@ -90,6 +133,24 @@ export function layout3d(v: BuildView, p: Project): Layout3 {
     b.cabinets.forEach((c, i) => {
       const g = c.geometry;
       const cx = x + g.wO / 2;
+      if (c.wedge) {
+        const zMin = wedgeBoxes(c, band, cx, t, out);
+        if (i === 0) {
+          const slope = holePositions(c).filter((h) => h.kind === 'port');
+          const len = Math.hypot(c.wedge.hO, c.wedge.dBottomI - c.wedge.dTopI);
+          b.ports.forEach((pt, j) => {
+            const port = slope[j];
+            if (!port) return;
+            const delta = c.wedge!.dBottomI - c.wedge!.dTopI;
+            out.tubes.push({ band, center: [cx + port.cx - g.wO / 2, c.wedge!.hO - (port.cy * c.wedge!.hO) / len, -delta + (port.cy * delta) / len], radius: pt.diameterM / 2, length: Math.min(pt.lengthM, c.wedge!.dTopI) });
+          });
+        }
+        x += g.wO;
+        maxY = Math.max(maxY, c.wedge.hO);
+        minZ = Math.min(minZ, zMin);
+        maxZ = Math.max(maxZ, 0);
+        return;
+      }
       const share = p.kind === 'system' && b.cabinets.length === 1 && p.bands[band]!.design.type === 'bandpass' ? p.bands[band]!.design.volumeL / (p.bands[band]!.design.volumeL + p.bands[band]!.design.frontVolumeL) : null;
       const cz = cabinetBoxes(c, band, cx, t, 0, share, out);
       if (i === 0) {

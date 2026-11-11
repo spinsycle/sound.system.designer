@@ -55,7 +55,7 @@ function Baffle({ c, u }: { c: Cabinet; u: Units }) {
         ))}
       </svg>
       <figcaption>
-        {c.title}: {mm(g.wO, u)} x {mm(g.hO, u)} x {mm(g.dO, u)} {u} outside. {holes.map((h) => `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`).join(', ')}.
+        {c.title}: {mm(c.outside?.[0] ?? g.wO, u)} x {mm(c.outside?.[1] ?? g.hO, u)} x {mm(c.outside?.[2] ?? g.dO, u)} {u} outside{c.wedge ? ` (baffle ${mm(g.wO, u)} x ${mm(g.hO, u)})` : ''}. {holes.map((h) => `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`).join(', ')}.
       </figcaption>
     </figure>
   );

@@ -48,6 +48,13 @@ export const EXTRA_DRIVER_CLASSES: readonly DriverSpec[] = [
   { name: '1 in dome', fs: 900, qes: 1.0, qms: 2.5, vasM3: 0.000025, sd: 0.0005, re: 4.0, xmax: 0.0005, pe: 40 },
   { name: '1.25 in dome', fs: 700, qes: 0.9, qms: 2.5, vasM3: 0.00005, sd: 0.0008, re: 6.0, xmax: 0.0006, pe: 50 },
   { name: 'Planar tweeter', fs: 1500, qes: 1.0, qms: 2.3, vasM3: 0.000006, sd: 0.0006, re: 4.0, xmax: 0.0005, pe: 30 },
+  // car subwoofers (spec v0.12): Re is per voice coil; Qes, Pe and Xmax are the whole driver's. Generic invented values.
+  { name: '8 in car sub', fs: 45, qes: 0.6, qms: 5, vasM3: 0.015, sd: 0.022, re: 3.6, xmax: 0.009, pe: 300 },
+  { name: '10 in car sub', fs: 38, qes: 0.55, qms: 5, vasM3: 0.035, sd: 0.0335, re: 3.6, xmax: 0.012, pe: 500 },
+  { name: '12 in car sub', fs: 32, qes: 0.5, qms: 5, vasM3: 0.05, sd: 0.049, re: 3.6, xmax: 0.014, pe: 800 },
+  { name: '15 in car sub', fs: 28, qes: 0.45, qms: 5, vasM3: 0.12, sd: 0.085, re: 3.6, xmax: 0.016, pe: 1200 },
+  { name: '10 in shallow sub', fs: 42, qes: 0.65, qms: 4, vasM3: 0.02, sd: 0.0335, re: 3.6, xmax: 0.013, pe: 400 },
+  { name: '12 in shallow sub', fs: 36, qes: 0.6, qms: 4, vasM3: 0.035, sd: 0.049, re: 3.6, xmax: 0.015, pe: 600 },
 ];
 
 /** Every class the app offers: the plugin's eight, then the app's own. Indices are stored in projects, so only ever append. */

@@ -3284,6 +3284,112 @@
       "tol": {
         "rel": 1e-12
       }
+    },
+    {
+      "id": "wedge_box",
+      "desc": "Wedge enclosure for 60 L of air plus 4 L of drivers and port, 1:1.2:1.5 inside, top depth 1.000 x bottom depth, 18 mm",
+      "inputs": {
+        "v_net_m3": 0.06,
+        "disp_m3": 0.004,
+        "rw": 1.0,
+        "rh": 1.2,
+        "rd": 1.5,
+        "taper": 1.0,
+        "t": 0.018
+      },
+      "outputs": {
+        "w_i": 0.32882827657739605,
+        "h_i": 0.3945939318928752,
+        "d_bottom_i": 0.4932424148660941,
+        "d_top_i": 0.4932424148660941,
+        "w_o": 0.364828276577396,
+        "h_o": 0.4305939318928752,
+        "slant_o": 0.4305939318928752,
+        "net_m3": 0.06000000000000001
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "wedge_half",
+      "desc": "Wedge enclosure for 60 L of air plus 4 L of drivers and port, 1:1.2:1.5 inside, top depth 0.500 x bottom depth, 18 mm",
+      "inputs": {
+        "v_net_m3": 0.06,
+        "disp_m3": 0.004,
+        "rw": 1.0,
+        "rh": 1.2,
+        "rd": 1.5,
+        "taper": 0.5,
+        "t": 0.018
+      },
+      "outputs": {
+        "w_i": 0.3619223488793209,
+        "h_i": 0.43430681865518506,
+        "d_bottom_i": 0.5428835233189814,
+        "d_top_i": 0.2714417616594907,
+        "w_o": 0.3979223488793209,
+        "h_o": 0.47030681865518503,
+        "slant_o": 0.5430185389527404,
+        "net_m3": 0.06000000000000001
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "wedge_third",
+      "desc": "Wedge enclosure for 60 L of air plus 4 L of drivers and port, 1:1.2:1.5 inside, top depth 0.333 x bottom depth, 18 mm",
+      "inputs": {
+        "v_net_m3": 0.06,
+        "disp_m3": 0.004,
+        "rw": 1.0,
+        "rh": 1.2,
+        "rd": 1.5,
+        "taper": 0.3333333333333333,
+        "t": 0.018
+      },
+      "outputs": {
+        "w_i": 0.37641441155241145,
+        "h_i": 0.4516972938628937,
+        "d_bottom_i": 0.5646216173286172,
+        "d_top_i": 0.1882072057762057,
+        "w_o": 0.41241441155241143,
+        "h_o": 0.4876972938628937,
+        "slant_o": 0.6160653047084683,
+        "net_m3": 0.06000000000000001
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "wedge_panels",
+      "desc": "Cut list of the half-taper wedge: back, baffle (sloped), bottom, top, sides (bounding box)",
+      "inputs": {
+        "v_net_m3": 0.06,
+        "disp_m3": 0.004,
+        "rw": 1.0,
+        "rh": 1.2,
+        "rd": 1.5,
+        "taper": 0.5,
+        "t": 0.018
+      },
+      "outputs": {
+        "back_l": 0.3979223488793209,
+        "back_w": 0.47030681865518503,
+        "baffle_l": 0.3979223488793209,
+        "baffle_w": 0.5430185389527404,
+        "bottom_l": 0.3979223488793209,
+        "bottom_w": 0.5428835233189814,
+        "top_l": 0.3979223488793209,
+        "top_w": 0.2714417616594907,
+        "side_l": 0.43430681865518506,
+        "side_w": 0.5428835233189814
+      },
+      "tol": {
+        "rel": 1e-12
+      }
     }
   ]
 }

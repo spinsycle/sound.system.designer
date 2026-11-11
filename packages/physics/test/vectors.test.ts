@@ -378,6 +378,27 @@ describe('shared vectors', () => {
     expectVec('music_current', 'amps', P.musicCurrent(mc.power_w!, mc.efficiency!, mc.volts!, mc.duty!));
   });
 
+  it('wedge enclosures (v0.12)', () => {
+    for (const id of ids('wedge_').filter((i) => i !== 'wedge_panels')) {
+      const v = vec(id).inputs;
+      const g = P.solveWedge(v.v_net_m3!, v.disp_m3!, v.rw!, v.rh!, v.rd!, v.taper!, v.t!);
+      expectVec(id, 'w_i', g.wI);
+      expectVec(id, 'h_i', g.hI);
+      expectVec(id, 'd_bottom_i', g.dBottomI);
+      expectVec(id, 'd_top_i', g.dTopI);
+      expectVec(id, 'w_o', g.wO);
+      expectVec(id, 'h_o', g.hO);
+      expectVec(id, 'slant_o', g.slantO);
+      expectVec(id, 'net_m3', g.netM3);
+    }
+    const v = vec('wedge_panels').inputs;
+    const p = P.wedgePanels(P.solveWedge(v.v_net_m3!, v.disp_m3!, v.rw!, v.rh!, v.rd!, v.taper!, v.t!));
+    for (const [i, k] of ['back', 'baffle', 'bottom', 'top', 'side'].entries()) {
+      expectVec('wedge_panels', `${k}_l`, p[i]!.l);
+      expectVec('wedge_panels', `${k}_w`, p[i]!.w);
+    }
+  });
+
   afterAll(() => {
     const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
     expect(missing, 'vector outputs never asserted').toEqual([]);

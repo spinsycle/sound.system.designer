@@ -84,6 +84,47 @@ export function boxPanels(g: BoxGeometry, t: number, divider: boolean): Panel[] 
   return p;
 }
 
+export interface WedgeGeometry {
+  wI: number;
+  hI: number;
+  /** Interior depth along the bottom and along the top. */
+  dBottomI: number;
+  dTopI: number;
+  wO: number;
+  hO: number;
+  /** Length of the sloping baffle, outside (from the bottom panel's outer corner to the top panel's). */
+  slantO: number;
+  /** Air left after everything inside is taken out. */
+  netM3: number;
+}
+
+/**
+ * A wedge enclosure for a trunk or truck corner: vertical back and sides, flat top and bottom, and a baffle sloping from the
+ * front of the bottom up to the front of the top. Interior proportions width : height : bottom depth, `taper` = top depth /
+ * bottom depth in (0, 1] (1 is a plain box). Interior volume w h (dBottom + dTop) / 2; `disp` is taken out of it.
+ */
+export function solveWedge(vNet: number, disp: number, rw: number, rh: number, rd: number, taper: number, t: number): WedgeGeometry {
+  const s = ((vNet + disp) / ((rw * rh * rd * (1 + taper)) / 2)) ** (1 / 3);
+  const wI = s * rw;
+  const hI = s * rh;
+  const dBottomI = s * rd;
+  const dTopI = taper * dBottomI;
+  const wO = wI + 2 * t;
+  const hO = hI + 2 * t;
+  return { wI, hI, dBottomI, dTopI, wO, hO, slantO: Math.hypot(hO, dBottomI - dTopI), netM3: (wI * hI * (dBottomI + dTopI)) / 2 - disp };
+}
+
+/** Back, sloping baffle (outside size), bottom, top (between the baffle and the back) and the trapezoid sides (bounding box). */
+export function wedgePanels(g: WedgeGeometry): Panel[] {
+  return [
+    { name: 'Back', l: g.wO, w: g.hO, qty: 1 },
+    { name: 'Front baffle', l: g.wO, w: g.slantO, qty: 1 },
+    { name: 'Bottom', l: g.wO, w: g.dBottomI, qty: 1 },
+    { name: 'Top', l: g.wO, w: g.dTopI, qty: 1 },
+    { name: 'Sides', l: g.hI, w: g.dBottomI, qty: 2 },
+  ];
+}
+
 export interface HornSection {
   /** Top and bottom: slant length x the horn width. */
   slant: number;

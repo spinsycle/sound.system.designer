@@ -72,9 +72,11 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean)
     const mat = new THREE.MeshBasicMaterial({ color: dsc.kind === 'port' ? 0x6fb6c9 : 0xffb040, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(...dsc.center);
+    mesh.rotation.x = dsc.tilt ?? 0;
     rig.group.add(mesh);
     const dark = new THREE.Mesh(new THREE.CircleGeometry(dsc.radius * 0.92, 48), new THREE.MeshBasicMaterial({ color: 0x0c0d0c }));
-    dark.position.set(dsc.center[0], dsc.center[1], dsc.center[2] + 0.0005);
+    dark.rotation.x = dsc.tilt ?? 0;
+    dark.position.set(dsc.center[0], dsc.center[1] + 0.0005 * Math.sin(-(dsc.tilt ?? 0)), dsc.center[2] + 0.0005 * Math.cos(dsc.tilt ?? 0));
     rig.group.add(dark);
   }
   edge.dispose();

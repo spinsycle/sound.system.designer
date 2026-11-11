@@ -8,6 +8,7 @@ import { type Units } from './units';
 import { type BuildOpts, DEFAULT_BUILD, DEFAULT_SHOP, type Shop, sanitizeBuild, sanitizeShop } from './build';
 import { DEFAULT_DESIGN, type Design, type HornDesign, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 import { type Loudspeaker, defaultSpeaker, sanitizeLoudspeaker } from './loudspeaker';
+import { type CarSub, DEFAULT_CAR, sanitizeCar } from './carsub';
 
 export const MAX_BANDS = 4;
 export { REF_VOLTS };
@@ -52,9 +53,11 @@ export interface Project {
   selected: number;
   view: 'system' | 'box' | 'build';
   /** What is being designed: a PA system of boxes, or one loudspeaker with several drivers in a cabinet. */
-  kind: 'system' | 'speaker';
+  kind: 'system' | 'speaker' | 'car';
   /** The loudspeaker, kept while the kind is 'system' so it survives switching. */
   speaker: Loudspeaker;
+  /** The car subwoofer install, likewise kept. */
+  car: CarSub;
 }
 
 export type BandField = 'trimDb' | 'delayMs' | 'ampPowerW' | 'ampMinLoadOhm';
@@ -134,6 +137,7 @@ export const DEFAULT_PROJECT: Project = {
   view: 'system',
   kind: 'system',
   speaker: defaultSpeaker(),
+  car: DEFAULT_CAR,
 };
 
 interface Template {
@@ -223,8 +227,9 @@ export function sanitizeProject(input: unknown): Project {
     units: i.units === 'in' ? 'in' : 'mm',
     selected: typeof i.selected === 'number' && Number.isInteger(i.selected) ? P.clamp(i.selected, 0, nBands - 1) : 0,
     view: i.view === 'box' || i.view === 'build' ? i.view : 'system',
-    kind: i.kind === 'speaker' ? 'speaker' : 'system',
+    kind: i.kind === 'speaker' || i.kind === 'car' ? i.kind : 'system',
     speaker: sanitizeLoudspeaker(i.speaker),
+    car: sanitizeCar(i.car),
   };
 }
 
