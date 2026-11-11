@@ -4,9 +4,10 @@
 // the same sanitiser the browser storage uses, so a damaged or hand-edited file can never produce an invalid project.
 import { type Project, sanitizeProject } from './system';
 import { slug } from './export';
+import { migrateProjectV1 } from './migrate';
 
 export const FILE_KIND = 'sound-system-designer-project';
-export const FILE_VERSION = 1;
+export const FILE_VERSION = 2;
 export const FILE_EXTENSION = '.ssd.json';
 /** A project is a few kilobytes; anything near this size is not one. */
 export const MAX_FILE_BYTES = 2_000_000;
@@ -39,7 +40,8 @@ export function parseProjectFile(text: string): Opened {
   if (typeof f.version !== 'number' || !Number.isInteger(f.version) || f.version < 1) return fail('That project file has no valid version.');
   if (f.version > FILE_VERSION) return fail(`That project was saved by a newer version of the app (file version ${f.version}, this app reads up to ${FILE_VERSION}). Update the app to open it.`);
   if (typeof f.project !== 'object' || f.project === null || Array.isArray(f.project)) return fail('That project file has no project in it.');
-  return { ok: true, project: { ...sanitizeProject(f.project), view: 'system', selected: 0 }, error: '' };
+  const body = f.version === 1 ? migrateProjectV1(f.project) : f.project;
+  return { ok: true, project: { ...sanitizeProject(body), view: 'system', selected: 0 }, error: '' };
 }
 
 /** The file name offered when saving. */

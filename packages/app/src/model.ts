@@ -19,8 +19,13 @@ export const FLARES: readonly { id: P.FlareKind; label: string }[] = [
   { id: 'conical', label: 'Conical' },
 ];
 
-/** Index of the Custom driver in the class picker (after the generic classes). */
-export const CUSTOM_CLASS = P.DRIVER_CLASSES.length;
+/**
+ * The stored value of the Custom driver. A fixed number, not "the end of the list", so adding classes never moves it
+ * (project files and browser storage before version 2 stored it as 8; `migrate.ts` converts those).
+ */
+export const CUSTOM_CLASS = 100;
+/** The "1 in HF" compression-driver stand-in (one of the plugin's eight). */
+export const HF_CLASS = 7;
 
 export interface HornDesign {
   /**
@@ -155,7 +160,7 @@ export function sanitize(input: unknown): Design {
   for (const k of Object.keys(HORN_RANGES) as HornField[]) horn[k] = num(h[k], HORN_RANGES[k], d.horn[k]);
   const out: Design = {
     ...d,
-    driverClass: typeof i.driverClass === 'number' && Number.isInteger(i.driverClass) ? P.clamp(i.driverClass, 0, CUSTOM_CLASS) : d.driverClass,
+    driverClass: typeof i.driverClass === 'number' && Number.isInteger(i.driverClass) ? classOf(i.driverClass) : d.driverClass,
     custom,
     type: BOX_KINDS.some((k) => k.id === i.type) ? (i.type as BoxKind) : d.type,
     plotRange: i.plotRange === 'high' || i.plotRange === 'low' ? i.plotRange : d.plotRange,
@@ -165,8 +170,11 @@ export function sanitize(input: unknown): Design {
   return out;
 }
 
+/** A stored class number made valid: below 0 is the first class, past the list is Custom. */
+const classOf = (n: number): number => (n < 0 ? 0 : n < P.ALL_DRIVER_CLASSES.length ? n : CUSTOM_CLASS);
+
 export const driverOf = (d: Design): P.DriverSpec =>
-  d.driverClass < CUSTOM_CLASS ? P.DRIVER_CLASSES[d.driverClass]! : P.customDriver(d.custom);
+  d.driverClass < P.ALL_DRIVER_CLASSES.length ? P.ALL_DRIVER_CLASSES[d.driverClass]! : P.customDriver(d.custom);
 
 /**
  * The flare a horn design describes, with the limits geometry imposes: the mouth is larger than the throat, and a
@@ -388,7 +396,7 @@ export function compute(d: Design): Computed {
     }
     const trustHz = P.C / (2 * Math.PI * Math.sqrt(g.flare.mouthM2 / Math.PI));
     notes.push(`One-dimensional lossless model: no bends, half-space radiation. The response is radiated power, with no directivity: a real horn is louder than this on its axis above about ${fmt(trustHz, 0)} Hz (where this mouth starts to beam), and the plane-wave model is least sure up there.`);
-    if (d.driverClass === CUSTOM_CLASS - 1) notes.push('Compression drivers rarely publish Thiele-Small values. The "1 in HF" class is a stand-in, so read this response as a sketch.');
+    if (d.driverClass === HF_CLASS) notes.push('Compression drivers rarely publish Thiele-Small values. The "1 in HF" class is a stand-in, so read this response as a sketch.');
   } else {
     const raw = directRaw(d);
     curves = curvesOf(freqs.map((f) => toPoint(raw, d, f)));

@@ -167,7 +167,7 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     else if (holes.length === 2 && holes[0]! + holes[1]! + 3 * HOLE_MARGIN > Math.max(c.geometry.wO, c.geometry.hO)) warnings.push(`${name}: the driver and port holes do not both fit the baffle. Change the proportions.`);
   }
 
-  const dname = d.driverClass < P.DRIVER_CLASSES.length ? `${driver.name} driver` : 'Custom driver';
+  const dname = d.driverClass < P.ALL_DRIVER_CLASSES.length ? `${driver.name} driver` : 'Custom driver';
   return { name, summary: summary(d), count: b.count, driver: dname, cabinets, horn, port, warnings };
 }
 

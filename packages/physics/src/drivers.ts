@@ -33,6 +33,26 @@ export const DRIVER_CLASSES: readonly DriverSpec[] = [
   { name: '1 in HF', fs: 700, qes: 0.3, qms: 3, vasM3: 0.000002, sd: 0.0008, re: 6.0, xmax: 0.0005, pe: 40 },
 ];
 
+/**
+ * Classes the app adds for home speakers (spec v0.11 and later), appended in a frozen order after the plugin's eight. App only:
+ * the plugin and the parity cases know only DRIVER_CLASSES. Invented values, not any real product; a dome sits in a small
+ * sealed chamber of its own, the planar tweeter is meant for open-baffle use (Qts 0.7).
+ */
+export const EXTRA_DRIVER_CLASSES: readonly DriverSpec[] = [
+  { name: '3 in', fs: 140, qes: 0.7, qms: 3.5, vasM3: 0.0007, sd: 0.0033, re: 4.0, xmax: 0.002, pe: 20 },
+  { name: '4 in', fs: 115, qes: 0.6, qms: 3.5, vasM3: 0.0018, sd: 0.0055, re: 4.0, xmax: 0.0025, pe: 40 },
+  { name: '5.25 in', fs: 100, qes: 0.55, qms: 3.5, vasM3: 0.0035, sd: 0.0088, re: 4.0, xmax: 0.003, pe: 60 },
+  { name: '3 in mid', fs: 180, qes: 0.7, qms: 3, vasM3: 0.0006, sd: 0.0033, re: 6.0, xmax: 0.0015, pe: 40 },
+  { name: '4 in mid', fs: 150, qes: 0.65, qms: 3, vasM3: 0.0015, sd: 0.0055, re: 6.0, xmax: 0.002, pe: 50 },
+  { name: '0.75 in dome', fs: 1400, qes: 1.0, qms: 3, vasM3: 0.00003, sd: 0.00022, re: 4.0, xmax: 0.0004, pe: 20 },
+  { name: '1 in dome', fs: 900, qes: 1.0, qms: 2.5, vasM3: 0.0001, sd: 0.0005, re: 4.0, xmax: 0.0005, pe: 40 },
+  { name: '1.25 in dome', fs: 700, qes: 0.9, qms: 2.5, vasM3: 0.0002, sd: 0.0008, re: 6.0, xmax: 0.0006, pe: 50 },
+  { name: 'Planar tweeter', fs: 1500, qes: 1.0, qms: 2.3, vasM3: 0.00005, sd: 0.0006, re: 4.0, xmax: 0.0005, pe: 30 },
+];
+
+/** Every class the app offers: the plugin's eight, then the app's own. Indices are stored in projects, so only ever append. */
+export const ALL_DRIVER_CLASSES: readonly DriverSpec[] = [...DRIVER_CLASSES, ...EXTRA_DRIVER_CLASSES];
+
 export interface DriverDerived {
   qts: number;
   /** Suspension compliance, m/N. */

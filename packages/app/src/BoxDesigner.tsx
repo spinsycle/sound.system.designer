@@ -94,7 +94,7 @@ export function BoxDesigner({ design, onChange }: { design: Design; onChange: (d
             <div className="field">
               <label htmlFor="driver-class">Class</label>
               <select id="driver-class" value={design.driverClass} onChange={(e) => set({ driverClass: Number(e.target.value) })}>
-                {P.DRIVER_CLASSES.map((k, i) => (
+                {P.ALL_DRIVER_CLASSES.map((k, i) => (
                   <option key={k.name} value={i}>
                     {k.name}
                   </option>

@@ -10,9 +10,12 @@ import { FILE_EXTENSION, parseProjectFile, serializeProject, suggestedName } fro
 import { BuildView } from './BuildView';
 import { SystemView } from './SystemView';
 import { type Design, sanitize } from './model';
+import { migrateDesignV1, migrateProjectV1 } from './migrate';
 import { DEFAULT_PROJECT, type Project, bandName, sanitizeProject } from './system';
 
-const PROJECT_KEY = 'soundsystemdesigner.project.v1';
+const PROJECT_KEY = 'soundsystemdesigner.project.v2';
+/** Version 1 stored the Custom driver as class 8; it is read once and migrated, never overwritten. */
+const PROJECT_KEY_V1 = 'soundsystemdesigner.project.v1';
 /** The single box design the app stored before it had systems; it becomes band 1 once. */
 const OLD_DESIGN_KEY = 'soundsystemdesigner.design.v1';
 
@@ -20,8 +23,10 @@ function load(): Project {
   try {
     const stored = localStorage.getItem(PROJECT_KEY);
     if (stored) return sanitizeProject(JSON.parse(stored));
+    const v1 = localStorage.getItem(PROJECT_KEY_V1);
+    if (v1) return sanitizeProject(migrateProjectV1(JSON.parse(v1)));
     const old = localStorage.getItem(OLD_DESIGN_KEY);
-    if (old) return sanitizeProject({ ...DEFAULT_PROJECT, bands: [{ design: sanitize(JSON.parse(old)) }], view: 'box' });
+    if (old) return sanitizeProject({ ...DEFAULT_PROJECT, bands: [{ design: sanitize(migrateDesignV1(JSON.parse(old))) }], view: 'box' });
   } catch {
     // unreadable or unavailable storage: start fresh
   }
