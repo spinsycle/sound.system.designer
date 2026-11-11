@@ -336,6 +336,48 @@ describe('shared vectors', () => {
     }
   });
 
+  it('car audio (v0.12)', () => {
+    for (const id of ids('cabin_')) {
+      const v = vec(id).inputs;
+      const h = P.cabinShelf(v.f!, v.gain_db!, v.fc!);
+      expectVec(id, 'db', magDb(h));
+      expectVec(id, 'phase_deg', (Math.atan2(h.im, h.re) * 180) / Math.PI);
+    }
+    for (const id of ids('dvc_')) {
+      const v = vec(id).inputs;
+      const d = P.dvcDriver(v.coils!, v.coil_series!);
+      expectVec(id, 'load_factor', d.loadFactor);
+      expectVec(id, 'level_factor', d.levelFactor);
+    }
+    for (const id of ids('carwire_')) {
+      const v = vec(id).inputs;
+      const w = P.carWiring(v.n!, v.series!, v.coils!, v.coil_series!);
+      expectVec(id, 'load_factor', w.loadFactor);
+      expectVec(id, 'level_gain_db', w.levelGainDb);
+    }
+    const b = vec('bridged_volts').inputs;
+    expectVec('bridged_volts', 'volts', P.bridgedVolts(b.power_w!, b.load_ohm!));
+    expectVec('bridged_volts', 'power_same_load_w', P.bridgedVolts(b.power_w!, b.load_ohm!) ** 2 / b.load_ohm!);
+    const ac = vec('amp_current').inputs;
+    expectVec('amp_current', 'amps', P.ampCurrent(ac.power_w!, ac.efficiency!, ac.volts!));
+    for (const id of ids('awg_')) {
+      const v = vec(id).inputs;
+      expectVec(id, 'area_mm2', P.awgAreaMm2(v.awg!));
+      expectVec(id, 'ohm', P.wireResistance(v.awg!, v.length_m!));
+    }
+    const wd = vec('wire_drop').inputs;
+    expectVec('wire_drop', 'volts', P.wireDropVolts(wd.amps!, wd.awg!, wd.length_m!, wd.temp_c!));
+    expectVec('wire_drop', 'volts_40c', P.wireDropVolts(wd.amps!, wd.awg!, wd.length_m!, 40));
+    for (const id of ids('fuse_')) expectVec(id, 'fuse_a', P.fuseAmps(vec(id).inputs.amps!));
+    const ma = vec('min_awg').inputs;
+    expectVec('min_awg', 'awg_3m', P.minAwg(ma.amps!, ma.length_a_m!, ma.volts!, ma.max_drop_frac!));
+    expectVec('min_awg', 'awg_5m', P.minAwg(ma.amps!, ma.length_b_m!, ma.volts!, ma.max_drop_frac!));
+    expectVec('min_awg', 'awg_7m', P.minAwg(ma.amps!, ma.length_c_m!, ma.volts!, ma.max_drop_frac!));
+    expectVec('min_awg', 'none', P.minAwg(ma.huge_amps!, ma.length_b_m!, ma.volts!, ma.max_drop_frac!));
+    const mc = vec('music_current').inputs;
+    expectVec('music_current', 'amps', P.musicCurrent(mc.power_w!, mc.efficiency!, mc.volts!, mc.duty!));
+  });
+
   afterAll(() => {
     const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
     expect(missing, 'vector outputs never asserted').toEqual([]);

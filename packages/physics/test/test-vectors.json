@@ -2649,6 +2649,641 @@
       "tol": {
         "abs_db": 1e-09
       }
+    },
+    {
+      "id": "cabin_open_20hz",
+      "desc": "Cabin gain of a open (shelf 0.0 dB below 60.0 Hz) at 20.0 Hz",
+      "inputs": {
+        "f": 20.0,
+        "gain_db": 0.0,
+        "fc": 60.0
+      },
+      "outputs": {
+        "db": 0.0,
+        "phase_deg": -2.7926821593338194e-15
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_open_60hz",
+      "desc": "Cabin gain of a open (shelf 0.0 dB below 60.0 Hz) at 60.0 Hz",
+      "inputs": {
+        "f": 60.0,
+        "gain_db": 0.0,
+        "fc": 60.0
+      },
+      "outputs": {
+        "db": 0.0,
+        "phase_deg": 0.0
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_open_240hz",
+      "desc": "Cabin gain of a open (shelf 0.0 dB below 60.0 Hz) at 240.0 Hz",
+      "inputs": {
+        "f": 240.0,
+        "gain_db": 0.0,
+        "fc": 60.0
+      },
+      "outputs": {
+        "db": 0.0,
+        "phase_deg": -0.0
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_coupe_20hz",
+      "desc": "Cabin gain of a coupe (shelf 12.0 dB below 70.0 Hz) at 20.0 Hz",
+      "inputs": {
+        "f": 20.0,
+        "gain_db": 12.0,
+        "fc": 70.0
+      },
+      "outputs": {
+        "db": 11.893549525960536,
+        "phase_deg": -17.6787349416895
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_coupe_70hz",
+      "desc": "Cabin gain of a coupe (shelf 12.0 dB below 70.0 Hz) at 70.0 Hz",
+      "inputs": {
+        "f": 70.0,
+        "gain_db": 12.0,
+        "fc": 70.0
+      },
+      "outputs": {
+        "db": 6.0,
+        "phase_deg": -52.966955772683775
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_coupe_280hz",
+      "desc": "Cabin gain of a coupe (shelf 12.0 dB below 70.0 Hz) at 280.0 Hz",
+      "inputs": {
+        "f": 280.0,
+        "gain_db": 12.0,
+        "fc": 70.0
+      },
+      "outputs": {
+        "db": 0.06275841108990649,
+        "phase_deg": -15.219472802974453
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_sedan_20hz",
+      "desc": "Cabin gain of a sedan (shelf 10.0 dB below 60.0 Hz) at 20.0 Hz",
+      "inputs": {
+        "f": 20.0,
+        "gain_db": 10.0,
+        "fc": 60.0
+      },
+      "outputs": {
+        "db": 9.850597434914532,
+        "phase_deg": -17.416297888905273
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_sedan_60hz",
+      "desc": "Cabin gain of a sedan (shelf 10.0 dB below 60.0 Hz) at 60.0 Hz",
+      "inputs": {
+        "f": 60.0,
+        "gain_db": 10.0,
+        "fc": 60.0
+      },
+      "outputs": {
+        "db": 4.999999999999999,
+        "phase_deg": -44.85058354764757
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_sedan_240hz",
+      "desc": "Cabin gain of a sedan (shelf 10.0 dB below 60.0 Hz) at 240.0 Hz",
+      "inputs": {
+        "f": 240.0,
+        "gain_db": 10.0,
+        "fc": 60.0
+      },
+      "outputs": {
+        "db": 0.047956852163047556,
+        "phase_deg": -12.577718768354856
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_suv_20hz",
+      "desc": "Cabin gain of a suv (shelf 8.0 dB below 50.0 Hz) at 20.0 Hz",
+      "inputs": {
+        "f": 20.0,
+        "gain_db": 8.0,
+        "fc": 50.0
+      },
+      "outputs": {
+        "db": 7.773379148709967,
+        "phase_deg": -17.098696390059835
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_suv_50hz",
+      "desc": "Cabin gain of a suv (shelf 8.0 dB below 50.0 Hz) at 50.0 Hz",
+      "inputs": {
+        "f": 50.0,
+        "gain_db": 8.0,
+        "fc": 50.0
+      },
+      "outputs": {
+        "db": 4.000000000000001,
+        "phase_deg": -36.37275308361411
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_suv_200hz",
+      "desc": "Cabin gain of a suv (shelf 8.0 dB below 50.0 Hz) at 200.0 Hz",
+      "inputs": {
+        "f": 200.0,
+        "gain_db": 8.0,
+        "fc": 50.0
+      },
+      "outputs": {
+        "db": 0.03565702111987965,
+        "phase_deg": -9.993781139170206
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_truck_20hz",
+      "desc": "Cabin gain of a truck (shelf 9.0 dB below 65.0 Hz) at 20.0 Hz",
+      "inputs": {
+        "f": 20.0,
+        "gain_db": 9.0,
+        "fc": 65.0
+      },
+      "outputs": {
+        "db": 8.905441580631328,
+        "phase_deg": -14.244924977298966
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_truck_65hz",
+      "desc": "Cabin gain of a truck (shelf 9.0 dB below 65.0 Hz) at 65.0 Hz",
+      "inputs": {
+        "f": 65.0,
+        "gain_db": 9.0,
+        "fc": 65.0
+      },
+      "outputs": {
+        "db": 4.5,
+        "phase_deg": -40.65428107704457
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_truck_260hz",
+      "desc": "Cabin gain of a truck (shelf 9.0 dB below 65.0 Hz) at 260.0 Hz",
+      "inputs": {
+        "f": 260.0,
+        "gain_db": 9.0,
+        "fc": 65.0
+      },
+      "outputs": {
+        "db": 0.041536431675809345,
+        "phase_deg": -11.279280486534226
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_van_20hz",
+      "desc": "Cabin gain of a van (shelf 6.0 dB below 40.0 Hz) at 20.0 Hz",
+      "inputs": {
+        "f": 20.0,
+        "gain_db": 6.0,
+        "fc": 40.0
+      },
+      "outputs": {
+        "db": 5.623570104226221,
+        "phase_deg": -16.550884917061733
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_van_40hz",
+      "desc": "Cabin gain of a van (shelf 6.0 dB below 40.0 Hz) at 40.0 Hz",
+      "inputs": {
+        "f": 40.0,
+        "gain_db": 6.0,
+        "fc": 40.0
+      },
+      "outputs": {
+        "db": 3.000000000000002,
+        "phase_deg": -27.580353469720567
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "cabin_van_160hz",
+      "desc": "Cabin gain of a van (shelf 6.0 dB below 40.0 Hz) at 160.0 Hz",
+      "inputs": {
+        "f": 160.0,
+        "gain_db": 6.0,
+        "fc": 40.0
+      },
+      "outputs": {
+        "db": 0.025223512734263882,
+        "phase_deg": -7.455654761998393
+      },
+      "tol": {
+        "abs_db": 1e-09,
+        "abs": 1e-09
+      }
+    },
+    {
+      "id": "dvc_1coil_1series",
+      "desc": "One driver with 1 coil(s), 1 in series per string",
+      "inputs": {
+        "coils": 1,
+        "coil_series": 1
+      },
+      "outputs": {
+        "load_factor": 1.0,
+        "level_factor": 1.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "dvc_2coil_1series",
+      "desc": "One driver with 2 coil(s), 1 in series per string",
+      "inputs": {
+        "coils": 2,
+        "coil_series": 1
+      },
+      "outputs": {
+        "load_factor": 0.5,
+        "level_factor": 2.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "dvc_2coil_2series",
+      "desc": "One driver with 2 coil(s), 2 in series per string",
+      "inputs": {
+        "coils": 2,
+        "coil_series": 2
+      },
+      "outputs": {
+        "load_factor": 2.0,
+        "level_factor": 1.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "carwire_1x2c_1s1",
+      "desc": "1 drivers of 2 coils, 1 drivers per series string, 1 coils per series string",
+      "inputs": {
+        "n": 1,
+        "series": 1,
+        "coils": 2,
+        "coil_series": 1
+      },
+      "outputs": {
+        "load_factor": 0.5,
+        "level_gain_db": 6.020599913279624
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "carwire_2x2c_1s1",
+      "desc": "2 drivers of 2 coils, 1 drivers per series string, 1 coils per series string",
+      "inputs": {
+        "n": 2,
+        "series": 1,
+        "coils": 2,
+        "coil_series": 1
+      },
+      "outputs": {
+        "load_factor": 0.25,
+        "level_gain_db": 12.041199826559248
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "carwire_2x2c_2s2",
+      "desc": "2 drivers of 2 coils, 2 drivers per series string, 2 coils per series string",
+      "inputs": {
+        "n": 2,
+        "series": 2,
+        "coils": 2,
+        "coil_series": 2
+      },
+      "outputs": {
+        "load_factor": 4.0,
+        "level_gain_db": 0.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "carwire_4x2c_2s1",
+      "desc": "4 drivers of 2 coils, 2 drivers per series string, 1 coils per series string",
+      "inputs": {
+        "n": 4,
+        "series": 2,
+        "coils": 2,
+        "coil_series": 1
+      },
+      "outputs": {
+        "load_factor": 0.5,
+        "level_gain_db": 12.041199826559248
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "carwire_4x2c_1s1",
+      "desc": "4 drivers of 2 coils, 1 drivers per series string, 1 coils per series string",
+      "inputs": {
+        "n": 4,
+        "series": 1,
+        "coils": 2,
+        "coil_series": 1
+      },
+      "outputs": {
+        "load_factor": 0.125,
+        "level_gain_db": 18.06179973983887
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "carwire_3x1c_1s1",
+      "desc": "3 drivers of 1 coils, 1 drivers per series string, 1 coils per series string",
+      "inputs": {
+        "n": 3,
+        "series": 1,
+        "coils": 1,
+        "coil_series": 1
+      },
+      "outputs": {
+        "load_factor": 0.3333333333333333,
+        "level_gain_db": 9.542425094393248
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "bridged_volts",
+      "desc": "Bridged swing of an amp rated 500 W into 4 ohm per channel",
+      "inputs": {
+        "power_w": 500.0,
+        "load_ohm": 4.0
+      },
+      "outputs": {
+        "volts": 89.44271909999159,
+        "power_same_load_w": 2000.0000000000002
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "amp_current",
+      "desc": "Supply current of a 1000 W class D amp at 85 % efficiency from 13.8 V",
+      "inputs": {
+        "power_w": 1000.0,
+        "efficiency": 0.85,
+        "volts": 13.8
+      },
+      "outputs": {
+        "amps": 85.25149190110827
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "awg_8",
+      "desc": "Cross-section and 5 m resistance of 8 AWG copper at 20 C",
+      "inputs": {
+        "awg": 8,
+        "length_m": 5.0
+      },
+      "outputs": {
+        "area_mm2": 8.365564060081022,
+        "ohm": 0.010041163918740761
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "awg_4",
+      "desc": "Cross-section and 5 m resistance of 4 AWG copper at 20 C",
+      "inputs": {
+        "awg": 4,
+        "length_m": 5.0
+      },
+      "outputs": {
+        "area_mm2": 21.15063942544283,
+        "ohm": 0.003971511135448394
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "awg_0",
+      "desc": "Cross-section and 5 m resistance of 0 AWG copper at 20 C",
+      "inputs": {
+        "awg": 0,
+        "length_m": 5.0
+      },
+      "outputs": {
+        "area_mm2": 53.47512073211765,
+        "ohm": 0.001570823942984552
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "wire_drop",
+      "desc": "Voltage lost in 5 m of 4 AWG and the same ground return at the 1000 W amp's current; and at 40 C",
+      "inputs": {
+        "amps": 85.25149190110827,
+        "awg": 4,
+        "length_m": 5.0,
+        "temp_c": 20.0
+      },
+      "outputs": {
+        "volts": 0.6771544987976802,
+        "volts_40c": 0.7303788424031776
+      },
+      "tol": {
+        "rel": 1e-12
+      }
+    },
+    {
+      "id": "fuse_12a",
+      "desc": "Fuse for 12.0 A",
+      "inputs": {
+        "amps": 12.0
+      },
+      "outputs": {
+        "fuse_a": 15.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "fuse_85a",
+      "desc": "Fuse for 85.2 A",
+      "inputs": {
+        "amps": 85.2
+      },
+      "outputs": {
+        "fuse_a": 125.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "fuse_330a",
+      "desc": "Fuse for 330.0 A",
+      "inputs": {
+        "amps": 330.0
+      },
+      "outputs": {
+        "fuse_a": 500.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "fuse_700a",
+      "desc": "Fuse for 700.0 A",
+      "inputs": {
+        "amps": 700.0
+      },
+      "outputs": {
+        "fuse_a": 900.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "min_awg",
+      "desc": "Thinnest cable that loses at most 3 % of 13.8 V carrying the 1000 W amp's current over 3, 5 and 7 m; and for a current no cable carries",
+      "inputs": {
+        "amps": 85.25149190110827,
+        "volts": 13.8,
+        "max_drop_frac": 0.03,
+        "length_a_m": 3.0,
+        "length_b_m": 5.0,
+        "length_c_m": 7.0,
+        "huge_amps": 100000.0
+      },
+      "outputs": {
+        "awg_3m": 4.0,
+        "awg_5m": 1.0,
+        "awg_7m": 0.0,
+        "none": -1.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "music_current",
+      "desc": "Average supply current of the 1000 W amp on music at one eighth of its rated power",
+      "inputs": {
+        "power_w": 1000.0,
+        "efficiency": 0.85,
+        "volts": 13.8,
+        "duty": 0.125
+      },
+      "outputs": {
+        "amps": 10.656436487638533
+      },
+      "tol": {
+        "rel": 1e-12
+      }
     }
   ]
 }

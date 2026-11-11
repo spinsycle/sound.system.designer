@@ -17,3 +17,4 @@ export * from './system';
 export * from './room';
 export * from './cabinet';
 export * from './speaker';
+export * from './car';
