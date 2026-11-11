@@ -9,6 +9,9 @@ import { appFetch } from './desktop';
 import { type Config, DEFAULT_MODEL, DEFAULT_URL, OllamaError, designVariant, listModels, localOnly } from './ollama';
 import type { Project } from './system';
 import type { SystemAnswer } from './brief';
+import { type CarAnswer, type CarMetrics, type SpeakerAnswer, type SpeakerMetrics, carMetricsOf, speakerMetricsOf } from './briefhome';
+import type { Loudspeaker } from './loudspeaker';
+import type { CarSub } from './carsub';
 
 const KEY = 'soundsystemdesigner.ollama.v1';
 
@@ -25,11 +28,18 @@ function loadConfig(): Config {
 type Row =
   | { flavour: string; label: string; state: 'waiting' | 'running' }
   | { flavour: string; label: string; state: 'failed'; errors: string[]; attempts: number }
-  | { flavour: string; label: string; state: 'ok'; name: string; note: string; attempts: number; system?: { project: Project; m: Metrics }; box?: { design: Design; m: BoxMetrics } };
+  | { flavour: string; label: string; state: 'ok'; name: string; note: string; attempts: number; system?: { project: Project; m: Metrics }; box?: { design: Design; m: BoxMetrics }; speaker?: { sp: Loudspeaker; m: SpeakerMetrics }; car?: { c: CarSub; m: CarMetrics } };
+
+const WHAT: Record<BriefMode, { ask: string; example: string; noun: string }> = {
+  system: { ask: 'Describe the system you want.', example: 'A two-way PA for a 200-person room: an 18 in ported sub and 12 in tops', noun: 'system' },
+  box: { ask: 'Describe the box you want.', example: 'A sealed 12 in box for a studio monitor wedge', noun: 'box' },
+  speaker: { ask: 'Describe the home speaker you want.', example: 'A slim floorstanding MTM tower for a living room, ported, about 100 cm tall', noun: 'speaker' },
+  car: { ask: 'Describe the car install you want.', example: 'Two 10 in subs in a ported box for a hatchback, about 1000 W, with component door speakers', noun: 'install' },
+};
 
 const f1 = (v: number): string => (Number.isFinite(v) ? v.toFixed(1) : 'none');
 
-export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) => void; onLoadBox: (d: Design) => void; canUndo: boolean; onUndo: () => void }) {
+export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) => void; onLoadBox: (d: Design) => void; onLoadSpeaker: (s: Loudspeaker) => void; onLoadCar: (c: CarSub) => void; canUndo: boolean; onUndo: () => void }) {
   const { mode } = props;
   const [cfg, setCfg] = useState<Config>(loadConfig);
   const [models, setModels] = useState<string[]>([]);
@@ -107,6 +117,12 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
         if (mode === 'system') {
           const v = r.value as SystemAnswer;
           put(i, { flavour: f.id, label: f.label, state: 'ok', name: v.label, note: v.note, attempts: r.attempts, system: { project: v.project, m: metricsOf(v.project) } });
+        } else if (mode === 'speaker') {
+          const v = r.value as SpeakerAnswer;
+          put(i, { flavour: f.id, label: f.label, state: 'ok', name: v.label, note: v.note, attempts: r.attempts, speaker: { sp: v.speaker, m: speakerMetricsOf(v.speaker) } });
+        } else if (mode === 'car') {
+          const v = r.value as CarAnswer;
+          put(i, { flavour: f.id, label: f.label, state: 'ok', name: v.label, note: v.note, attempts: r.attempts, car: { c: v.car, m: carMetricsOf(v.car) } });
         } else {
           const v = r.value as Design & { label?: string; note?: string };
           put(i, { flavour: f.id, label: f.label, state: 'ok', name: v.label ?? f.label, note: v.note ?? '', attempts: r.attempts, box: { design: v, m: boxMetricsOf(v) } });
@@ -127,11 +143,11 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
     <section className="brief">
       <h2>Brief</h2>
       <p className="hint">
-        {mode === 'system' ? 'Describe the system you want.' : 'Describe the box you want.'} A model on this computer proposes three variants; the same calculators as the rest of the app judge them. It only names parts and sizes, so check anything you rely on.
+        {WHAT[mode].ask} A model on this computer proposes three variants; the same calculators as the rest of the app judge them. It only names parts and sizes, so check anything you rely on.
       </p>
       <div className="field stacked">
         <label htmlFor="brief-text">What do you need?</label>
-        <textarea id="brief-text" rows={3} value={brief} placeholder={mode === 'system' ? 'A two-way PA for a 200-person room: an 18 in ported sub and 12 in tops' : 'A sealed 12 in box for a studio monitor wedge'} onChange={(e) => setBrief(e.target.value)} />
+        <textarea id="brief-text" rows={3} value={brief} placeholder={WHAT[mode].example} onChange={(e) => setBrief(e.target.value)} />
       </div>
       <div className="actions">
         <button type="button" onClick={() => void run()} disabled={busy || brief.trim() === '' || models.length === 0}>
@@ -186,6 +202,22 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
                     <th scope="col">Headroom, dB</th>
                     <th scope="col">Lowest, Hz</th>
                   </>
+                ) : mode === 'speaker' ? (
+                  <>
+                    <th scope="col" className="left pad">
+                      Arrangement
+                    </th>
+                    <th scope="col">Sensitivity, dB</th>
+                    <th scope="col">-3 dB, Hz</th>
+                    <th scope="col">Air, L</th>
+                  </>
+                ) : mode === 'car' ? (
+                  <>
+                    <th scope="col">Level, dB</th>
+                    <th scope="col">Headroom, dB</th>
+                    <th scope="col">Load, ohm</th>
+                    <th scope="col">Fuse, A</th>
+                  </>
                 ) : (
                   <>
                     <th scope="col" className="left pad">
@@ -221,6 +253,36 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
                       </td>
                     </>
                   )}
+                  {r.state === 'ok' && r.speaker && (
+                    <>
+                      <td className="left pad">{r.speaker.m.arrangement}</td>
+                      <td>{f1(r.speaker.m.sensitivityDb)}</td>
+                      <td>{Number.isFinite(r.speaker.m.f3Hz) ? r.speaker.m.f3Hz.toFixed(0) : 'none'}</td>
+                      <td>{f1(r.speaker.m.volumeL)}</td>
+                      <td>{r.speaker.m.sheets}</td>
+                      <td>{r.speaker.m.warnings}</td>
+                      <td>
+                        <button type="button" onClick={() => props.onLoadSpeaker(r.speaker!.sp)}>
+                          Load
+                        </button>
+                      </td>
+                    </>
+                  )}
+                  {r.state === 'ok' && r.car && (
+                    <>
+                      <td>{f1(r.car.m.levelDb)}</td>
+                      <td>{f1(r.car.m.headroomDb)}</td>
+                      <td>{f1(r.car.m.loadOhm)}</td>
+                      <td>{r.car.m.fuseA.toFixed(0)}</td>
+                      <td>{r.car.m.sheets}</td>
+                      <td>{r.car.m.warnings}</td>
+                      <td>
+                        <button type="button" onClick={() => props.onLoadCar(r.car!.c)}>
+                          Load
+                        </button>
+                      </td>
+                    </>
+                  )}
                   {r.state === 'ok' && r.box && (
                     <>
                       <td className="left pad">{r.box.m.readouts.join('; ')}</td>
@@ -235,14 +297,14 @@ export function BriefPanel(props: { mode: BriefMode; onLoadSystem: (p: Project) 
                     </>
                   )}
                   {r.state !== 'ok' && (
-                    <td colSpan={mode === 'system' ? 7 : 5} className="left pad">
+                    <td colSpan={mode === 'system' || mode === 'speaker' || mode === 'car' ? 7 : 5} className="left pad">
                       {r.state === 'failed' && r.errors[0] === 'stopped' ? 'Stopped' : r.state === 'failed' ? `Refused after ${r.attempts} ${r.attempts === 1 ? 'answer' : 'answers'}: ${r.errors.slice(0, 3).join('; ')}` : r.state === 'running' ? 'Asking the model…' : 'Waiting'}
                     </td>
                   )}
                 </tr>
               ))}
             </tbody>
-            <caption>Level is the average from the lowest frequency played at the listening distance. Loading replaces your current {mode === 'system' ? 'system' : 'box'}; Undo brings it back.</caption>
+            <caption>{mode === 'speaker' ? 'Sensitivity is the average from 300 Hz to 3 kHz at the reference input, 1 m.' : mode === 'car' ? 'Level is the average in the car from 25 to 120 Hz at the reference input.' : 'Level is the average from the lowest frequency played at the listening distance.'} Loading replaces your current {WHAT[mode].noun}; Undo brings it back.</caption>
           </table>
           {ok.length > 0 && (
             <ul className="notes">

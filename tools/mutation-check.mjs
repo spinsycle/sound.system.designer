@@ -18,6 +18,7 @@ const br = app('brief.ts');
 const ol = app('ollama.ts');
 const pf = app('projectfile.ts');
 const un = app('units.ts');
+const bh = app('briefhome.ts');
 
 // [file, find (first occurrence), replace]
 const mutations = [
@@ -853,6 +854,25 @@ const mutations = [
   [sys, '(d.pe * d.re * b.series * b.series) / b.ampLoadOhm', '(d.pe * d.re * b.series * b.series)'],
   [sys, 'ampPowerW: ampJustWithin(driverOf(b.design), b)', 'ampPowerW: 500'],
   [sys, '...group(b.count, b.series),', '...{ count: 1, series: 1 },'],
+  // v1.4 brief for a home speaker and a car install
+  [bh, 'xs[i]! < xs[i - 1]! * 1.2', 'xs[i]! < xs[i - 1]! * 1.0'],
+  [bh, 'raw.slots.length !== arr.slots.length', 'raw.slots.length < arr.slots.length'],
+  [bh, 'raw.slots.length !== arr.slots.length', 'raw.slots.length > arr.slots.length'],
+  [bh, "else if (s.open && role !== 'tweeter')", 'else if (s.open && false)'],
+  [bh, "role === 'tweeter' ? TWEETER_OPTS : DRIVER_OPTS", "role === 'tweeter' ? DRIVER_OPTS : TWEETER_OPTS"],
+  [bh, 'bare.sensitivityDb - 3', 'bare.sensitivityDb - 6'],
+  [bh, 'const bare = sp.baffleStep ? computeLoudspeaker({ ...sp, baffleStep: false }) : v;', 'const bare = v;'],
+  [bh, 'quantity !== null && !Number.isInteger(quantity)', 'false'],
+  [bh, 'else if (sub.coilSeries === 2 && sub.coils === 1)', 'else if (false)'],
+  [bh, 'if (car.front.enabled) car = levelFront(car);', 'if (false) car = levelFront(car);'],
+  [bh, '!CABLE_AWGS.includes(sup.cableAwg)', 'false'],
+  [bh, "if (fr.type === 'component') {", "if (fr.type !== 'component') {"],
+  [bh, "if (sp.id === 'custom') for", 'if (false) for'],
+  [bh, 'c.front.enabled ? computeCarSystem(c).warnings.length : 0', '0'],
+  [bh, 'v.warnings.length + e.warnings.length + b.warnings.length + front', 'v.warnings.length + b.warnings.length + front'],
+  [ol, "if (mode === 'speaker') return validateSpeaker(raw);", "if (mode === 'speaker') return validateSystem(raw);"],
+  [ol, "mode === 'speaker' ? speakerSchema()", "mode === 'speaker' ? systemSchema()"],
+  [ol, "mode === 'car' ? carPrompt()", "mode === 'car' ? speakerPrompt()"],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect

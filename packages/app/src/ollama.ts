@@ -16,7 +16,10 @@ import {
   validateDesign,
   validateSystem,
 } from './brief';
+import { type CarAnswer, type SpeakerAnswer, carPrompt, carSchema, speakerPrompt, speakerSchema, validateCar, validateSpeaker } from './briefhome';
 import type { Design } from './model';
+
+export type BriefValue = (Design & Partial<DesignMeta>) | SystemAnswer | SpeakerAnswer | CarAnswer;
 
 export const DEFAULT_URL = 'http://localhost:11434';
 export const DEFAULT_MODEL = 'llama3.1:8b';
@@ -107,13 +110,15 @@ export interface Failure {
 }
 
 /** Parse and check one reply; a reply that is not JSON at all is one error. */
-function check(mode: BriefMode, reply: string): Validated<(Design & Partial<DesignMeta>) | SystemAnswer> {
+function check(mode: BriefMode, reply: string): Validated<BriefValue> {
   let raw: unknown;
   try {
     raw = JSON.parse(reply.trim());
   } catch {
     return { ok: false, value: null, errors: ['the reply is not valid JSON: return one JSON object and nothing else'] };
   }
+  if (mode === 'speaker') return validateSpeaker(raw);
+  if (mode === 'car') return validateCar(raw);
   return mode === 'system' ? validateSystem(raw) : validateDesign(raw, '$', true);
 }
 
@@ -125,10 +130,10 @@ export async function designVariant(
   cfg: Config,
   fetchFn: FetchFn = fetch,
   signal?: AbortSignal,
-): Promise<Success<(Design & Partial<DesignMeta>) | SystemAnswer> | Failure> {
-  const schema = mode === 'system' ? systemSchema() : designSchema(true);
+): Promise<Success<BriefValue> | Failure> {
+  const schema = mode === 'system' ? systemSchema() : mode === 'speaker' ? speakerSchema() : mode === 'car' ? carSchema() : designSchema(true);
   const messages: Message[] = [
-    { role: 'system', content: systemPrompt(mode) },
+    { role: 'system', content: mode === 'speaker' ? speakerPrompt() : mode === 'car' ? carPrompt() : systemPrompt(mode) },
     { role: 'user', content: userPrompt(brief, flavour) },
   ];
   let errors: string[] = [];

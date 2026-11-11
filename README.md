@@ -1,7 +1,7 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.3.0.
+Version 1.4.0.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
@@ -18,7 +18,7 @@ Version 1.3.0.
   set or a coaxial in a door, kick panel or the dash, with adapter rings), the whole system in one plot, and nine starting points.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
   materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
-- **Brief:** describe a system or a box in words and a local [Ollama](https://ollama.com) model proposes three variants.
+- **Brief:** describe a system, a box, a home speaker or a car install in words and a local [Ollama](https://ollama.com) model proposes three variants.
   The model only picks parts and sizes into a strictly checked schema; the same calculators as everywhere else judge the
   result. Everything stays on your computer: only an Ollama server on `localhost` is ever contacted.
 - **Projects:** Save project and Open project write and read a `.ssd.json` file; the app also remembers your last
@@ -30,7 +30,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.3.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.4.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 
@@ -43,7 +43,7 @@ To use the Brief panel, install Ollama and pull a model once: `ollama pull llama
    subwoofer**, pick a starting point and press Load it.
 2. **Build** page: choose Millimetres or Inches, wall material, sheet size (fractions like 3/4 or 1 1/2 work in inches), box proportions and bracing; read the cut list; save SVG, DXF or CSV
    files, or print to PDF.
-3. **Brief** (top of the System and box pages): type what you need, press Design 3 variants, compare the table, Load one.
+3. **Brief** (top of every page except Build: PA system, box, Home speaker and Car subwoofer): type what you need, press Design 3 variants, compare the table, Load one.
    Undo last load brings your previous design back.
 
 ## Known limits
@@ -88,6 +88,7 @@ packages/app/       the designer: Vite + React, plots as plain SVG, three.js for
   src/model.ts, system.ts      one design and the whole system (pure)
   src/build.ts, buildlist.ts   cut list, sheets, bill of materials (pure); export.ts, layout3d.ts (pure)
   src/brief.ts, ollama.ts      the Ollama brief: schema, strict validators, prompt, client and runner
+  src/briefhome.ts             the same for a home speaker and a car install
   src/projectfile.ts           the project file; desktop.ts is the only place that knows about the desktop shell
 src-tauri/          the Tauri v2 shell: window, native Save and Open, and an HTTP client for Ollama
 tools/              sync-vectors, parity dump (builds the plugin's C++ headers), mutation-check

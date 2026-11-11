@@ -13,6 +13,8 @@ import { SpeakerView } from './SpeakerView';
 import { SystemView } from './SystemView';
 import { type Design, sanitize } from './model';
 import { migrateDesignV1, migrateProjectV1 } from './migrate';
+import type { Loudspeaker } from './loudspeaker';
+import type { CarSub } from './carsub';
 import { DEFAULT_PROJECT, type Project, bandName, sanitizeProject } from './system';
 
 const PROJECT_KEY = 'soundsystemdesigner.project.v2';
@@ -58,6 +60,14 @@ export function App() {
   const loadBox = (design: Design): void => {
     setUndo(project);
     setProject(sanitizeProject({ ...project, bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) }));
+  };
+  const loadSpeaker = (speaker: Loudspeaker): void => {
+    setUndo(project);
+    setProject(sanitizeProject({ ...project, speaker, view: 'system' }));
+  };
+  const loadCar = (car: CarSub): void => {
+    setUndo(project);
+    setProject(sanitizeProject({ ...project, car, view: 'system' }));
   };
   const saveProject = (): void => {
     void saveText(suggestedName(project), serializeProject(project), 'application/json').then((r) => setFileMsg(r.ok ? `Saved ${r.where}` : r.cancelled ? '' : r.error));
@@ -121,7 +131,7 @@ export function App() {
         </div>
       </header>
 
-      {!build && !speaker && !car && <BriefPanel key={box ? 'box' : 'system'} mode={box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
+      {!build && <BriefPanel key={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} mode={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} onLoadSpeaker={loadSpeaker} onLoadCar={loadCar} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
 
       {build ? (
         <BuildView project={project} onChange={setProject} />
