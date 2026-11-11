@@ -33,14 +33,14 @@ describe('the cabinet', () => {
     expect(cab.geometry.hO).toBeCloseTo(0.32, 12);
     expect(v.bands[0]!.count).toBe(2);
   });
-  it('holds the designed air: interior volume less drivers and partitions is the woofer chamber plus the dome chamber', () => {
+  it('holds the designed air: interior volume less the drivers is the woofer chamber (the dome has its back built in)', () => {
     const g = cab.geometry;
-    const disp = P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('5.25 in')]!.sd) + P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('1 in dome')]!.sd) + g.wI * g.hI * T; // two chambers: one partition
-    expect(g.wI * g.hI * g.dI - disp).toBeCloseTo(0.0085, 9);
-    expect(cab.panels.find((x) => x.name === 'Chamber partition')).toMatchObject({ qty: 1 });
+    const disp = P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('5.25 in')]!.sd) + P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('1 in dome')]!.sd);
+    expect(g.wI * g.hI * g.dI - disp).toBeCloseTo(0.008, 9);
+    expect(cab.panels.find((x) => x.name === 'Chamber partition')).toBeUndefined();
   });
-  it('cuts the same panels as any box, plus a partition per extra chamber', () => {
-    expect(cab.panels.map((x) => x.name)).toEqual(['Front baffle', 'Back', 'Top and bottom', 'Sides', 'Chamber partition']);
+  it('cuts the same panels as any box: one chamber, no partition', () => {
+    expect(cab.panels.map((x) => x.name)).toEqual(['Front baffle', 'Back', 'Top and bottom', 'Sides']);
     const rows = v.cutList.filter((r) => r.part === 'Front baffle');
     expect(rows[0]).toMatchObject({ band: 'Speaker', qty: 2, l: 200, w: 320 });
   });
@@ -56,8 +56,8 @@ describe('exact geometry', () => {
     const mid = P.ALL_DRIVER_CLASSES[cls('4 in mid')]!;
     const dome = P.ALL_DRIVER_CLASSES[cls('1 in dome')]!;
     const port = P.portLengthM(0.006 / 2, 60, 0.03);
-    const disp = 2 * P.driverDisplacement(mid.sd) + P.driverDisplacement(dome.sd) + 2 * P.portDisplacement(0.03, port) + g.wI * g.hI * T; // shared mid chamber + dome chamber: one partition
-    expect(g.wI * g.hI * g.dI - disp).toBeCloseTo(0.006 + 0.0005, 9);
+    const disp = 2 * P.driverDisplacement(mid.sd) + P.driverDisplacement(dome.sd) + 2 * P.portDisplacement(0.03, port); // one shared chamber, the dome's back is built in: no partition
+    expect(g.wI * g.hI * g.dI - disp).toBeCloseTo(0.006, 9);
     expect(b.ports).toHaveLength(2);
     for (const x of b.ports) expect(x.lengthM).toBeCloseTo(port, 12); // each driver's port is for half the air
   });
@@ -68,9 +68,9 @@ describe('exact geometry', () => {
     });
     const g = B.computeBuild(project(s)).bands[0]!.cabinets[0]!.geometry;
     expect(g.braces).toBeGreaterThan(0);
-    const disp = P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('5.25 in')]!.sd) + P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('1 in dome')]!.sd) + g.wI * g.hI * T;
-    expect(g.wI * g.hI * g.dI - disp - g.braces * P.braceVolume(g.wI, g.hI, T)).toBeCloseTo(0.0605, 9);
-    expect(g.netM3).toBeCloseTo(0.0605, 9); // the geometry reports the air that is left
+    const disp = P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('5.25 in')]!.sd) + P.driverDisplacement(P.ALL_DRIVER_CLASSES[cls('1 in dome')]!.sd);
+    expect(g.wI * g.hI * g.dI - disp - g.braces * P.braceVolume(g.wI, g.hI, T)).toBeCloseTo(0.06, 9);
+    expect(g.netM3).toBeCloseTo(0.06, 9); // the geometry reports the air that is left
   });
   it('the driver stack starts a third of the way down the spare height', () => {
     const cab = B.computeBuild(project(speaker('two-way'))).bands[0]!.cabinets[0]!;
@@ -86,13 +86,44 @@ describe('exact geometry', () => {
 });
 
 describe('chambers and partitions', () => {
-  const partitions = (s: L.Loudspeaker): number => B.computeBuild(project(s)).bands[0]!.cabinets[0]!.panels.find((x) => x.name === 'Chamber partition')?.qty ?? 0;
-  it('a shared woofer chamber needs one partition (for the dome); separate chambers one more', () => {
-    expect(partitions(speaker('wtw'))).toBe(1);
-    expect(partitions(speaker('wtw', (s) => (s.chambers = 'separate')))).toBe(2);
+  const build = (s: L.Loudspeaker): B.BandBuild => B.computeBuild(project(s)).bands[0]!;
+  const partitions = (s: L.Loudspeaker): number => build(s).cabinets[0]!.panels.find((x) => x.name === 'Chamber partition')?.qty ?? 0;
+  it('a shared chamber needs no partition, and a dome tweeter never adds one', () => {
+    for (const id of ['two-way', 'mtm', 'wtw', 'tmm'] as const) expect(partitions(speaker(id)), id).toBe(0);
   });
-  it('an open-baffle tweeter adds no chamber', () => {
+  it('separate chambers add one shelf between two woofers; a 3-way and a 2.5-way have one between their two chambers', () => {
+    expect(partitions(speaker('wtw', (s) => (s.chambers = 'separate')))).toBe(1);
+    expect(partitions(speaker('mtm', (s) => (s.chambers = 'separate')))).toBe(1);
+    expect(partitions(speaker('three-way'))).toBe(1);
+    expect(partitions(speaker('two-and-half'))).toBe(1);
+    expect(partitions(speaker('two-way', (s) => (s.chambers = 'separate')))).toBe(0); // one driver: one chamber
+  });
+  it('an open-baffle woofer has no chamber, so a pair of them needs no shelf', () => {
+    expect(partitions(speaker('wtw', (s) => { s.chambers = 'separate'; s.slots[0]!.open = true; }))).toBe(0);
+  });
+  it('a shelf is a flat panel, interior width by interior depth, and the air balance still holds', () => {
+    const b = build(speaker('wtw', (s) => (s.chambers = 'separate')));
+    const cab = b.cabinets[0]!;
+    const g = cab.geometry;
+    expect(cab.panels.find((x) => x.name === 'Chamber partition')).toMatchObject({ l: g.wI, w: g.dI, qty: 1 });
+    const wf = P.ALL_DRIVER_CLASSES[cls('5.25 in')]!;
+    const dome = P.ALL_DRIVER_CLASSES[cls('1 in dome')]!;
+    const disp = 2 * P.driverDisplacement(wf.sd) + P.driverDisplacement(dome.sd) + g.wI * g.dI * T;
+    expect(g.wI * g.hI * g.dI - disp).toBeCloseTo(0.016, 9); // the two woofers' 16 L, the dome's back is its own
+    expect(g.netM3).toBeCloseTo(0.016, 9);
+  });
+  it('the shelves sit where the air above them runs out, counted from the top of the interior', () => {
+    const mtm = build(speaker('mtm', (s) => (s.chambers = 'separate'))).cabinets[0]!;
+    expect(mtm.shelves).toHaveLength(1);
+    expect(mtm.shelves![0]!).toBeCloseTo(mtm.geometry.hI / 2, 12); // two equal chambers
+    const three = build(speaker('three-way')).cabinets[0]!; // from the top: the midrange (2 L), then the woofer (25 L)
+    expect(three.shelves![0]!).toBeCloseTo((three.geometry.hI * 2) / 27, 12);
+    expect(build(speaker('two-way')).cabinets[0]!.shelves).toEqual([]);
+  });
+  it('an open-baffle tweeter adds no chamber, and the dome\'s own air does not make the cabinet bigger', () => {
     expect(partitions(speaker('two-way', (s) => (s.slots[1]!.open = true)))).toBe(0);
+    const depth = (v: number): number => build(speaker('two-way', (s) => (s.slots[1]!.design.volumeL = v))).cabinets[0]!.geometry.dI;
+    expect(depth(5)).toBe(depth(0.5));
   });
   it('a bigger chamber makes a deeper cabinet', () => {
     const depth = (vol: number): number => B.computeBuild(project(speaker('two-way', (s) => (s.slots[0]!.design.volumeL = vol)))).bands[0]!.cabinets[0]!.geometry.dI;
@@ -201,6 +232,21 @@ describe('drawings, exports and 3D follow the cabinet', () => {
     expect(lay.tubes).toHaveLength(v.bands[0]!.ports.length);
     expect(lay.boxes.some((b) => b.kind === 'divider')).toBe(false);
     for (const b of lay.boxes) for (const n of [...b.size, ...b.center]) expect(Number.isFinite(n)).toBe(true);
+  });
+  it('the 3D view draws each chamber shelf flat, at the height the cut list gives it', () => {
+    const sep = project(speaker('mtm', (s) => (s.chambers = 'separate')));
+    const vv = B.computeBuild(sep);
+    const cab = vv.bands[0]!.cabinets[0]!;
+    const lay = layout3d(vv, sep);
+    const shelf = lay.boxes.filter((b) => b.kind === 'divider');
+    expect(shelf).toHaveLength(1);
+    const g = cab.geometry;
+    expect(shelf[0]!.size[0]).toBeCloseTo(g.wI, 12);
+    expect(shelf[0]!.size[1]).toBeCloseTo(0.018, 12);
+    expect(shelf[0]!.size[2]).toBeCloseTo(g.dI, 12);
+    // its centre is below the top panel's underside by the shelf's distance
+    const top = g.hO - 0.018;
+    expect(shelf[0]!.center[1]).toBeCloseTo(top - cab.shelves![0]!, 12);
   });
   it('every sheet piece is placed and the sheets are counted', () => {
     expect(v.sheets).toBeGreaterThan(0);

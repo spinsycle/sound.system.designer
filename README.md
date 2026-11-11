@@ -11,7 +11,7 @@ Version 1.2.0.
 - **Home speakers:** a second mode for one cabinet with several drivers, desktop to floorstanding: 2-way, MTM (D'Appolito),
   WTW, TMM, 3-way and 2.5-way, with dome, planar and woofer classes from 0.75 in to 21 in, a baffle step from the
   baffle width, a crossover between the drivers, and eight starting points. It builds a one-cabinet cut list with the
-  drivers placed on the baffle, chamber partitions and a port per ported driver.
+  drivers placed on the baffle, a shelf between separate woofer chambers and a port per ported driver.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
   materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
 - **Brief:** describe a system or a box in words and a local [Ollama](https://ollama.com) model proposes three variants.

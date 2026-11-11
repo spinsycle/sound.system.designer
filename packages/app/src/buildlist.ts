@@ -30,6 +30,8 @@ export interface Cabinet {
   title: string;
   /** Where the baffle holes sit (m from the top-left of the baffle), when the layout is not the automatic centred stack. */
   holes?: { kind: Cutout['kind']; diameterM: number; cx: number; cy: number }[];
+  /** Horizontal chamber partitions of a speaker: distance down from the top of the interior to the shelf, m. */
+  shelves?: number[];
   geometry: P.BoxGeometry;
   panels: P.Panel[];
   cutouts: Cutout[];
@@ -203,7 +205,6 @@ export function speakerBuild(p: Project): BandBuild {
   const diameters: number[] = [];
   let air = 0;
   let disp = 0;
-  let chambers = 0;
   arr.slots.forEach((spec, k) => {
     const s = sp.slots[k]!;
     const d = s.design;
@@ -212,9 +213,9 @@ export function speakerBuild(p: Project): BandBuild {
     drivers.push({ name: dname, qty: spec.count });
     diameters.push(coneDiameterM(driver.sd));
     disp += spec.count * P.driverDisplacement(driver.sd);
-    if (s.open) return;
+    // an open-baffle driver has no chamber, and a tweeter has its sealed back built in: neither adds air or a partition
+    if (s.open || spec.role === 'tweeter') return;
     air += d.volumeL / 1000;
-    chambers += sp.chambers === 'separate' ? spec.count : 1;
     if (d.type === 'bandpass' || d.type === 'horn') warnings.push(`${slotLabel(arr, k)}: a ${d.type} slot is built as a sealed chamber here; the cut list has no ${d.type === 'horn' ? 'horn' : 'divider'}. Use sealed or ported.`);
     if (d.type === 'ported') {
       for (let i = 0; i < spec.count; i++) {
@@ -228,19 +229,39 @@ export function speakerBuild(p: Project): BandBuild {
       }
     }
   });
-  const partitions = Math.max(chambers - 1, 0);
-  disp += partitions * wI * hI * t;
+  // chambers in baffle order from the top: a shared slot is one chamber (where it first appears), separate ones one per driver
+  const chamberAir: number[] = [];
+  const seen = new Set<number>();
+  for (const k of arr.layout) {
+    const s = sp.slots[k]!;
+    const spec = arr.slots[k]!;
+    if (s.open || spec.role === 'tweeter') continue;
+    if (sp.chambers === 'separate') chamberAir.push(s.design.volumeL / spec.count);
+    else if (!seen.has(k)) {
+      seen.add(k);
+      chamberAir.push(s.design.volumeL);
+    }
+  }
+  const partitions = Math.max(chamberAir.length - 1, 0);
   let braces = 0;
   let nBraces = 0;
   let dI = MIN_DEPTH;
   for (let pass = 0; pass < 8; pass++) {
-    dI = Math.max((air + disp + braces) / (wI * hI), MIN_DEPTH);
+    // the shelves are wI x dI x t each, so their wood grows with the depth: solve for it directly
+    dI = Math.max((air + disp + braces) / (wI * Math.max(hI - partitions * t, MIN_INTERIOR)), MIN_DEPTH);
     nBraces = P.braceCount(sp.brace, dI);
     braces = nBraces * P.braceVolume(wI, hI, t);
   }
-  const g: P.BoxGeometry = { wI, hI, dI, wO: wI + 2 * t, hO: hI + 2 * t, dO: dI + 2 * t, braces: nBraces, netM3: wI * hI * dI - disp - braces };
+  const g: P.BoxGeometry = { wI, hI, dI, wO: wI + 2 * t, hO: hI + 2 * t, dO: dI + 2 * t, braces: nBraces, netM3: wI * hI * dI - disp - braces - partitions * wI * dI * t };
   const panels = P.boxPanels(g, t, false);
-  if (partitions > 0) panels.push({ name: 'Chamber partition', l: wI, w: hI, qty: partitions });
+  if (partitions > 0) panels.push({ name: 'Chamber partition', l: wI, w: dI, qty: partitions });
+  // each shelf sits where the air above it has run out: the interior is shared out in proportion to the chambers' air
+  const totalAir = chamberAir.reduce((a, b) => a + b, 0);
+  let running = 0;
+  const shelves = chamberAir.slice(0, -1).map((a) => {
+    running += a;
+    return (hI * running) / totalAir;
+  });
 
   // the holes: drivers in layout order from the top, then the ports
   const stack: Cutout[] = [...arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), ...ports.map((x) => ({ kind: 'port' as const, diameterM: x.diameterM }))];
@@ -255,7 +276,7 @@ export function speakerBuild(p: Project): BandBuild {
   const widest = Math.max(...stack.map((h) => h.diameterM));
   if (widest + 2 * HOLE_MARGIN > g.wO) warnings.push(`${name}: the ${fl(widest, u)} hole does not fit the ${formatLength(g.wO * 1000, u)} wide baffle. Make the baffle wider or choose a smaller driver.`);
   if (top + total + HOLE_MARGIN > g.hO + 1e-9) warnings.push(`${name}: the drivers and ports do not all fit the ${fl(g.hO, u)} high baffle. Make it taller.`);
-  const cab: Cabinet = { title: 'Cabinet', geometry: g, panels, cutouts: stack, holes, liningM2: ceilTenth(2 * (g.wI * g.hI + g.wI * g.dI + g.hI * g.dI) - g.wI * g.hI) };
+  const cab: Cabinet = { title: 'Cabinet', geometry: g, panels, cutouts: stack, holes, shelves, liningM2: ceilTenth(2 * (g.wI * g.hI + g.wI * g.dI + g.hI * g.dI) - g.wI * g.hI) };
   const sums = arr.slots.map((spec, k) => `${slotLabel(arr, k)}: ${driverOf(sp.slots[k]!.design).name}`);
   return { name, summary: `${arr.label}. ${sums.join(', ')}`, count: sp.quantity, driver: drivers[0]!.name, drivers, cabinets: [cab], horn: null, port: ports[0] ?? null, ports, warnings };
 }

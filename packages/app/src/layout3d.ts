@@ -67,6 +67,8 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   add('panel', [t, g.hO - 2 * t, g.dO - 2 * t], -g.wO / 2 + t / 2, 0, 0);
   for (let k = 1; k <= g.braces; k++) add('brace', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + (g.dI * k) / (g.braces + 1));
   if (dividerShare !== null) add('divider', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + g.dI * dividerShare);
+  // a speaker's chamber shelves lie flat, wI x dI, at the depth the cut list's air shares put them
+  for (const fromTop of c.shelves ?? []) add('divider', [g.wI, t, g.dI], 0, g.hO / 2 - t - fromTop, 0);
   for (const h of holePositions(c)) out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 + LIFT], radius: h.r });
   return cz;
 }
