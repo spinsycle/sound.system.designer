@@ -15,6 +15,14 @@ Whether you're experimenting with a new enclosure concept or designing around a 
 Windows desktop app (also runs in a browser).
 Version 1.4.0.
 
+PA System Design
+Home Loudspeaker Design
+Car Audio Design
+Enclosure & Horn Simulation
+Crossover & Amplifier Configuration
+3D Cabinet Design & Fabrication
+
+
 **[Download the Windows installer](https://github.com/spinsycle/sound.system.designer/releases/latest)** (unsigned: if
 SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](docs/Sound-System-Designer-User-Guide.pdf) covers every page of the app.
 
@@ -30,7 +38,7 @@ SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](do
 - **Car audio:** a third mode for a car install: one to four subs (single or dual voice coil, series or parallel) in one
   shared box or a wedge, an amplifier (optionally bridged) with its load and limits, the cabin gain of the vehicle, a vehicle
   space with a fit check, the 12 V side (supply current, cable gauge and drop, fuse, alternator), front speakers (a component
-  set or a coaxial in a door, kick panel or the dash, with adapter rings), the whole system in one plot, and nine starting points.
+  set or a coaxial in a door, kick panel or the dash, with adapter rings), the whole system in one plot, and nine starting points. 
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
   materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
 - **Brief:** describe a system, a box, a home speaker or a car install in words and a local [Ollama](https://ollama.com) model proposes three variants.
