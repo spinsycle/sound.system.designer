@@ -15,12 +15,12 @@ Whether you're experimenting with a new enclosure concept or designing around a 
 Windows desktop app (also runs in a browser).
 Version 1.4.0.
 
-PA System Design
-Home Loudspeaker Design
-Car Audio Design
-Enclosure & Horn Simulation
-Crossover & Amplifier Configuration
-3D Cabinet Design & Fabrication
+- PA System Design
+- Home Loudspeaker Design
+- Car Audio Design
+- Enclosure & Horn Simulation
+- Crossover & Amplifier Configuration
+- 3D Cabinet Design & Fabrication
 
 
 **[Download the Windows installer](https://github.com/spinsycle/sound.system.designer/releases/latest)** (unsigned: if
