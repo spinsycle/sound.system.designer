@@ -63,6 +63,32 @@ the first run: choose More info, Run anyway. It needs the Microsoft WebView2 run
 
 To use the Brief panel, install Ollama and pull a model once: `ollama pull llama3.1:8b`.
 
+### Run it in a browser instead
+
+The same app runs in any current browser, with no installer and on any operating system. You need [Node.js](https://nodejs.org) (LTS) and git:
+
+```
+git clone https://github.com/spinsycle/sound.system.designer.git
+cd sound.system.designer
+npm install
+npm run dev
+```
+
+Open the address it prints (normally `http://localhost:5173`). Keep the terminal open; Ctrl+C stops it. To serve a
+production build instead, run `npm run build` and then `npx vite preview packages/app`.
+
+Limits compared with the desktop app:
+
+- **Files go through the browser.** Save project and every export are downloads to your Downloads folder (no Save As
+  dialog unless your browser is set to ask), and Open project is a file picker.
+- **Your last project is kept in the browser's own storage.** It is per browser and per address, and clearing site data
+  deletes it. Use Save project for anything you want to keep.
+- **The Brief panel talks to Ollama from the page.** Ollama must be running on the same computer, and it only accepts
+  pages served from `localhost` unless you set `OLLAMA_ORIGINS`. Serving the app from another machine or a public
+  address will not reach your Ollama without that change, and a model on another machine is not supported.
+- **No installer, Start menu entry or desktop shortcut.** You start the server each time.
+- **Printing to PDF** uses the browser's print dialog, so margins and page size depend on the browser.
+
 ## Use
 
 1. **System** page: pick a starting point or build your own bands; each band's box opens on its own page. For a stereo
