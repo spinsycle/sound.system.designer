@@ -1,6 +1,18 @@
 # Sound System Designer
 
-Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
+Design Around Your Own Loudspeaker Drivers
+
+Sound System Designer gives you the flexibility to work with the drivers you choose.
+
+Quick-start presets: Begin with general-purpose driver configurations designed to help you get started.
+
+Fully editable parameters: Customize every preset to suit your design requirements.
+
+Custom Thiele-Small parameters: Enter the actual specifications of your loudspeaker drivers, including Fs, Qts, Vas, Re, Le, Sd, Xmax and other supported parameters.
+
+Whether you're experimenting with a new enclosure concept or designing around a specific commercial driver, Sound System Designer gives you control over the specifications that shape your design.
+
+Windows desktop app (also runs in a browser).
 Version 1.4.0.
 
 **[Download the Windows installer](https://github.com/spinsycle/sound.system.designer/releases/latest)** (unsigned: if
