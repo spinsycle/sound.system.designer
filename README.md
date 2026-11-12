@@ -46,6 +46,7 @@ SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](do
   result. Everything stays on your computer: only an Ollama server on `localhost` is ever contacted.
 - **Projects:** Save project and Open project write and read a `.ssd.json` file; the app also remembers your last
   project on its own.
+- **Custom Loudspeaker Drivers:** Start with editable general-purpose driver presets or create your own drivers using manufacturer Thiele-Small specifications. Enter the supported parameters for your actual loudspeaker drivers and use them throughout your enclosure and system designs. 
 
 Generic parts only: the driver classes are invented values, not products, and no brand, driver-model or named
 sound-system claims are made. Levels and limits are small-signal calculations, not measurements: check anything you
