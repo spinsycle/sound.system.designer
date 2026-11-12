@@ -43,6 +43,18 @@ Generic parts only: the driver classes are invented values, not products, and no
 sound-system claims are made. Levels and limits are small-signal calculations, not measurements: check anything you
 build against real drivers and a real amplifier.
 
+## Screenshots
+
+| PA system | Box designer |
+| --- | --- |
+| ![PA system](docs/screenshots/system.png) | ![Box designer](docs/screenshots/box.png) |
+
+| Build: cut list and drawings | Home speaker |
+| --- | --- |
+| ![Build page](docs/screenshots/build.png) | ![Home speaker](docs/screenshots/home-speaker.png) |
+
+![Car subwoofer](docs/screenshots/car.png)
+
 ## Install
 
 Run `Sound System Designer_1.4.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
