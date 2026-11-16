@@ -5,6 +5,7 @@
 import * as P from '@soundsystemdesigner/physics';
 import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
+import { LayoutControls, PortControls } from './LayoutControls';
 import { BRACES } from './build';
 import { Chart } from './Chart';
 import {
@@ -113,6 +114,14 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
             </div>
           )}
           {multi && <p className="hint">Shared or separate, the response is the same: each driver sees its share of the air. Separate chambers add partitions to the cut list.</p>}
+          <h3>Driver layout</h3>
+          <LayoutControls
+            layout={sp.slots[0]!.design.layout}
+            count={arr.layout.length}
+            idp="sp"
+            pushPullOk={false}
+            onChange={(layout) => set({ slots: sp.slots.map((s) => ({ ...s, design: { ...s.design, layout } })) })}
+          />
           <h3>Build</h3>
           <Field id="quantity" range={QUANTITY_RANGE} value={sp.quantity} onChange={(v) => set({ quantity: Math.round(v) })} />
           <div className="field">
@@ -176,7 +185,7 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
                   </div>
                   <Field id={`sp-vol-${k}`} slider range={{ ...BOX_RANGES.volumeL, label: spec.count > 1 ? `Air for all ${spec.count}` : 'Air' }} value={d.volumeL} onChange={(v) => setDesign(k, { volumeL: v })} />
                   {d.type === 'ported' && <Field id={`sp-tune-${k}`} slider range={BOX_RANGES.tuneHz} value={d.tuneHz} onChange={(v) => setDesign(k, { tuneHz: v })} />}
-                  {d.type === 'ported' && <Field id={`sp-port-${k}`} range={BOX_RANGES.portDiameterCm} value={d.portDiameterCm} onChange={(v) => setDesign(k, { portDiameterCm: v })} />}
+                  {d.type === 'ported' && <PortControls design={d} onChange={(patch) => setDesign(k, patch)} idp={`sp-${k}`} />}
                 </>
               )}
               <Field id={`sp-trim-${k}`} slider range={SLOT_RANGES.trimDb} value={s.trimDb} onChange={(v) => setSlot(k, { trimDb: v })} />

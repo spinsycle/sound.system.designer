@@ -29,7 +29,7 @@ function disposeGroup(g: THREE.Group): void {
   g.clear();
 }
 
-function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean): void {
+function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean, speakers: boolean): void {
   disposeGroup(rig.group);
   const [w, h, d] = layout.extent;
   const centre = new THREE.Vector3(w / 2, h / 2, -d / 2);
@@ -63,20 +63,54 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean)
     addMesh(geo, colour(q.band), opacity, new THREE.Vector3(0, 0, 0));
   }
   for (const t of layout.tubes) {
-    const geo = new THREE.CylinderGeometry(t.radius, t.radius, t.length, 24, 1, true);
-    geo.rotateX(Math.PI / 2); // along z
-    addMesh(geo, 0xd8d6d0, 0.9, new THREE.Vector3(t.center[0], t.center[1], t.center[2] - t.length / 2));
+    const up = t.axis === 'y';
+    let geo: THREE.BufferGeometry;
+    if (t.rect) {
+      // a slot port: an open box along its length (z, or y when the baffle faces down)
+      geo = up ? new THREE.BoxGeometry(t.rect.w, t.length, t.rect.h) : new THREE.BoxGeometry(t.rect.w, t.rect.h, t.length);
+    } else {
+      geo = new THREE.CylinderGeometry(t.radius, t.radius, t.length, 24, 1, true);
+      if (!up) geo.rotateX(Math.PI / 2); // along z
+    }
+    const at = up ? new THREE.Vector3(t.center[0], t.center[1] + t.length / 2, t.center[2]) : new THREE.Vector3(t.center[0], t.center[1], t.center[2] - t.length / 2);
+    addMesh(geo, 0xd8d6d0, 0.9, at);
+  }
+  if (speakers) {
+    // each driver: a flange ring, a cone dish narrowing away from the flange and a motor behind it, along the driver's direction
+    const flange = new THREE.MeshStandardMaterial({ color: 0x8a8a86, roughness: 0.6 });
+    const coneMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1b, roughness: 0.9, side: THREE.DoubleSide });
+    const motorMat = new THREE.MeshStandardMaterial({ color: 0x4a4a48, roughness: 0.5, metalness: 0.4 });
+    for (const dr of layout.drivers) {
+      const r = dr.radius;
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.TorusGeometry(r * 0.98, r * 0.06, 8, 40), flange));
+      const coneGeo = new THREE.CylinderGeometry(r * 0.28, r * 0.9, r * 0.5, 32, 1, true);
+      coneGeo.rotateX(-Math.PI / 2); // wide end at the flange, narrow end away from it (towards local -z)
+      coneGeo.translate(0, 0, -r * 0.25);
+      g.add(new THREE.Mesh(coneGeo, coneMat));
+      const motorGeo = new THREE.CylinderGeometry(r * 0.5, r * 0.5, r * 0.55, 24);
+      motorGeo.rotateX(-Math.PI / 2);
+      motorGeo.translate(0, 0, -r * 0.5 - r * 0.275);
+      g.add(new THREE.Mesh(motorGeo, motorMat));
+      g.position.set(...dr.flange);
+      g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), new THREE.Vector3(...dr.dir).normalize());
+      rig.group.add(g);
+    }
   }
   for (const dsc of layout.discs) {
-    const geo = new THREE.CircleGeometry(dsc.radius, 48);
+    if (speakers && dsc.kind === 'driver') continue; // the installed driver stands in for the hole marker
+    const geo = dsc.shape === 'rect' ? new THREE.PlaneGeometry(dsc.w!, dsc.h!) : new THREE.CircleGeometry(dsc.radius, 48);
     const mat = new THREE.MeshBasicMaterial({ color: dsc.kind === 'port' ? 0x6fb6c9 : 0xffb040, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(...dsc.center);
     mesh.rotation.x = dsc.tilt ?? 0;
+    mesh.rotation.y = dsc.rotY ?? 0;
     rig.group.add(mesh);
-    const dark = new THREE.Mesh(new THREE.CircleGeometry(dsc.radius * 0.92, 48), new THREE.MeshBasicMaterial({ color: 0x0c0d0c }));
+    const dark = new THREE.Mesh(dsc.shape === 'rect' ? new THREE.PlaneGeometry(dsc.w! * 0.92, dsc.h! * 0.82) : new THREE.CircleGeometry(dsc.radius * 0.92, 48), new THREE.MeshBasicMaterial({ color: 0x0c0d0c }));
     dark.rotation.x = dsc.tilt ?? 0;
-    dark.position.set(dsc.center[0], dsc.center[1] + 0.0005 * Math.sin(-(dsc.tilt ?? 0)), dsc.center[2] + 0.0005 * Math.cos(dsc.tilt ?? 0));
+    dark.rotation.y = dsc.rotY ?? 0;
+    const sgn = Math.cos(dsc.rotY ?? 0);
+    dark.position.set(dsc.center[0], dsc.center[1] + 0.0005 * Math.sin(-(dsc.tilt ?? 0)), dsc.center[2] + 0.0005 * Math.cos(dsc.tilt ?? 0) * sgn);
     rig.group.add(dark);
   }
   edge.dispose();
@@ -89,7 +123,7 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean)
   }
 }
 
-export function Scene3D({ layout, explode, transparent }: { layout: Layout3; explode: number; transparent: boolean }) {
+export function Scene3D({ layout, explode, transparent, speakers }: { layout: Layout3; explode: number; transparent: boolean; speakers: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const rig = useRef<Rig | null>(null);
 
@@ -148,8 +182,8 @@ export function Scene3D({ layout, explode, transparent }: { layout: Layout3; exp
   }, []);
 
   useEffect(() => {
-    if (rig.current) build(rig.current, layout, explode, transparent);
-  }, [layout, explode, transparent]);
+    if (rig.current) build(rig.current, layout, explode, transparent, speakers);
+  }, [layout, explode, transparent, speakers]);
 
   return <div ref={host} className="scene3d" role="img" aria-label="3D preview of the cabinets. Drag to orbit, scroll to zoom." />;
 }

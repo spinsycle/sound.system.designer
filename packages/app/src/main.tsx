@@ -10,3 +10,8 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+// The exe's web mode serves this page from 127.0.0.1 and quits when these pings stop; anywhere else the request just 404s.
+const ping = (): void => void fetch('/__ping').catch(() => undefined);
+ping();
+setInterval(ping, 5000);

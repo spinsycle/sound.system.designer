@@ -3390,6 +3390,56 @@
       "tol": {
         "rel": 1e-12
       }
+    },
+    {
+      "id": "port_length_rect",
+      "desc": "Rectangular port 8 cm x 12.5 cm in a 0.1 m3 box tuned to 40 Hz: length from the area with the equivalent-diameter end correction (m)",
+      "inputs": {
+        "vb_m3": 0.1,
+        "fb": 40.0,
+        "w_m": 0.08,
+        "h_m": 0.125
+      },
+      "outputs": {
+        "length_m": 0.1036578939426303
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "port_length_area_round",
+      "desc": "The area form on a 10 cm round port equals the round form (m)",
+      "inputs": {
+        "vb_m3": 0.1,
+        "fb": 40.0,
+        "area_m2": 0.007853981633974483
+      },
+      "outputs": {
+        "length_m": 0.07308453046733122
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "mount_disp",
+      "desc": "Driver displacement for Sd 0.088 m2 with the magnet inside and outside, and a 8 cm x 12.5 cm x 30 cm rectangular port from 18 mm sheet (m3)",
+      "inputs": {
+        "sd_m2": 0.088,
+        "w_m": 0.08,
+        "h_m": 0.125,
+        "length_m": 0.3,
+        "wall_m": 0.018
+      },
+      "outputs": {
+        "magnet_in_m3": 0.003915752801186509,
+        "magnet_out_m3": 0.0015663011204746038,
+        "rect_port_m3": 0.005602799999999999
+      },
+      "tol": {
+        "rel": 1e-12
+      }
     }
   ]
 }

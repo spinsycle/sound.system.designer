@@ -21,7 +21,7 @@ describe('version', () => {
 
 describe('desktop shell', () => {
   const conf = json('src-tauri/tauri.conf.json') as {
-    app: { security: { csp: string } };
+    app: { security: { csp: string }; windows: { label: string; visible?: boolean }[] };
     bundle: { targets: string[]; windows: { nsis: { installMode: string } } };
     identifier: string;
   };
@@ -32,6 +32,10 @@ describe('desktop shell', () => {
     expect(conf.bundle.windows.nsis.installMode).toBe('currentUser');
     expect(read('src-tauri/Cargo.toml')).toContain('license = "AGPL-3.0-only"');
     expect(conf.identifier).toBe('com.spinsycle.soundsystemdesigner');
+  });
+
+  it('the main window starts hidden so the launcher prompt can choose desktop or web', () => {
+    expect(conf.app.windows.find((w) => w.label === 'main')!.visible).toBe(false);
   });
 
   it('the content security policy keeps scripts local and allows no eval', () => {

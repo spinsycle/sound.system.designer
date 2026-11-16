@@ -1,7 +1,7 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.4.0.
+Version 1.5.0.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
@@ -16,6 +16,14 @@ Version 1.4.0.
   shared box or a wedge, an amplifier (optionally bridged) with its load and limits, the cabin gain of the vehicle, a vehicle
   space with a fit check, the 12 V side (supply current, cable gauge and drop, fuse, alternator), front speakers (a component
   set or a coaxial in a door, kick panel or the dash, with adapter rings), the whole system in one plot, and nine starting points.
+- **Driver layouts and ports:** in any of the three modes, drivers can sit in columns and rows on the baffle, face down (with a
+  floor clearance), be push-pull pairs on opposite walls, and have the magnet inside the box or sticking out through the baffle.
+  A PA band can put several drivers in one box ("Drivers per box"). Ports are round or rectangular (horizontal or vertical); a
+  rectangular port is built from sheet and appears in the cut list. The Build page's 3D view has a **Show speakers** switch that
+  draws the drivers installed. Rectangular-port length uses the equivalent diameter for its end correction (approximate for slots);
+  push-pull changes the build, not the response.
+- **Start:** the installed app asks whether to run as a **desktop app** or in your **web browser** (a local page served only on
+  your own computer; it closes itself when you close the tab). `--desktop` and `--web` on the command line skip the question.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
   materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
 - **Brief:** describe a system, a box, a home speaker or a car install in words and a local [Ollama](https://ollama.com) model proposes three variants.
@@ -42,7 +50,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.4.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.5.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 

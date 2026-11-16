@@ -17,7 +17,7 @@ const vec = (id: string): Vector => file.vectors.find((x) => x.id === id)!;
 const ref = vec('driver_derived');
 const custom = { fsHz: ref.inputs.fs!, qts: ref.outputs.qts!, qms: ref.inputs.qms!, vasL: ref.inputs.vas_m3! * 1000, sdCm2: ref.inputs.sd_m2! * 1e4, reOhm: ref.inputs.re!, xmaxMm: 10, powerW: 100 };
 const sealed = (volumeL: number): M.Design => ({ ...M.DEFAULT_DESIGN, driverClass: M.CUSTOM_CLASS, custom, type: 'sealed', volumeL });
-const band = (design: M.Design, more: Partial<S.Band> = {}): S.Band => ({ design, count: 1, series: 1, ampPowerW: 500, ampLoadOhm: 4, ampMinLoadOhm: 2, build: { rw: 1, rh: 1.5, rd: 1, brace: 'none' }, trimDb: 0, delayMs: 0, invert: false, solo: false, mute: false, ...more });
+const band = (design: M.Design, more: Partial<S.Band> = {}): S.Band => ({ design, count: 1, series: 1, perBox: 1, ampPowerW: 500, ampLoadOhm: 4, ampMinLoadOhm: 2, build: { rw: 1, rh: 1.5, rd: 1, brace: 'none' }, trimDb: 0, delayMs: 0, invert: false, solo: false, mute: false, ...more });
 const project = (bands: S.Band[], more: Partial<S.Project> = {}): S.Project =>
   S.sanitizeProject({ ...S.DEFAULT_PROJECT, nBands: bands.length, bands: [...bands, ...S.DEFAULT_PROJECT.bands.slice(bands.length)], ...more });
 const db = (c: P.Cx): number => P.splDb(P.abs(c));

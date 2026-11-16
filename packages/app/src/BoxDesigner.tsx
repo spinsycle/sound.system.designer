@@ -4,6 +4,7 @@ import * as P from '@soundsystemdesigner/physics';
 // One box or horn: driver, enclosure, plots. Edits a Design it is given; the app shell owns and stores it.
 import { useMemo, useState } from 'react';
 import { Chart, ProfileChart, niceScale } from './Chart';
+import { LayoutControls, PortControls } from './LayoutControls';
 import {
   BOX_KINDS,
   BOX_RANGES,
@@ -59,7 +60,7 @@ export function Field(p: { range: Range; value: number; onChange: (v: number) =>
   );
 }
 
-export function BoxDesigner({ design, onChange }: { design: Design; onChange: (d: Design) => void }) {
+export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox }: { design: Design; onChange: (d: Design) => void; count?: number; perBox?: number; onPerBox?: (n: number) => void }) {
   const [hover, setHover] = useState<number | null>(null);
   const c = useMemo(() => compute(design), [design]);
 
@@ -74,7 +75,7 @@ export function BoxDesigner({ design, onChange }: { design: Design; onChange: (d
   // a rear-loaded horn (scoop) has no sealed rear chamber: the chamber behind the cone is the one that feeds the throat
   const isRear = isHorn && design.horn.loading === 'rear';
   const customKeys = Object.keys(CUSTOM_RANGES) as (keyof P.CustomDriverFields)[];
-  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz', 'portDiameterCm'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz', 'portDiameterCm'], horn: isRear ? [] : ['volumeL'] }[design.type] as BoxField[];
+  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz'], horn: isRear ? [] : ['volumeL'] }[design.type] as BoxField[];
   const volumeLabel = { sealed: 'Volume', ported: 'Volume', bandpass: 'Rear volume', horn: 'Rear chamber' }[design.type];
   const hornFields: HornField[] = [...(flare === 'conical' ? [] : (['cutoffHz'] as HornField[])), ...(flare === 'hyperbolic' ? (['t'] as HornField[]) : []), 'throatCm2', 'mouthCm2', ...(flare === 'conical' ? (['lengthM'] as HornField[]) : []), 'throatChamberL'];
 
@@ -157,6 +158,7 @@ export function BoxDesigner({ design, onChange }: { design: Design; onChange: (d
             {boxFields.map((k) => (
               <Field key={k} slider range={k === 'volumeL' ? { ...BOX_RANGES[k], label: volumeLabel } : BOX_RANGES[k]} value={design[k]} onChange={(v) => set({ [k]: v })} />
             ))}
+            {(design.type === 'ported' || design.type === 'bandpass') && <PortControls design={design} onChange={set} idp="box" />}
             <Field slider range={BOX_RANGES.powerW} value={design.powerW} onChange={(v) => set({ powerW: v })} />
             <div className="field">
               <label htmlFor="plot-range">Plot range</label>
@@ -169,6 +171,28 @@ export function BoxDesigner({ design, onChange }: { design: Design; onChange: (d
               </select>
             </div>
           </section>
+
+          {!isHorn && (
+            <section>
+              <h2>Driver layout</h2>
+              {onPerBox && (design.type === 'sealed' || design.type === 'ported') && (
+                <div className="field">
+                  <label htmlFor="per-box">Drivers per box</label>
+                  <select id="per-box" value={perBox} onChange={(e) => onPerBox(Number(e.target.value))}>
+                    {Array.from({ length: count }, (_, i) => i + 1)
+                      .filter((n) => count % n === 0)
+                      .map((n) => (
+                        <option key={n} value={n}>
+                          {n === 1 ? '1 (one driver in each box)' : `${n} (share one box)`}
+                        </option>
+                      ))}
+                  </select>
+                  <span className="unit">of {count} drivers; each keeps its own volume of air</span>
+                </div>
+              )}
+              <LayoutControls layout={design.layout} count={design.type === 'sealed' || design.type === 'ported' ? perBox : 1} onChange={(layout) => set({ layout })} idp="box" />
+            </section>
+          )}
 
           {isHorn && (
             <section>

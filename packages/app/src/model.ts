@@ -58,6 +58,32 @@ export const PLOT_RANGES: Record<PlotRange, { label: string; min: number; max: n
   high: { label: '100 Hz to 20 kHz', min: 100, max: 20000 },
 };
 
+export type PortShape = 'round' | 'rect';
+/** Rectangular port: horizontal has its long side along the baffle's width, vertical along its height. */
+export type PortOrient = 'horizontal' | 'vertical';
+export type MountKind = 'in' | 'out';
+
+/**
+ * How the drivers of one cabinet sit (spec v0.13). The count of drivers comes from elsewhere (the band, the slot, the
+ * car sub); this says how they are placed. With push-pull the count is split over two facing walls, wired in opposite polarity.
+ */
+export interface DriverLayout {
+  /** Columns on the baffle; rows follow from the count. 0 is automatic: a row for a car box, a stack for a speaker, the plain layout for a PA box. */
+  cols: number;
+  /** 'in': motor inside the box. 'out': cone inside, motor sticking out through the baffle. */
+  mount: MountKind;
+  pushPull: boolean;
+  /** Baffle on the front, or on the bottom with the drivers firing at the floor. */
+  facing: 'front' | 'down';
+  /** Gap between the cabinet bottom and the floor when it faces down, cm. */
+  clearanceCm: number;
+}
+export const DEFAULT_LAYOUT: DriverLayout = { cols: 0, mount: 'in', pushPull: false, facing: 'front', clearanceCm: 10 };
+export const LAYOUT_RANGES = {
+  cols: { label: 'Columns', unit: '', min: 0, max: 8, linear: true },
+  clearanceCm: { label: 'Floor clearance', unit: 'cm', min: 0, max: 100, linear: true },
+} as const;
+
 export interface Design {
   driverClass: number;
   custom: P.CustomDriverFields;
@@ -68,6 +94,12 @@ export interface Design {
   tuneHz: number;
   frontVolumeL: number;
   portDiameterCm: number;
+  /** Port cross-section: round uses the diameter, rectangular the width and height below (cm). */
+  portShape: PortShape;
+  portWidthCm: number;
+  portHeightCm: number;
+  portOrient: PortOrient;
+  layout: DriverLayout;
   /** Amplifier power for the excursion plot. */
   powerW: number;
   plotRange: PlotRange;
@@ -95,12 +127,14 @@ export const CUSTOM_RANGES: Record<keyof P.CustomDriverFields, Range> = {
   powerW: { label: 'Power', unit: 'W', min: 5, max: 5000 },
 };
 
-export type BoxField = 'volumeL' | 'tuneHz' | 'frontVolumeL' | 'portDiameterCm' | 'powerW';
+export type BoxField = 'volumeL' | 'tuneHz' | 'frontVolumeL' | 'portDiameterCm' | 'portWidthCm' | 'portHeightCm' | 'powerW';
 export const BOX_RANGES: Record<BoxField, Range> = {
   volumeL: { label: 'Volume', unit: 'L', min: 0.1, max: 1000 },
   tuneHz: { label: 'Tuning', unit: 'Hz', min: 10, max: 200 },
   frontVolumeL: { label: 'Front volume', unit: 'L', min: 1, max: 1000 },
   portDiameterCm: { label: 'Port diameter', unit: 'cm', min: 2, max: 40 },
+  portWidthCm: { label: 'Port width', unit: 'cm', min: 2, max: 80 },
+  portHeightCm: { label: 'Port height', unit: 'cm', min: 1, max: 40 },
   powerW: { label: 'Amp power', unit: 'W', min: 1, max: 5000 },
 };
 
@@ -123,6 +157,11 @@ export const DEFAULT_DESIGN: Design = {
   tuneHz: 40,
   frontVolumeL: 100,
   portDiameterCm: 10,
+  portShape: 'round',
+  portWidthCm: 20,
+  portHeightCm: 4,
+  portOrient: 'horizontal',
+  layout: DEFAULT_LAYOUT,
   powerW: 100,
   plotRange: 'low',
   horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '' },
@@ -167,11 +206,44 @@ export function sanitize(input: unknown): Design {
     custom,
     type: BOX_KINDS.some((k) => k.id === i.type) ? (i.type as BoxKind) : d.type,
     plotRange: i.plotRange === 'high' || i.plotRange === 'low' ? i.plotRange : d.plotRange,
+    portShape: i.portShape === 'rect' ? 'rect' : 'round',
+    portOrient: i.portOrient === 'vertical' ? 'vertical' : 'horizontal',
+    layout: sanitizeLayout(i.layout),
     horn,
   };
   for (const k of Object.keys(BOX_RANGES) as BoxField[]) out[k] = num(i[k], BOX_RANGES[k], d[k]);
   return out;
 }
+
+/** Any stored or typed value to a valid layout; a missing one is the default (one column, motor in, front). */
+export function sanitizeLayout(input: unknown): DriverLayout {
+  const l = obj(input);
+  const d = DEFAULT_LAYOUT;
+  return {
+    cols: typeof l.cols === 'number' && Number.isFinite(l.cols) ? Math.round(P.clamp(l.cols, LAYOUT_RANGES.cols.min, LAYOUT_RANGES.cols.max)) : d.cols,
+    mount: l.mount === 'out' ? 'out' : 'in',
+    pushPull: l.pushPull === true,
+    facing: l.facing === 'down' ? 'down' : 'front',
+    clearanceCm: num(l.clearanceCm, LAYOUT_RANGES.clearanceCm, d.clearanceCm),
+  };
+}
+
+/** Port cross-section area, m2, from the chosen shape. */
+export const portAreaM2 = (d: Design): number => (d.portShape === 'rect' ? (d.portWidthCm / 100) * (d.portHeightCm / 100) : Math.PI * (d.portDiameterCm / 200) ** 2);
+/** Diameter of the round port with the same area, m (the end correction and the hole-fit checks use it). */
+export const portEquivDiameterM = (d: Design): number => Math.sqrt((4 * portAreaM2(d)) / Math.PI);
+/** Inside width and height of the port opening on the baffle, m: a round port is a square of its diameter for sizing. */
+export function portOpeningM(d: Design): { wM: number; hM: number } {
+  if (d.portShape === 'round') return { wM: d.portDiameterCm / 100, hM: d.portDiameterCm / 100 };
+  const a = d.portWidthCm / 100;
+  const b = d.portHeightCm / 100;
+  return d.portOrient === 'horizontal' ? { wM: Math.max(a, b), hM: Math.min(a, b) } : { wM: Math.min(a, b), hM: Math.max(a, b) };
+}
+/** Port length for the design's port in a chamber of `chamberL` litres, m. Round ports use the round form exactly. */
+export const portLengthOf = (d: Design, chamberL: number): number =>
+  d.portShape === 'rect' ? P.portLengthFromAreaM(chamberL / 1000, d.tuneHz, portAreaM2(d)) : P.portLengthM(chamberL / 1000, d.tuneHz, d.portDiameterCm / 100);
+/** Port size as text, cm. */
+export const portLabel = (d: Design): string => (d.portShape === 'rect' ? `${fmt(d.portWidthCm)} x ${fmt(d.portHeightCm)} cm ${d.portOrient}` : `${fmt(d.portDiameterCm)} cm round`);
 
 /** A stored class number made valid: below 0 is the first class, past the list is Custom. */
 const classOf = (n: number): number => (n < 0 ? 0 : n < P.ALL_DRIVER_CLASSES.length ? n : CUSTOM_CLASS);
@@ -350,10 +422,10 @@ export function compute(d: Design): Computed {
   let horn: HornView | null = null;
 
   const port = (chamberL: number): void => {
-    const lengthCm = P.portLengthM(chamberL / 1000, d.tuneHz, d.portDiameterCm / 100) * 100;
-    readouts.push({ label: `Port length (${fmt(d.portDiameterCm)} cm round)`, value: lengthCm > 0 ? `${fmt(lengthCm)} cm` : 'does not fit' });
+    const lengthCm = portLengthOf(d, chamberL) * 100;
+    readouts.push({ label: `Port length (${portLabel(d)})`, value: lengthCm > 0 ? `${fmt(lengthCm)} cm` : 'does not fit' });
     if (lengthCm <= 0)
-      warnings.push(`A ${fmt(d.portDiameterCm)} cm port cannot tune ${fmt(chamberL)} L to ${fmt(d.tuneHz)} Hz: the length comes out negative. Use a narrower port, a smaller chamber or a lower tuning.`);
+      warnings.push(`A ${portLabel(d)} port cannot tune ${fmt(chamberL)} L to ${fmt(d.tuneHz)} Hz: the length comes out negative. Use a narrower port, a smaller chamber or a lower tuning.`);
     markers.push({ f: d.tuneHz, label: 'fb' });
   };
 

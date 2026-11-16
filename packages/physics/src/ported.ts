@@ -55,3 +55,12 @@ export function portLengthM(vbM3: number, fb: number, dPortM: number): number {
   const sp = Math.PI * (dPortM / 2) * (dPortM / 2);
   return (C * C * sp) / (4 * Math.PI * Math.PI * fb * fb * vbM3) - 0.732 * dPortM;
 }
+
+/**
+ * Port length for any cross-section of area `areaM2` (spec v0.13): the flanged end correction uses the equivalent diameter sqrt(4A/pi).
+ * ponytail: the end correction of a slot differs a little from a round port's; a measured slot correction is the upgrade if it matters.
+ */
+export function portLengthFromAreaM(vbM3: number, fb: number, areaM2: number): number {
+  const dEq = Math.sqrt((4 * areaM2) / Math.PI);
+  return (C * C * areaM2) / (4 * Math.PI * Math.PI * fb * fb * vbM3) - 0.732 * dEq;
+}

@@ -73,6 +73,12 @@ describe('shared vectors', () => {
     expectVec('vented_x_dc', 'free_air', (ref.bl * ref.cms) / spec.re);
     const pl = vec('port_length').inputs;
     expectVec('port_length', 'length_m', P.portLengthM(pl.vb_m3!, pl.fb!, pl.d_m!));
+    const pr = vec('port_length_rect').inputs;
+    expectVec('port_length_rect', 'length_m', P.portLengthFromAreaM(pr.vb_m3!, pr.fb!, pr.w_m! * pr.h_m!));
+    const pa = vec('port_length_area_round').inputs;
+    expectVec('port_length_area_round', 'length_m', P.portLengthFromAreaM(pa.vb_m3!, pa.fb!, pa.area_m2!));
+    // a round port's area gives the round form's length
+    expect(P.portLengthFromAreaM(pl.vb_m3!, pl.fb!, Math.PI * (pl.d_m! / 2) ** 2)).toBeCloseTo(P.portLengthM(pl.vb_m3!, pl.fb!, pl.d_m!), 12);
   });
 
   it('thermal', () => {
@@ -274,6 +280,10 @@ describe('shared vectors', () => {
     const dd = vec('cab_driver_disp').inputs;
     expectVec('cab_driver_disp', 'driver_m3', P.driverDisplacement(dd.sd_m2!));
     expectVec('cab_driver_disp', 'port_m3', P.portDisplacement(dd.port_d!, dd.port_l!));
+    const md = vec('mount_disp').inputs;
+    expectVec('mount_disp', 'magnet_in_m3', P.driverDisplacementMount(md.sd_m2!, false));
+    expectVec('mount_disp', 'magnet_out_m3', P.driverDisplacementMount(md.sd_m2!, true));
+    expectVec('mount_disp', 'rect_port_m3', P.rectPortDisplacement(md.w_m!, md.h_m!, md.length_m!, md.wall_m!));
     const c = vec('cab_panels').inputs;
     const g = P.solveBox(c.v_net_m3!, P.driverDisplacement(c.sd_m2!), 1, 1.5, c.rd!, c.t!, 'window', false);
     const pan = P.boxPanels(g, c.t!, false);

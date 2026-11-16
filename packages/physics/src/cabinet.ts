@@ -15,6 +15,15 @@ export type Brace = 'none' | 'single' | 'window';
 
 export const driverDisplacement = (sd: number): number => DRIVER_DISP_K * sd ** 1.5;
 
+/** Share of a driver's displacement left inside the box when the motor sticks out through the baffle (spec v0.13). */
+export const MAGNET_OUT_KEEP = 0.4;
+
+/** Driver displacement for a mounting: magnet inside the box (the default) or outside (cone, surround and frame stay in). */
+export const driverDisplacementMount = (sd: number, magnetOut: boolean): number => driverDisplacement(sd) * (magnetOut ? MAGNET_OUT_KEEP : 1);
+
+/** Outer volume of a rectangular port built from sheet of thickness `wall`, inside w x h, length (m, m3). */
+export const rectPortDisplacement = (w: number, h: number, length: number, wall: number): number => (w + 2 * wall) * (h + 2 * wall) * length;
+
 /** Outer volume of a round port tube of inside diameter and length (m, m3). */
 export const portDisplacement = (diameter: number, length: number): number => Math.PI * ((diameter + 2 * TUBE_WALL) / 2) ** 2 * length;
 

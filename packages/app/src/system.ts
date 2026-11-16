@@ -20,6 +20,8 @@ export interface Band {
   count: number;
   /** Drivers in each series string; the strings are in parallel. Divides count. */
   series: number;
+  /** Drivers that share one cabinet (each keeps its own design volume of air); divides count. 1: one driver per box. */
+  perBox: number;
   /** The band's amplifier channel: rated power into a rated load, and the lowest load it accepts. */
   ampPowerW: number;
   ampLoadOhm: number;
@@ -82,6 +84,7 @@ const band = (design: Partial<Design>, more: Partial<Band> = {}): Band => ({
   design: sanitize({ ...DEFAULT_DESIGN, ...design }),
   count: 1,
   series: 1,
+  perBox: 1,
   ...AMP_DEFAULTS,
   build: DEFAULT_BUILD,
   trimDb: 0,
@@ -194,6 +197,9 @@ export function group(count: unknown, series: unknown): { count: number; series:
   return { count: n, series: s };
 }
 
+/** Drivers per cabinet: a whole number that divides the count (else one per box). */
+export const perBoxOf = (count: number, v: unknown): number => (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= count && count % v === 0 ? v : 1);
+
 /** Any stored value to a valid Project: unknown fields dropped, numbers clamped, always four bands. */
 export function sanitizeProject(input: unknown): Project {
   const i = obj(input);
@@ -209,6 +215,7 @@ export function sanitizeProject(input: unknown): Project {
       return {
         design: b.design === undefined ? def.design : sanitize(b.design),
         ...group(b.count, b.series),
+        perBox: perBoxOf(group(b.count, b.series).count, b.perBox),
         ampPowerW: num(b.ampPowerW, BAND_RANGES.ampPowerW, AMP_DEFAULTS.ampPowerW),
         ampLoadOhm: AMP_LOADS.includes(b.ampLoadOhm as number) ? (b.ampLoadOhm as number) : AMP_DEFAULTS.ampLoadOhm,
         ampMinLoadOhm: num(b.ampMinLoadOhm, BAND_RANGES.ampMinLoadOhm, AMP_DEFAULTS.ampMinLoadOhm),

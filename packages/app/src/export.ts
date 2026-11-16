@@ -39,15 +39,24 @@ export function sheetSvg(v: BuildView, p: Project, sheet: number): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(L, p.units)}" height="${physical(W, p.units)}" viewBox="0 0 ${L} ${W}">\n<rect x="0" y="0" width="${L}" height="${W}" ${STYLE} stroke-dasharray="20 10"/>\n${body}\n</svg>\n`;
 }
 
-/** A front baffle to scale with its driver and port holes. */
-export function baffleSvg(c: Cabinet, title: string, u: Units = 'mm'): string {
+/** Height of a cabinet's baffle: the box height, or the depth when the drivers fire at the floor from the bottom panel. */
+export const baffleHeight = (c: Cabinet): number => (c.facing === 'down' ? c.geometry.dO : c.geometry.hO);
+
+/** A baffle to scale with its driver and port holes: the front, or (rear) the back wall of a push-pull box. */
+export function baffleSvg(c: Cabinet, title: string, u: Units = 'mm', rear = false): string {
   const g = c.geometry;
-  const holes = holePositions(c)
-    .map((h) => `<circle cx="${mm(h.cx)}" cy="${mm(h.cy)}" r="${mm(h.r)}" ${STYLE}/>`)
+  const holes = holePositions(c, rear)
+    .map((h) => (h.shape === 'rect' ? `<rect x="${mm(h.cx - h.w / 2)}" y="${mm(h.cy - h.h / 2)}" width="${mm(h.w)}" height="${mm(h.h)}" ${STYLE}/>` : `<circle cx="${mm(h.cx)}" cy="${mm(h.cy)}" r="${mm(h.r)}" ${STYLE}/>`))
     .join('\n');
   const W = mm(g.wO);
-  const H = mm(g.hO);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">\n<title>${esc(title)}</title>\n<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>\n${holes}\n</svg>\n`;
+  const H = mm(baffleHeight(c));
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">
+<title>${esc(title)}</title>
+<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>
+${holes}
+</svg>
+`;
 }
 
 /** An adapter ring to scale, millimetres: the outside, the cut-out for the driver and four screw holes. Round, or oval for a 6x9. */

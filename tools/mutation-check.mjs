@@ -66,6 +66,11 @@ const mutations = [
   [src('ported.ts'), '>= -3;', '>= -6;'],
   [src('ported.ts'), '0.732', '0.85'],
   [src('ported.ts'), '4 * Math.PI * Math.PI * fb * fb * vbM3', '4 * Math.PI * fb * fb * vbM3'],
+  [src('ported.ts'), 'Math.sqrt((4 * areaM2) / Math.PI)', 'Math.sqrt(areaM2 / Math.PI)'],
+  [src('ported.ts'), '(C * C * areaM2) / (4 * Math.PI * Math.PI * fb * fb * vbM3) - 0.732 * dEq', '(C * C * areaM2) / (4 * Math.PI * Math.PI * fb * fb * vbM3) - 0.732 * areaM2'],
+  [src('cabinet.ts'), 'driverDisplacement(sd) * (magnetOut ? MAGNET_OUT_KEEP : 1)', 'driverDisplacement(sd) * (magnetOut ? 1 : MAGNET_OUT_KEEP)'],
+  [src('cabinet.ts'), 'MAGNET_OUT_KEEP = 0.4', 'MAGNET_OUT_KEEP = 0.5'],
+  [src('cabinet.ts'), '(w + 2 * wall) * (h + 2 * wall) * length', '(w + 2 * wall) * h * length'],
   // band-pass
   [src('bandpass.ts'), '(1 + ar + af)', '(1 + af)'],
   [src('bandpass.ts'), 'ts / qts, 1 + ar]', 'ts / qts, 1]'],
@@ -873,6 +878,32 @@ const mutations = [
   [ol, "if (mode === 'speaker') return validateSpeaker(raw);", "if (mode === 'speaker') return validateSystem(raw);"],
   [ol, "mode === 'speaker' ? speakerSchema()", "mode === 'speaker' ? systemSchema()"],
   [ol, "mode === 'car' ? carPrompt()", "mode === 'car' ? speakerPrompt()"],
+  // v1.5: driver layouts, rectangular ports, push-pull, facing down
+  [bl, "const dDisp = n * P.driverDisplacementMount(driver.sd, lay.mount === 'out');", "const dDisp = P.driverDisplacementMount(driver.sd, lay.mount === 'out');"],
+  [bl, "const n = shared ? b.perBox : 1;", "const n = 1;"],
+  [bl, "cabinet('Box', (n * d.volumeL) / 1000, dDisp, b, t, false, Array.from({ length: n }", "cabinet('Box', d.volumeL / 1000, dDisp, b, t, false, Array.from({ length: n }"],
+  [bl, "length: d.type === 'ported' ? n : 1 }", "length: 1 }"],
+  [bl, "count: b.count / n,", "count: b.count,"],
+  [bl, "{ front: Math.ceil(n / 2), back: Math.floor(n / 2) }", "{ front: Math.floor(n / 2), back: Math.ceil(n / 2) }"],
+  [bl, "const bh = down ? g.dO : g.hO;", "const bh = g.hO;"],
+  [bl, "w: x.wM! + 2 * wallM,", "w: x.wM!,"],
+  [bl, "(x.shape === 'rect' ? P.rectPortDisplacement(", "(x.shape !== 'rect' ? P.rectPortDisplacement("],
+  [bl, ": Math.max(drivers.length, 1);", ": 1;"],
+  [bl, "const oneRow = driverRows.length === 1 &&", "const oneRow = driverRows.length === 2 &&"],
+  [bl, "l.clearanceCm / 100 < widest / 4 - 1e-9", "l.clearanceCm / 100 < widest / 8 - 1e-9"],
+  [bl, "if (lay.pushPull && n % 2 === 1)", "if (lay.pushPull && n % 2 === 0)"],
+  [bl, "const lay0 = sp.slots[0]!.design.layout;", "const lay0 = sp.slots[sp.slots.length - 1]!.design.layout;"],
+  [bl, "if (lay0.cols > 1) {", "if (lay0.cols > 2) {"],
+  [ly, "z0 - (motorOut ? t : 0)], dir: motorOut", "z0 + (motorOut ? t : 0)], dir: motorOut"],
+  [ly, "lift + (motorOut ? t : 0), z0 - h.cy]", "lift - (motorOut ? t : 0), z0 - h.cy]"],
+  [ly, "z0 - h.cy], radius: h.r, tilt: Math.PI / 2", "z0 + h.cy], radius: h.r, tilt: Math.PI / 2"],
+  [ex, "c.facing === 'down' ? c.geometry.dO : c.geometry.hO", "c.facing === 'down' ? c.geometry.hO : c.geometry.dO"],
+  [app('model.ts'), "(d.portWidthCm / 100) * (d.portHeightCm / 100)", "(d.portWidthCm / 100) + (d.portHeightCm / 100)"],
+  [app('model.ts'), "d.portOrient === 'horizontal' ? { wM: Math.max(a, b), hM: Math.min(a, b) }", "d.portOrient === 'horizontal' ? { wM: Math.min(a, b), hM: Math.max(a, b) }"],
+  [app('model.ts'), "Math.sqrt((4 * portAreaM2(d)) / Math.PI)", "Math.sqrt(portAreaM2(d) / Math.PI)"],
+  [app('model.ts'), "mount: l.mount === 'out' ? 'out' : 'in'", "mount: l.mount === 'out' ? 'in' : 'out'"],
+  [app('model.ts'), "facing: l.facing === 'down' ? 'down' : 'front'", "facing: l.facing === 'down' ? 'front' : 'down'"],
+  [sys, "count % v === 0 ? v : 1", "count % v !== 0 ? v : 1"],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect
@@ -895,7 +926,9 @@ if (gate() !== 0) {
 
 // optional arguments: run only the mutations in files whose path contains one of them (e.g. `npm run mutation -- hornsim model`)
 const only = process.argv.slice(2);
-const selected = mutations.filter(([file]) => only.length === 0 || only.some((o) => file.includes(o)));
+// MUT_LAST=n runs only the last n mutations of the list (the newest), for a quick pass after adding some
+const pool = process.env.MUT_LAST ? mutations.slice(-Number(process.env.MUT_LAST)) : mutations;
+const selected = pool.filter(([file]) => only.length === 0 || only.some((o) => file.includes(o)));
 if (selected.length === 0) {
   console.error(`no mutation matches ${only.join(', ')}`);
   process.exit(2);

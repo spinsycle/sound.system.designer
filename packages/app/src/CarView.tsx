@@ -5,6 +5,7 @@
 import * as P from '@soundsystemdesigner/physics';
 import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
+import { LayoutControls, PortControls } from './LayoutControls';
 import { BRACES, BUILD_RANGES } from './build';
 import { computeBuild } from './buildlist';
 import {
@@ -217,8 +218,10 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
           </div>
           <Field id="car-vol" slider range={{ ...BOX_RANGES.volumeL, label: c.count > 1 ? `Air for all ${c.count}` : d.type === 'bandpass' ? 'Rear air' : 'Air' }} value={d.volumeL} onChange={(x) => setDesign({ volumeL: x })} />
           {d.type !== 'sealed' && <Field id="car-tune" slider range={BOX_RANGES.tuneHz} value={d.tuneHz} onChange={(x) => setDesign({ tuneHz: x })} />}
-          {d.type !== 'sealed' && <Field id="car-port" range={BOX_RANGES.portDiameterCm} value={d.portDiameterCm} onChange={(x) => setDesign({ portDiameterCm: x })} />}
+          {d.type !== 'sealed' && <PortControls design={d} onChange={setDesign} idp="car" />}
           {d.type === 'bandpass' && <Field id="car-front" range={BOX_RANGES.frontVolumeL} value={d.frontVolumeL} onChange={(x) => setDesign({ frontVolumeL: x })} />}
+          <h3>Driver layout</h3>
+          <LayoutControls layout={d.layout} count={d.type === 'bandpass' ? 1 : c.count} onChange={(layout) => setDesign({ layout })} idp="car" />
         </section>
 
         <section>

@@ -23,6 +23,21 @@ export interface Disc3 {
   tilt?: number;
   center: [number, number, number];
   radius: number;
+  /** A rectangular hole: the width and height (m); `radius` is then the bounding radius. */
+  shape?: 'rect';
+  w?: number;
+  h?: number;
+  /** Rotation about the y axis, radians (a hole on the back wall faces away). */
+  rotY?: number;
+}
+
+/** One driver installed: the flange centre, the way its frame, cone dish and motor extend from the flange, and the cone radius. */
+export interface Driver3 {
+  band: number;
+  flange: [number, number, number];
+  /** Unit vector from the flange towards the motor. */
+  dir: [number, number, number];
+  radius: number;
 }
 
 export interface Tube3 {
@@ -31,6 +46,10 @@ export interface Tube3 {
   center: [number, number, number];
   radius: number;
   length: number;
+  /** A rectangular port: width and height (m). */
+  rect?: { w: number; h: number };
+  /** 'y': the port runs up from `center` (a baffle that faces down); default 'z', back into the box. */
+  axis?: 'y' | 'z';
 }
 
 export interface Prism3 {
@@ -43,6 +62,7 @@ export interface Layout3 {
   boxes: Box3[];
   discs: Disc3[];
   tubes: Tube3[];
+  drivers: Driver3[];
   prisms: Prism3[];
   /** Overall width, height and depth. */
   extent: [number, number, number];
@@ -89,14 +109,22 @@ function wedgeBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
   for (const h of holePositions(c)) {
     const y = hO - (h.cy * hO) / len;
     const z = -delta + (h.cy * delta) / len;
-    out.discs.push({ band, kind: h.kind, center: [cx + h.cx - wO / 2, y - LIFT * ny, z + LIFT * (hO / len)], radius: h.r, tilt });
+    out.discs.push({ band, kind: h.kind, center: [cx + h.cx - wO / 2, y - LIFT * ny, z + LIFT * (hO / len)], radius: h.r, tilt, ...(h.shape === 'rect' ? { shape: 'rect' as const, w: h.w, h: h.h } : {}) });
+    if (h.kind === 'driver') {
+      // the outward normal of the sloping baffle is (0, -ny, -nz); a motor out puts the flange on the inner face, t behind it
+      const n: [number, number, number] = [0, -ny, -nz];
+      const motorOut = c.magnetOut === true;
+      const back = motorOut ? -t : 0;
+      out.drivers.push({ band, flange: [cx + h.cx - wO / 2, y + n[1] * back, z + n[2] * back], dir: motorOut ? n : [0, ny, nz], radius: h.r });
+    }
   }
   return -db - t;
 }
 
 function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: number, dividerShare: number | null, out: Layout3): number {
   const g = c.geometry;
-  const cy = g.hO / 2;
+  const lift = c.facing === 'down' ? (c.clearanceM ?? 0) : 0;
+  const cy = g.hO / 2 + lift;
   const cz = z0 - g.dO / 2; // the baffle is the front: z0 is its outer face
   const origin: [number, number, number] = [cx, cy, cz];
   const add = (kind: Box3['kind'], size: Box3['size'], dx: number, dy: number, dz: number): void => {
@@ -112,7 +140,28 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   if (dividerShare !== null) add('divider', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + g.dI * dividerShare);
   // a speaker's chamber shelves lie flat, wI x dI, at the depth the cut list's air shares put them
   for (const fromTop of c.shelves ?? []) add('divider', [g.wI, t, g.dI], 0, g.hO / 2 - t - fromTop, 0);
-  for (const h of holePositions(c)) out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 + LIFT], radius: h.r });
+  const motorOut = c.magnetOut === true;
+  const rect = (h: ReturnType<typeof holePositions>[number]): Pick<Disc3, 'shape' | 'w' | 'h'> => (h.shape === 'rect' ? { shape: 'rect', w: h.w, h: h.h } : {});
+  if (c.facing === 'down') {
+    // the baffle is the bottom panel: cy runs back from the front edge, the discs lie flat facing the floor
+    for (const h of holePositions(c)) {
+      out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, lift - LIFT, z0 - h.cy], radius: h.r, tilt: Math.PI / 2, ...rect(h) });
+      if (h.kind === 'driver') out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, lift + (motorOut ? t : 0), z0 - h.cy], dir: motorOut ? [0, -1, 0] : [0, 1, 0], radius: h.r });
+    }
+  } else {
+    for (const h of holePositions(c)) {
+      out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 + LIFT], radius: h.r, ...rect(h) });
+      if (h.kind === 'driver') out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 - (motorOut ? t : 0)], dir: motorOut ? [0, 0, 1] : [0, 0, -1], radius: h.r });
+    }
+  }
+  // push-pull: the second set of drivers on the back wall, seen from behind, mounted the other way round
+  for (const h of holePositions(c, true)) {
+    const x = cx + g.wO / 2 - h.cx;
+    const y = c.facing === 'down' ? lift + g.hO - h.cy : g.hO - h.cy;
+    const zb = z0 - g.dO;
+    out.discs.push({ band, kind: h.kind, center: [x, y, zb - LIFT], radius: h.r, rotY: Math.PI });
+    out.drivers.push({ band, flange: [x, y, zb + (motorOut ? t : 0)], dir: motorOut ? [0, 0, -1] : [0, 0, 1], radius: h.r });
+  }
   return cz;
 }
 
@@ -122,7 +171,7 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
  */
 export function layout3d(v: BuildView, p: Project): Layout3 {
   const t = p.shop.thicknessMm / 1000;
-  const out: Layout3 = { boxes: [], discs: [], tubes: [], prisms: [], extent: [0, 0, 0] };
+  const out: Layout3 = { boxes: [], discs: [], tubes: [], drivers: [], prisms: [], extent: [0, 0, 0] };
   let x = 0;
   let maxY = 0;
   let minZ = 0;
@@ -155,13 +204,19 @@ export function layout3d(v: BuildView, p: Project): Layout3 {
       const cz = cabinetBoxes(c, band, cx, t, 0, share, out);
       if (i === 0) {
         const holes = holePositions(c).filter((h) => h.kind === 'port');
+        const down = c.facing === 'down';
+        const lift = down ? (c.clearanceM ?? 0) : 0;
         b.ports.forEach((pt, j) => {
           const port = holes[j];
-          if (port) out.tubes.push({ band, center: [cx + port.cx - g.wO / 2, g.hO - port.cy, 0], radius: pt.diameterM / 2, length: Math.min(pt.lengthM, g.dI) });
+          if (!port) return;
+          const rect = pt.shape === 'rect' ? { rect: { w: port.w, h: port.h } } : {};
+          const length = Math.min(pt.lengthM, down ? g.hI : g.dI);
+          if (down) out.tubes.push({ band, center: [cx + port.cx - g.wO / 2, lift, -port.cy], radius: pt.diameterM / 2, length, axis: 'y', ...rect });
+          else out.tubes.push({ band, center: [cx + port.cx - g.wO / 2, g.hO - port.cy, 0], radius: pt.diameterM / 2, length, ...rect });
         });
       }
       x += g.wO;
-      maxY = Math.max(maxY, g.hO);
+      maxY = Math.max(maxY, g.hO + (c.facing === 'down' ? (c.clearanceM ?? 0) : 0));
       minZ = Math.min(minZ, cz - g.dO / 2);
       maxZ = Math.max(maxZ, 0);
     });

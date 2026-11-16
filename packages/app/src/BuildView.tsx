@@ -8,7 +8,7 @@ import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
 import type { Range } from './model';
 import { type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
 import { saveText } from './desktop';
-import { baffleSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
+import { baffleHeight, baffleSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
 import { type FrontRing, RING_SCREW_CM, ringScrews } from './carfront';
 import { layout3d } from './layout3d';
 import { Scene3D } from './Scene3D';
@@ -42,21 +42,29 @@ function csv(v: Build, u: Units): string {
   return lines.join('\n');
 }
 
-/** Front baffle to scale: the driver hole and port hole stacked in the middle. */
-function Baffle({ c, u }: { c: Cabinet; u: Units }) {
+/** Baffle to scale: the driver holes and port holes where the layout puts them. A push-pull box also gets its back wall. */
+function Baffle({ c, u, rear = false }: { c: Cabinet; u: Units; rear?: boolean }) {
   const g = c.geometry;
-  const holes = c.cutouts;
+  const h0 = baffleHeight(c);
+  const holes = rear ? (c.rearHoles ?? []) : c.cutouts;
   const pad = 0.03;
+  const what = rear ? 'back wall (push-pull drivers)' : c.facing === 'down' ? 'bottom baffle (drivers fire down)' : 'front baffle';
   return (
     <figure className="baffle">
-      <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${g.hO + 2 * pad}`} role="img" aria-label={`${c.title} front baffle, ${mm(g.wO, u)} by ${mm(g.hO, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>
-        <rect x={0} y={0} width={g.wO} height={g.hO} className="piece" />
-        {holePositions(c).map((h, i) => (
-          <circle key={i} cx={h.cx} cy={h.cy} r={h.r} className={h.kind === 'port' ? 'hole port-hole' : 'hole'} />
-        ))}
+      <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${h0 + 2 * pad}`} role="img" aria-label={`${c.title} ${what}, ${mm(g.wO, u)} by ${mm(h0, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>
+        <rect x={0} y={0} width={g.wO} height={h0} className="piece" />
+        {holePositions(c, rear).map((h, i) =>
+          h.shape === 'rect' ? (
+            <rect key={i} x={h.cx - h.w / 2} y={h.cy - h.h / 2} width={h.w} height={h.h} className="hole port-hole" />
+          ) : (
+            <circle key={i} cx={h.cx} cy={h.cy} r={h.r} className={h.kind === 'port' ? 'hole port-hole' : 'hole'} />
+          ),
+        )}
       </svg>
       <figcaption>
-        {c.title}: {mm(c.outside?.[0] ?? g.wO, u)} x {mm(c.outside?.[1] ?? g.hO, u)} x {mm(c.outside?.[2] ?? g.dO, u)} {u} outside{c.wedge ? ` (baffle ${mm(g.wO, u)} x ${mm(g.hO, u)})` : ''}. {holes.map((h) => `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`).join(', ')}.
+        {c.title}, {what}: {mm(c.outside?.[0] ?? g.wO, u)} x {mm(c.outside?.[1] ?? g.hO, u)} x {mm(c.outside?.[2] ?? g.dO, u)} {u} outside{c.wedge ? ` (baffle ${mm(g.wO, u)} x ${mm(g.hO, u)})` : ''}.{' '}
+        {holes.map((h) => (h.shape === 'rect' ? `Port opening ${mm(h.wM!, u)} x ${mm(h.hM!, u)} ${u}` : `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`)).join(', ')}.
+        {c.magnetOut && !rear ? ' Motors stick out through the baffle: leave room for them outside.' : ''}
       </figcaption>
     </figure>
   );
@@ -119,6 +127,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
   };
   const [explode, setExplode] = useState(0);
   const [transparent, setTransparent] = useState(false);
+  const [speakers, setSpeakers] = useState(true);
   const layout = useMemo(() => layout3d(v, project), [v, project]);
   const base = slug(project.name);
   const set = (patch: Partial<Project>): void => onChange(sanitizeProject({ ...project, ...patch }));
@@ -243,9 +252,12 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             <button type="button" aria-pressed={transparent} className={transparent ? 'on' : ''} onClick={() => setTransparent(!transparent)}>
               See through
             </button>
+            <button type="button" aria-pressed={speakers} className={speakers ? 'on' : ''} onClick={() => setSpeakers(!speakers)}>
+              Show speakers
+            </button>
           </div>
-          <Scene3D layout={layout} explode={explode} transparent={transparent} />
-          <p className="hint">Drag to orbit, scroll or pinch to zoom. One cabinet per band is drawn; braces and dividers show when see-through or exploded. The driver hole is amber, the port blue.</p>
+          <Scene3D layout={layout} explode={explode} transparent={transparent} speakers={speakers} />
+          <p className="hint">Drag to orbit, scroll or pinch to zoom. One cabinet per band is drawn; braces and dividers show when see-through or exploded. With Show speakers off the driver hole is amber and the port blue; with it on the drivers are drawn installed, motor inside or outside as set on the box page.</p>
         </section>
 
         <section>
@@ -258,6 +270,14 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
                   <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-${slug(c.title)}-baffle.svg`, baffleSvg(c, `${b.name}: ${c.title}`, project.units), 'image/svg+xml')}>
                     Download SVG
                   </button>
+                  {c.rearHoles && (
+                    <>
+                      <Baffle c={{ ...c, title: `${b.name}: ${c.title}` }} u={project.units} rear />
+                      <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-${slug(c.title)}-back.svg`, baffleSvg(c, `${b.name}: ${c.title} back`, project.units, true), 'image/svg+xml')}>
+                        Download SVG (back wall)
+                      </button>
+                    </>
+                  )}
                 </div>
               )),
             )}
