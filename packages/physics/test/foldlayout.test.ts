@@ -155,3 +155,80 @@ describe('suggestFold', () => {
     expect(P.maxFoldableMouthM2(ok, 0.8, T)).toBe(ok.mouthM2);
   });
 });
+
+describe('tapered folds (the scoop)', () => {
+  const T = 0.018;
+  const fl: P.Flare = { kind: 'exponential', throatM2: 0.06, mouthM2: 0.4, cutoffHz: 40, t: 1, lengthM: 0 };
+  const area = (x: number): number => P.flareArea(fl, x);
+  it('the area is the flare at both ends of every leg but the last, and the throat starts the first', () => {
+    for (const legs of [2, 4, 6]) {
+      const f = P.foldHorn(fl, 0.6, legs, 3, T, 'tapered');
+      expect(f.joints[0]!.area).toBeCloseTo(0.06, 12);
+      for (let k = 0; k < legs - 1; ++k) {
+        expect(f.joints[2 * k]!.area).toBeCloseTo(area(f.starts[k]!), 12);
+        expect(f.joints[2 * k + 1]!.area).toBeCloseTo(area(f.ends[k]!), 12);
+      }
+      // the floor is flat, so the last leg is never narrower than the flare
+      expect(f.joints[2 * legs - 2]!.area).toBeGreaterThanOrEqual(area(f.starts[legs - 1]!) - 1e-12);
+      expect(f.joints[2 * legs - 1]!.area).toBeGreaterThanOrEqual(area(f.ends[legs - 1]!) - 1e-12);
+    }
+  });
+  it('the path is the flare, the legs are the same length, and the septa never cross', () => {
+    const f = P.foldHorn(fl, 0.6, 6, 3, T, 'tapered');
+    expect(f.ends[5]).toBeCloseTo(f.length, 12);
+    for (let k = 0; k + 1 < f.septaFrontTop.length; ++k) {
+      expect(f.septaFrontTop[k + 1]!).toBeGreaterThan(f.septaFrontTop[k]!);
+      expect(f.septaBackTop[k + 1]!).toBeGreaterThan(f.septaBackTop[k]!);
+    }
+    f.septaSlant.forEach((s, k) => expect(s).toBeGreaterThanOrEqual(f.septaLength[k]! - 1e-12));
+  });
+  it('the box holds both stacks: the taller wall sets the height', () => {
+    const f = P.foldHorn(fl, 0.6, 4, 3, T, 'tapered');
+    const front = f.heightsFront.reduce((a, b) => a + b, 0) + 3 * T;
+    const back = f.heightsBack.reduce((a, b) => a + b, 0) + 3 * T;
+    expect(f.hI).toBeCloseTo(Math.max(front, back), 12);
+    expect(front).toBeCloseTo(f.hI, 12); // the last leg takes up whatever the floor leaves it
+    expect(back).toBeCloseTo(f.hI, 12);
+  });
+  it('a stepped fold has horizontal septa and the new fields agree with the old ones', () => {
+    const f = P.foldHorn(fl, 0.6, 4, 3, T);
+    expect(f.style).toBe('stepped');
+    expect(f.septaAngle).toEqual([0, 0, 0]);
+    expect(f.septaFrontTop).toEqual(f.septaTop);
+    expect(f.septaBackTop).toEqual(f.septaTop);
+    expect(f.septaSlant).toEqual(f.septaLength);
+    expect(f.heightsFront).toEqual(f.heights);
+  });
+  it('the tapered response is closer to the straight horn than the stepped one', async () => {
+    const drv = P.ALL_DRIVER_CLASSES[3]!;
+    const sys = (joints: readonly P.Joint[]): P.HornSystem => ({ driver: drv, joints, throatChamberM3: 0.002, rearVolumeM3: 0.06, rearLoaded: false });
+    const ideal = sys(P.hornJoints(fl, 100));
+    const stepped = sys(P.foldHorn(fl, 0.8, 4, 3, T).joints);
+    const tapered = sys(P.foldHorn(fl, 0.8, 4, 3, T, 'tapered').joints);
+    let es = 0;
+    let et = 0;
+    for (let i = 0; i < 40; ++i) {
+      const f = 25 * 1000 ** (i / 39) * 0.6; // 15 Hz to 15 kHz
+      const g = (s: P.HornSystem): number => P.dB(P.abs(P.hornSystem(s, f).g));
+      es += (g(stepped) - g(ideal)) ** 2;
+      et += (g(tapered) - g(ideal)) ** 2;
+    }
+    expect(et).toBeLessThan(es);
+  });
+  it('a recommendation for a tapered fold works for the tapered fold', () => {
+    const s = P.suggestFold(fl, 0.5, T, 'tapered')!;
+    expect(s).not.toBeNull();
+    const f = P.foldHorn(fl, s.widthM, s.legs, s.depthOutM, T, 'tapered');
+    expect(f.feasible).toBe(true);
+    expect(f.dO).toBeGreaterThanOrEqual(f.minDepthI + 2 * T - 1e-12);
+    expect(f.dO).toBeLessThan(f.minDepthI + 2 * T + 0.0100001); // sized for the tapered fold, not the stepped one
+  });
+  it('extreme settings stay finite', () => {
+    const big: P.Flare = { kind: 'exponential', throatM2: 0.0506, mouthM2: 6, cutoffHz: 40.9, t: 1, lengthM: 0 };
+    for (const legs of [2, 4, 8]) {
+      const f = P.foldHorn(big, 0.6, legs, 3, T, 'tapered');
+      const all = [f.leg, f.hI, f.dI, ...f.heightsFront, ...f.heightsBack, ...f.septaSlant, ...f.septaAngle, ...f.joints.flatMap((j) => [j.x, j.area])];
+      expect(all.every(Number.isFinite)).toBe(true);
+    }
+  });
+});

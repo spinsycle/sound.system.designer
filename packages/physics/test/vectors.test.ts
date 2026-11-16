@@ -102,6 +102,28 @@ describe('shared vectors', () => {
     }
   });
 
+  it('tapered folded horn (app only, v0.15)', () => {
+    for (const id of ['fold_tapered_2legs', 'fold_tapered_4legs']) {
+      const v = vec(id).inputs;
+      const fl: P.Flare = { kind: 'exponential', throatM2: v.st_m2!, mouthM2: v.sm_m2!, cutoffHz: v.fc!, t: 1, lengthM: 0 };
+      const f = P.foldHorn(fl, v.width_m!, v.legs!, v.depth_out_m!, v.t!, 'tapered');
+      expectVec(id, 'leg_m', f.leg);
+      expectVec(id, 'w_o', f.wO);
+      expectVec(id, 'h_o', f.hO);
+      expectVec(id, 'd_o', f.dO);
+      expectVec(id, 'min_depth_i', f.minDepthI);
+      f.heightsFront.forEach((h, k) => expectVec(id, `hf${k}`, h));
+      f.heightsBack.forEach((h, k) => expectVec(id, `hb${k}`, h));
+      f.gaps.forEach((g, k) => expectVec(id, `gap${k}`, g));
+      f.septaFrontTop.forEach((y, k) => expectVec(id, `top_f${k}`, y));
+      f.septaBackTop.forEach((y, k) => expectVec(id, `top_b${k}`, y));
+      f.septaSlant.forEach((l, k) => expectVec(id, `slant${k}`, l));
+      f.septaAngle.forEach((a, k) => expectVec(id, `angle${k}`, a));
+      expect(f.feasible).toBe(true);
+      expect(f.style).toBe('tapered');
+    }
+  });
+
   it('an infeasible fold is finite and flagged (app only, v0.14)', () => {
     const v = vec('fold_infeasible').inputs;
     const fl: P.Flare = { kind: 'exponential', throatM2: v.st_m2!, mouthM2: v.sm_m2!, cutoffHz: v.fc!, t: 1, lengthM: 0 };

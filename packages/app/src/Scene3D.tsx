@@ -34,13 +34,15 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean,
   const [w, h, d] = layout.extent;
   const centre = new THREE.Vector3(w / 2, h / 2, -d / 2);
   const edge = new THREE.LineBasicMaterial({ color: 0x1a1a19 });
-  const addMesh = (geo: THREE.BufferGeometry, col: number, opacity: number, at: THREE.Vector3): void => {
+  const addMesh = (geo: THREE.BufferGeometry, col: number, opacity: number, at: THREE.Vector3, tilt = 0): void => {
     const mat = new THREE.MeshStandardMaterial({ color: col, transparent: opacity < 1, opacity, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.copy(at);
+    mesh.rotation.x = tilt;
     rig.group.add(mesh);
     const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edge.clone());
     lines.position.copy(at);
+    lines.rotation.x = tilt;
     rig.group.add(lines);
   };
   const opacity = transparent ? 0.35 : 1;
@@ -50,7 +52,7 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean,
     const c = new THREE.Vector3(...b.center);
     c.add(c.clone().sub(o).multiplyScalar(explode));
     if (b.kind !== 'panel' && !transparent && explode === 0) continue; // inside a solid box: nothing to see
-    addMesh(new THREE.BoxGeometry(...b.size), colour(b.band), b.kind === 'panel' ? opacity : 0.9, c);
+    addMesh(new THREE.BoxGeometry(...b.size), colour(b.band), b.kind === 'panel' ? opacity : 0.9, c, b.tilt ?? 0);
   }
   for (const q of layout.prisms) {
     // eight corners: the throat quad then the mouth quad, each in order bottom-left, bottom-right, top-right, top-left

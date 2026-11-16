@@ -242,19 +242,20 @@ function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: num
 function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number): Cabinet {
   const g: P.BoxGeometry = { wI: f.wI, hI: f.hI, dI: f.dI, wO: f.wO, hO: f.hO, dO: f.dO, braces: 0, netM3: 0 };
   const panels = P.boxPanels(g, t, false);
-  f.septaLength.forEach((len, k) => panels.push({ name: `Fold septum ${k + 1}`, l: len, w: f.wI, qty: 1 }));
-  g.netM3 = f.wI * f.hI * f.dI - f.septaLength.reduce((a, l) => a + f.wI * l * t, 0);
+  // a sloped septum is cut to its length along the slope; the angle is in the name (positive: lower at the back)
+  f.septaSlant.forEach((len, k) => panels.push({ name: f.style === 'tapered' ? `Fold septum ${k + 1} (sloped ${(Math.abs(f.septaAngle[k]!) * 180 / Math.PI).toFixed(1)} deg ${f.septaAngle[k]! >= 0 ? 'down to the back' : 'up to the back'})` : `Fold septum ${k + 1}`, l: len, w: f.wI, qty: 1 }));
+  g.netM3 = f.wI * f.hI * f.dI - f.septaSlant.reduce((a, l) => a + f.wI * l * t, 0);
   const rect = (w: number, h: number): Cutout => ({ kind: 'port', shape: 'rect', wM: w, hM: h, diameterM: Math.max(w, h) });
-  const throat = rect(f.wI, Math.min(throatM2 / f.wI, f.heights[0]!));
-  const holes: Hole[] = [{ ...throat, cx: f.wO / 2, cy: t + f.heights[0]! / 2 }];
+  const throat = rect(f.wI, Math.min(throatM2 / f.wI, f.heightsFront[0]!));
+  const holes: Hole[] = [{ ...throat, cx: f.wO / 2, cy: t + f.heightsFront[0]! / 2 }];
   const cutouts: Cutout[] = [throat];
   if (f.mouthAtFront) {
-    const last = f.heights[f.heights.length - 1]!;
+    const last = f.heightsFront[f.heightsFront.length - 1]!;
     const mouth = rect(f.wI, last);
     holes.push({ ...mouth, cx: f.wO / 2, cy: f.hO - t - last / 2 });
     cutouts.push(mouth);
   }
-  const septaArea = f.septaLength.reduce((a, l) => a + 2 * f.wI * l, 0);
+  const septaArea = f.septaSlant.reduce((a, l) => a + 2 * f.wI * l, 0);
   return { title: 'Folded horn', geometry: g, panels, cutouts, holes, fold: f, liningM2: ceilTenth(2 * (f.wI * f.hI + f.wI * f.dI + f.hI * f.dI) - f.wI * f.hI + septaArea) };
 }
 

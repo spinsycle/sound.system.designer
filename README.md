@@ -1,7 +1,7 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.6.0.
+Version 1.7.0.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
@@ -27,6 +27,10 @@ Version 1.6.0.
   follows from the flare); the cut list gets the walls and one septum per fold, the Build page a side-view fold drawing (SVG) and
   the 3D view the septa. Front-loaded horns and scoops both fold. The simulation uses the legs and turns as built (a staircase of
   the flare); bend reflections, losses and the mouth's floor or corner loading are not modelled.
+  **Tapered legs (scoop)** is a second fold style: each leg widens along its length (the flare's height at both ends) and the septa
+  are sloped plates, cut to their slope length with the angle in the part name and drawn and shown tilted in 3D. The Scoop starting
+  point is a rear-loaded, tapered, two-leg fold. When a fold does not work (too shallow, too many folds, an odd number of legs, a
+  mouth too big for the width), the Result list recommends settings that do and a button applies them.
 - **Start:** the installed app asks whether to run as a **desktop app** or in your **web browser** (a local page served only on
   your own computer; it closes itself when you close the tab). `--desktop` and `--web` on the command line skip the question.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
@@ -55,7 +59,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.6.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.7.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 

@@ -14,6 +14,8 @@ export interface Box3 {
   center: [number, number, number];
   /** Centre of the cabinet it belongs to, for the exploded view. */
   origin: [number, number, number];
+  /** Rotation about the x axis, radians (a sloped septum). */
+  tilt?: number;
 }
 
 export interface Disc3 {
@@ -127,8 +129,8 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   const cy = g.hO / 2 + lift;
   const cz = z0 - g.dO / 2; // the baffle is the front: z0 is its outer face
   const origin: [number, number, number] = [cx, cy, cz];
-  const add = (kind: Box3['kind'], size: Box3['size'], dx: number, dy: number, dz: number): void => {
-    out.boxes.push({ band, kind, size, center: [cx + dx, cy + dy, cz + dz], origin });
+  const add = (kind: Box3['kind'], size: Box3['size'], dx: number, dy: number, dz: number, tilt?: number): void => {
+    out.boxes.push({ band, kind, size, center: [cx + dx, cy + dy, cz + dz], origin, ...(tilt ? { tilt } : {}) });
   };
   add('panel', [g.wO, g.hO, t], 0, 0, g.dO / 2 - t / 2); // front baffle
   add('panel', [g.wO, g.hO, t], 0, 0, -g.dO / 2 + t / 2); // back
@@ -140,10 +142,14 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   if (dividerShare !== null) add('divider', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + g.dI * dividerShare);
   // a speaker's chamber shelves lie flat, wI x dI, at the depth the cut list's air shares put them
   for (const fromTop of c.shelves ?? []) add('divider', [g.wI, t, g.dI], 0, g.hO / 2 - t - fromTop, 0);
-  // a folded horn's septa: fixed to the front wall (even index) or the back wall, stopping short of the other for the U-turn
-  c.fold?.septaLength.forEach((len, k) => {
-    const front = c.fold!.septaAnchor[k] === 'front';
-    add('divider', [g.wI, t, len], 0, g.hO / 2 - t - c.fold!.septaTop[k]! - t / 2, front ? g.dO / 2 - t - len / 2 : -(g.dO / 2 - t) + len / 2);
+  // a folded horn's septa: fixed to the front wall (even index) or the back wall, stopping short of the other for the U-turn.
+  // A sloped septum (tapered fold) runs from its top height at one wall to its height at the other, so it is tilted about x.
+  const fold = c.fold;
+  fold?.septaLength.forEach((len, k) => {
+    const front = fold.septaAnchor[k] === 'front';
+    const dMid = front ? len / 2 : fold.dI - len / 2; // depth of the plate's middle from the front inner face
+    const topMid = fold.septaFrontTop[k]! + ((fold.septaBackTop[k]! - fold.septaFrontTop[k]!) * dMid) / fold.dI;
+    add('divider', [g.wI, t, fold.septaSlant[k]!], 0, g.hO / 2 - t - topMid - t / 2, g.dO / 2 - t - dMid, -fold.septaAngle[k]!);
   });
   const motorOut = c.magnetOut === true;
   const rect = (h: ReturnType<typeof holePositions>[number]): Pick<Disc3, 'shape' | 'w' | 'h'> => (h.shape === 'rect' ? { shape: 'rect', w: h.w, h: h.h } : {});

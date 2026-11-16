@@ -68,8 +68,18 @@ export function foldSvg(f: P.FoldLayout, t: number, title: string, u: Units = 'm
   const W = mm(f.dO);
   const H = mm(f.hO);
   const font = Math.max(14, Math.round(Math.min(W, H) / 28));
+  const tapered = f.style === 'tapered';
+  const X = (d: number): number => mm(f.dO - t - d); // front on the right
+  const topAt = (k: number, d: number): number => t + f.septaFrontTop[k]! + ((f.septaBackTop[k]! - f.septaFrontTop[k]!) * d) / f.dI;
   const septa = f.septaLength
     .map((len, k) => {
+      if (tapered) {
+        // a sloped plate: four corners from its top at one end to its top at the other
+        const front = f.septaAnchor[k] === 'front';
+        const d0 = front ? 0 : f.dI - len;
+        const d1 = front ? len : f.dI;
+        return `<polygon points="${X(d0)},${mm(topAt(k, d0))} ${X(d1)},${mm(topAt(k, d1))} ${X(d1)},${mm(topAt(k, d1) + t)} ${X(d0)},${mm(topAt(k, d0) + t)}" ${STYLE}/>`;
+      }
       const y = mm(t + f.septaTop[k]!);
       const x = f.septaAnchor[k] === 'front' ? mm(f.dO - t - len) : mm(t);
       return `<rect x="${x}" y="${y}" width="${mm(len)}" height="${Math.max(mm(t), 2)}" ${STYLE}/>`;
@@ -77,8 +87,16 @@ export function foldSvg(f: P.FoldLayout, t: number, title: string, u: Units = 'm
     .join('\n');
   const labels = f.heights
     .map((h, k) => {
-      const y = t + f.heights.slice(0, k).reduce((a, b) => a + b + t, 0) + h / 2;
-      return `<text x="${mm(f.dO / 2)}" y="${mm(y) + Math.round(font / 3)}" font-size="${font}" text-anchor="middle" font-family="sans-serif">leg ${k + 1} (${mm(h)} mm)</text>`;
+      let y = t + f.heights.slice(0, k).reduce((a, b) => a + b + t, 0) + h / 2;
+      let size = `${mm(h)} mm`;
+      if (tapered) {
+        // the leg's middle, between the plates above and below it at mid depth
+        const top = k === 0 ? t : topAt(k - 1, f.dI / 2) + t;
+        const bottom = k === f.heights.length - 1 ? f.hO - t : topAt(k, f.dI / 2);
+        y = (top + bottom) / 2;
+        size = `${mm(f.heightsFront[k]!)} front, ${mm(f.heightsBack[k]!)} back mm`;
+      }
+      return `<text x="${mm(f.dO / 2)}" y="${mm(y) + Math.round(font / 3)}" font-size="${font}" text-anchor="middle" font-family="sans-serif">leg ${k + 1} (${size})</text>`;
     })
     .join('\n');
   const ends = `<text x="${W - font / 2}" y="${mm(t) + font}" font-size="${font}" text-anchor="end" font-family="sans-serif">throat, front</text>` + (f.mouthAtFront ? `\n<text x="${W - font / 2}" y="${H - mm(t) - Math.round(font / 2)}" font-size="${font}" text-anchor="end" font-family="sans-serif">mouth</text>` : '');

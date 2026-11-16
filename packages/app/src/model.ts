@@ -57,6 +57,8 @@ export interface HornDesign {
   fold: boolean;
   legs: number;
   depthCm: number;
+  /** 'tapered' is the scoop: legs that widen along their length, with sloped septa. */
+  foldStyle: P.FoldStyle;
 }
 
 export type PlotRange = 'low' | 'high';
@@ -181,13 +183,13 @@ export const DEFAULT_DESIGN: Design = {
   layout: DEFAULT_LAYOUT,
   powerW: 100,
   plotRange: 'low',
-  horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '', fold: false, legs: 4, depthCm: 100 },
+  horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '', fold: false, legs: 4, depthCm: 100, foldStyle: 'stepped' },
 };
 
 /** Generic starting points. Invented values, not any product. */
 export const HORN_PRESETS: readonly { label: string; patch: Partial<Design> }[] = [
   { label: 'Bass horn', patch: { driverClass: 3, volumeL: 60, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn } } },
-  { label: 'Scoop', patch: { driverClass: 3, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn, loading: 'rear', throatCm2: 600, mouthCm2: 6000, throatChamberL: 40 } } },
+  { label: 'Scoop', patch: { driverClass: 3, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn, loading: 'rear', throatCm2: 600, mouthCm2: 6000, throatChamberL: 40, fold: true, foldStyle: 'tapered', legs: 2, widthCm: 90, depthCm: 96 } } },
   {
     label: 'Mid horn',
     patch: { driverClass: 5, volumeL: 6, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn, flare: 'hyperbolic', cutoffHz: 200, t: 0.7, throatCm2: 120, mouthCm2: 1500, throatChamberL: 0.3, widthCm: 30 } },
@@ -216,6 +218,7 @@ export function sanitize(input: unknown): Design {
     loading: h.loading === 'rear' ? 'rear' : 'front',
     panelsCm: typeof h.panelsCm === 'string' ? h.panelsCm.slice(0, 200) : d.horn.panelsCm,
     fold: h.fold === true,
+    foldStyle: h.foldStyle === 'tapered' ? 'tapered' : 'stepped',
   };
   for (const k of Object.keys(HORN_RANGES) as HornField[]) horn[k] = num(h[k], HORN_RANGES[k], d.horn[k]);
   horn.legs = Math.round(horn.legs);
@@ -353,7 +356,7 @@ export function hornGeometry(d: Design, wallM = DEFAULT_WALL_M): { flare: P.Flar
   const lengthM = P.flareLength(flare);
   if (d.horn.fold) {
     // folded: the legs and turns are the built horn (a staircase of the ideal flare)
-    const fold = P.foldHorn(flare, d.horn.widthCm / 100, d.horn.legs, d.horn.depthCm / 100, wallM);
+    const fold = P.foldHorn(flare, d.horn.widthCm / 100, d.horn.legs, d.horn.depthCm / 100, wallM, d.horn.foldStyle);
     return { flare, lengthM, ideal: P.hornJoints(flare, IDEAL_SEGMENTS), built: fold.joints, fold };
   }
   const xs = panelJointsCm(d.horn.panelsCm, lengthM * 100);
@@ -508,18 +511,18 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
       if (!f.mouthAtFront) warnings.push('An odd number of legs ends the horn at the back of the box. Use an even number so the mouth is on the front.');
       const fine = f.feasible && f.mouthAtFront && f.dI <= d.horn.depthCm / 100 - 2 * wallM + 1e-9 && f.dI <= f.minDepthI * 1.25;
       if (!fine) {
-        const sug = P.suggestFold(g.flare, d.horn.widthCm / 100, wallM);
+        const sug = P.suggestFold(g.flare, d.horn.widthCm / 100, wallM, d.horn.foldStyle);
         if (sug) {
           horn!.suggest = sug;
           warnings.push(`Recommended fold for this flare: ${sug.legs} legs, ${fmt(sug.widthM * 100, 0)} cm wide, ${fmt(sug.depthOutM * 100, 0)} cm deep (outside). The button under the fold settings applies it.`);
         } else {
-          const mm = P.maxFoldableMouthM2(g.flare, d.horn.widthCm / 100, wallM);
+          const mm = P.maxFoldableMouthM2(g.flare, d.horn.widthCm / 100, wallM, d.horn.foldStyle);
           horn!.maxMouthCm2 = mm === null ? null : Math.floor(mm * 1e4);
-          if (mm !== null) horn!.suggestAtMax = P.suggestFold({ ...g.flare, mouthM2: horn!.maxMouthCm2! * 1e-4 }, d.horn.widthCm / 100, wallM);
+          if (mm !== null) horn!.suggestAtMax = P.suggestFold({ ...g.flare, mouthM2: horn!.maxMouthCm2! * 1e-4 }, d.horn.widthCm / 100, wallM, d.horn.foldStyle);
           warnings.push(mm === null ? `No fold of this flare fits a box up to ${P.FOLD_MAX_DEPTH_M} m deep and ${P.FOLD_MAX_WIDTH_M} m wide, even with the smallest mouth at ${fmt(d.horn.widthCm, 0)} cm wide. Make the horn wider or the throat smaller.` : `No fold of a ${fmt(g.flare.mouthM2 * 1e4, 0)} cm² mouth fits a box up to ${P.FOLD_MAX_DEPTH_M} m deep and ${P.FOLD_MAX_WIDTH_M} m wide. A mouth of up to ${fmt(Math.floor(mm * 1e4), 0)} cm² folds; the button under the fold settings sets it.`);
         }
       }
-      notes.push('Folded: the horn is simulated as the legs and turns, with the flare height at the middle of each leg, so the response includes that staircase. Bend reflections and losses are not modelled.');
+      notes.push(f.style === 'tapered' ? 'Folded, tapered (scoop): the horn is simulated as legs that widen along their length, with the flare height at each end, and the turns. Bend reflections and losses are not modelled.' : 'Folded: the horn is simulated as the legs and turns, with the flare height at the middle of each leg, so the response includes that staircase. Bend reflections and losses are not modelled.');
     }
     if (g.built && !g.fold) {
       const given = d.horn.panelsCm.split(/[,;\s]+/).map(Number).filter((n) => Number.isFinite(n) && n > 0).reduce((a, b) => a + b, 0);

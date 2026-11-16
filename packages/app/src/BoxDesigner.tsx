@@ -233,6 +233,13 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
               </div>
               {design.horn.fold && (
                 <>
+                  <div className="segmented" role="radiogroup" aria-label="Fold style">
+                    {(['stepped', 'tapered'] as const).map((k) => (
+                      <button key={k} type="button" role="radio" aria-checked={design.horn.foldStyle === k} className={design.horn.foldStyle === k ? 'on' : ''} onClick={() => setHorn({ foldStyle: k })}>
+                        {k === 'stepped' ? 'Stepped legs' : 'Tapered legs (scoop)'}
+                      </button>
+                    ))}
+                  </div>
                   <Field id="fold-legs" range={HORN_RANGES.legs} value={design.horn.legs} onChange={(v) => setHorn({ legs: Math.round(v) })} />
                   <Field id="fold-depth" range={HORN_RANGES.depthCm} value={design.horn.depthCm} onChange={(v) => setHorn({ depthCm: v })} />
                   {c.horn?.suggest && (

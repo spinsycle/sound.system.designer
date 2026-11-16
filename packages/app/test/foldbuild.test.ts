@@ -253,3 +253,120 @@ describe('recommended fold', () => {
     expect(foldWarns(apply(narrow, sug!))).toEqual([]);
   });
 });
+
+describe('tapered legs (the scoop)', () => {
+  const tap = (legs = 2, depthCm = 150, more: Partial<M.HornDesign> = {}): M.Design => folded(legs, depthCm, { foldStyle: 'tapered', widthCm: 90, loading: 'rear', throatChamberL: 40, mouthCm2: 6000, ...more });
+  const p = project(tap());
+  const cab = foldCab(p);
+  const f = cab.fold!;
+  it('foldStyle is stepped unless it says tapered', () => {
+    expect(M.sanitize({ type: 'horn', horn: {} }).horn.foldStyle).toBe('stepped');
+    expect(M.sanitize({ type: 'horn', horn: { foldStyle: 'wavy' } }).horn.foldStyle).toBe('stepped');
+    expect(M.sanitize({ type: 'horn', horn: { foldStyle: 'tapered' } }).horn.foldStyle).toBe('tapered');
+    expect(f.style).toBe('tapered');
+  });
+  it('the septa are cut to their slope length and named with the angle', () => {
+    const sep = cab.panels.filter((x) => x.name.startsWith('Fold septum'));
+    expect(sep).toHaveLength(1);
+    expect(sep[0]!.l).toBeCloseTo(f.septaSlant[0]!, 12);
+    expect(sep[0]!.l).toBeGreaterThan(f.septaLength[0]!);
+    expect(sep[0]!.name).toMatch(/sloped \d+\.\d deg (down|up) to the back/);
+  });
+  it('the septum name carries its angle in degrees and its direction', () => {
+    const sep = cab.panels.find((x) => x.name.startsWith('Fold septum'))!;
+    const deg = (Math.abs(f.septaAngle[0]!) * 180) / Math.PI;
+    expect(sep.name).toContain(`sloped ${deg.toFixed(1)} deg ${f.septaAngle[0]! >= 0 ? 'down' : 'up'} to the back`);
+    expect(deg).toBeGreaterThan(1);
+  });
+  it('each 3D septum sits where its top face is at the middle of its run, for both anchors', () => {
+    const p4 = project(tap(4, 120));
+    const l4 = layout3d(L.computeBuild(p4), p4);
+    const f4 = foldCab(p4).fold!;
+    const sep = l4.boxes.filter((x) => x.kind === 'divider' && x.size[0] === f4.wI);
+    expect(sep).toHaveLength(3);
+    sep.forEach((b, k) => {
+      const front = f4.septaAnchor[k] === 'front';
+      const dMid = front ? f4.septaLength[k]! / 2 : f4.dI - f4.septaLength[k]! / 2;
+      const top = f4.septaFrontTop[k]! + ((f4.septaBackTop[k]! - f4.septaFrontTop[k]!) * dMid) / f4.dI;
+      expect(b.center[1]).toBeCloseTo(f4.hO - T - top - T / 2, 9);
+      expect(b.center[2]).toBeCloseTo(-T - dMid, 9);
+    });
+  });
+  it('the side view puts each plate at its two ends, from the front wall or the back wall', () => {
+    const p4 = project(tap(4, 120));
+    const f4 = foldCab(p4).fold!;
+    const polys = [...foldSvg(f4, T, 'x').matchAll(/<polygon points="([^"]+)"/g)].map((m) => m[1]!.split(' ').map((q) => q.split(',').map(Number)));
+    expect(polys).toHaveLength(3);
+    polys.forEach((pts, k) => {
+      const front = f4.septaAnchor[k] === 'front';
+      const d0 = front ? 0 : f4.dI - f4.septaLength[k]!;
+      const d1 = front ? f4.septaLength[k]! : f4.dI;
+      const top = (d: number): number => T + f4.septaFrontTop[k]! + ((f4.septaBackTop[k]! - f4.septaFrontTop[k]!) * d) / f4.dI;
+      const mm = (m: number): number => m * 1000;
+      expect(pts[0]![0]).toBeCloseTo(mm(f4.dO - T - d0), 0);
+      expect(pts[0]![1]).toBeCloseTo(mm(top(d0)), 0);
+      expect(pts[1]![0]).toBeCloseTo(mm(f4.dO - T - d1), 0);
+      expect(pts[1]![1]).toBeCloseTo(mm(top(d1)), 0);
+    });
+  });
+  it('the throat and the mouth are the first and last legs at the front wall', () => {
+    const holes = L.holePositions(cab);
+    expect(holes[0]!.h).toBeCloseTo(Math.min(0.06 / 0.9, f.heightsFront[0]!), 12);
+    expect(holes[1]!.h).toBeCloseTo(f.heightsFront[1]!, 12);
+  });
+  it('the 3D septum is tilted by its angle and lies inside the box', () => {
+    const l = layout3d(L.computeBuild(p), p);
+    const sep = l.boxes.find((x) => x.kind === 'divider' && x.size[0] === f.wI)!;
+    expect(sep.tilt).toBeCloseTo(-f.septaAngle[0]!, 12);
+    expect(sep.size[2]).toBeCloseTo(f.septaSlant[0]!, 12);
+    const nums = l.boxes.flatMap((b) => [...b.size, ...b.center, b.tilt ?? 0]);
+    expect(nums.every(Number.isFinite)).toBe(true);
+    // a stepped fold has no tilt
+    const ls = layout3d(L.computeBuild(project(folded())), project(folded()));
+    expect(ls.boxes.every((b) => b.tilt === undefined)).toBe(true);
+  });
+  it('the side view draws sloped plates as polygons and labels both ends of every leg', () => {
+    const svg = foldSvg(f, T, 'scoop');
+    expect([...svg.matchAll(/<polygon /g)]).toHaveLength(1);
+    expect([...svg.matchAll(/<rect /g)]).toHaveLength(1);
+    expect(svg).toContain('front');
+    expect(svg).not.toContain('NaN');
+    expect(foldSvg(foldCab(project(folded())).fold!, T, 'stepped')).not.toContain('<polygon');
+  });
+  it('the response is finite and closer to the straight horn than the stepped fold of the same box', () => {
+    const c = M.compute(tap());
+    expect(c.curves.responseDb.every(Number.isFinite)).toBe(true);
+    const ideal = M.compute(horn({ loading: 'rear', throatChamberL: 40, mouthCm2: 6000, widthCm: 90 }, { volumeL: 60 })).curves.responseDb;
+    const stepped = M.compute(tap(2, 150, { foldStyle: 'stepped' })).curves.responseDb;
+    const dist = (a: number[]): number => a.reduce((acc, v, i) => acc + (v - ideal[i]!) ** 2, 0);
+    expect(dist(c.curves.responseDb)).toBeLessThan(dist(stepped));
+  });
+  it('the Scoop starting point is a working tapered fold: no fold warnings and a recommendation that works', () => {
+    const preset = M.HORN_PRESETS.find((x) => x.label === 'Scoop')!;
+    const d = M.sanitize({ ...M.DEFAULT_DESIGN, type: 'horn', ...preset.patch });
+    expect(d.horn.foldStyle).toBe('tapered');
+    expect(d.horn.fold).toBe(true);
+    const w = M.compute(d).warnings.filter((x) => ['cannot fit', 'odd number', 'asked for', 'fewer legs or less depth', 'Recommended fold'].some((k) => x.includes(k)));
+    expect(w).toEqual([]);
+    const b = L.computeBuild(project(d));
+    expect(b.bands[0]!.cabinets.some((c) => c.title === 'Folded horn')).toBe(true);
+    expect(b.warnings.some((x) => x.includes('cannot fit'))).toBe(false);
+  });
+  it('the model asks for the recommendation of the style it is in', () => {
+    const bad = tap(3, 40);
+    const flare = M.hornGeometry(bad).flare;
+    const tapered = P.suggestFold(flare, 0.9, 0.018, 'tapered');
+    const stepped = P.suggestFold(flare, 0.9, 0.018, 'stepped');
+    expect(tapered).not.toEqual(stepped); // the two styles recommend different boxes for this flare
+    expect(M.compute(bad).horn!.suggest).toEqual(tapered);
+    const asStepped = M.sanitize({ ...bad, horn: { ...bad.horn, foldStyle: 'stepped' } });
+    expect(M.compute(asStepped).horn!.suggest).toEqual(stepped);
+  });
+  it('a recommendation for a tapered fold clears the fold warnings for the tapered fold', () => {
+    const bad = tap(3, 40);
+    const sug = M.compute(bad).horn!.suggest;
+    expect(sug).not.toBeNull();
+    const fixed = M.sanitize({ ...bad, horn: { ...bad.horn, legs: sug!.legs, widthCm: Math.round(sug!.widthM * 1000) / 10, depthCm: Math.round(sug!.depthOutM * 1000) / 10 } });
+    expect(M.compute(fixed).warnings.filter((x) => ['cannot fit', 'odd number', 'asked for', 'fewer legs or less depth', 'Recommended fold'].some((k) => x.includes(k)))).toEqual([]);
+  });
+});

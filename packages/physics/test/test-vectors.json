@@ -2510,6 +2510,84 @@
       }
     },
     {
+      "id": "fold_tapered_2legs",
+      "desc": "The same horn folded into 2 tapered legs, 2.00 m outside depth: leg length, front and back heights, septum tops, slant lengths, angles and the box size (m, rad)",
+      "inputs": {
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "fc": 40.0,
+        "width_m": 0.6,
+        "legs": 2.0,
+        "depth_out_m": 2.0,
+        "t": 0.018
+      },
+      "outputs": {
+        "leg_m": 0.5110965831385645,
+        "w_o": 0.636,
+        "h_o": 0.820666666666667,
+        "d_o": 2.0,
+        "min_depth_i": 0.8263243747879949,
+        "hf0": 0.1,
+        "hb0": 0.21148727502049594,
+        "hf1": 0.666666666666667,
+        "hb1": 0.555179391646171,
+        "gap0": 0.3152277916494303,
+        "top_f0": 0.1,
+        "top_b0": 0.21148727502049594,
+        "slant0": 1.6514265013446805,
+        "angle0": 0.05670456062598614
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "fold_tapered_4legs",
+      "desc": "The same horn folded into 4 tapered legs, 1.00 m outside depth: leg length, front and back heights, septum tops, slant lengths, angles and the box size (m, rad)",
+      "inputs": {
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "fc": 40.0,
+        "width_m": 0.6,
+        "legs": 4.0,
+        "depth_out_m": 1.0,
+        "t": 0.018
+      },
+      "outputs": {
+        "leg_m": 0.12433128176549885,
+        "w_o": 0.636,
+        "h_o": 1.2793732929476778,
+        "d_o": 1.0,
+        "min_depth_i": 0.9251374722451458,
+        "hf0": 0.1,
+        "hb0": 0.11998580537998702,
+        "hf1": 0.17752171496465977,
+        "hb1": 0.14795226352188937,
+        "hf2": 0.24518491131635095,
+        "hb2": 0.2941870905131307,
+        "hf3": 0.666666666666667,
+        "hb3": 0.6272481335326706,
+        "gap0": 0.14795226352188937,
+        "top_f0": 0.1,
+        "top_b0": 0.11998580537998702,
+        "slant0": 0.8162230955140012,
+        "angle0": 0.02072919363899691,
+        "gap1": 0.24518491131635095,
+        "top_f1": 0.2955217149646598,
+        "top_b1": 0.2859380689018764,
+        "slant1": 0.718850609580575,
+        "angle1": -0.009941214056728247,
+        "gap2": 0.555621279163296,
+        "top_f2": 0.5587066262810108,
+        "top_b2": 0.5981251594150071,
+        "slant2": 0.4087199911673532,
+        "angle2": 0.04086782712740241
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
       "id": "pack_sheets",
       "desc": "Shelf packing of six rectangles onto 1220 x 2440 mm sheets, kerf 3 mm",
       "inputs": {
