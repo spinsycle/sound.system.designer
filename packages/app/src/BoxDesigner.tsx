@@ -14,6 +14,7 @@ import {
   CUSTOM_RANGES,
   DEFAULT_WALL_M,
   type Design,
+  EXTRA_RANGES,
   FLARES,
   HORN_PRESETS,
   HORN_RANGES,
@@ -21,9 +22,17 @@ import {
   type HornField,
   PLOT_RANGES,
   type PlotRange,
+  PR_RANGES,
+  type PassiveDesign,
   type Range,
+  STUFFINGS,
+  type TlDesign,
+  TL_RANGES,
   compute,
+  driverOf,
+  prOf,
   sanitize,
+  tlSettingsFor,
 } from './model';
 
 export const show =(v: number): string => String(Number(v.toPrecision(4)));
@@ -77,8 +86,45 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
   // a rear-loaded horn (scoop) has no sealed rear chamber: the chamber behind the cone is the one that feeds the throat
   const isRear = isHorn && design.horn.loading === 'rear';
   const customKeys = Object.keys(CUSTOM_RANGES) as (keyof P.CustomDriverFields)[];
-  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz'], horn: isRear ? [] : ['volumeL'] }[design.type] as BoxField[];
-  const volumeLabel = { sealed: 'Volume', ported: 'Volume', bandpass: 'Rear volume', horn: 'Rear chamber' }[design.type];
+  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz'], passive: ['volumeL', 'tuneHz'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz'], tline: [], horn: isRear ? [] : ['volumeL'] }[design.type] as BoxField[];
+  const volumeLabel = { sealed: 'Volume', ported: 'Volume', passive: 'Volume', bandpass: 'Rear volume', tline: '', horn: 'Rear chamber' }[design.type];
+  const tuneLabel = design.type === 'passive' ? 'Box tuning fB' : undefined;
+  const setPr = (patch: Partial<PassiveDesign>): void => set({ pr: { ...design.pr, ...patch } });
+  const setTl = (patch: Partial<TlDesign>): void => set({ tl: { ...design.tl, ...patch } });
+  const qts = c.derived.qts;
+  const hasQl = design.type === 'ported' || design.type === 'bandpass' || design.type === 'passive';
+  const pickType = (type: Design['type']): void => {
+    // a new Cookbook type starts the way the book designs it: QL 7, and a line or radiator sized from the driver
+    const patch: Partial<Design> = { type };
+    if (type === 'passive' || type === 'bandpass') {
+      if (design.qL === 0) patch.qL = 7;
+    }
+    if (type === 'tline') patch.tl = tlSettingsFor(driverOf(design), design.tl.kind, design.tl.table, design.tl.stuffing);
+    set(patch);
+  };
+  /** Design helpers: set the box from the Cookbook's alignments (vented, passive radiator, closed Qtc, band-pass ripple). */
+  const [align, setAlign] = useState<P.VentedAlignment>('QB3');
+  const [qtcTarget, setQtcTarget] = useState(0.707);
+  const [ripple, setRipple] = useState(0.7);
+  const ql7 = design.qL > 0 ? design.qL : 7;
+  const applyVented = (): void => {
+    const s = P.solveVented(qts, align, ql7);
+    set({ qL: ql7, volumeL: Number(((d.vasM3 * 1000) / s.alpha).toPrecision(4)), tuneHz: Number((s.h * d.fs).toPrecision(4)) });
+  };
+  const applyPassive = (): void => {
+    const alpha = P.recommendedPassiveAlpha(qts);
+    const s = P.solvePassiveTuning(qts, alpha, ql7);
+    if (s) set({ qL: ql7, volumeL: Number(((d.vasM3 * 1000) / alpha).toPrecision(4)), tuneHz: Number((s.h * d.fs).toPrecision(4)), pr: { ...design.pr, sdpCm2: 0, vapL: 0, massG: 0 } });
+  };
+  const applySealed = (): void => {
+    if (qtcTarget > qts) set({ volumeL: Number(((d.vasM3 * 1000) / ((qtcTarget / qts) ** 2 - 1)).toPrecision(4)) });
+  };
+  const applyBandpass = (): void => {
+    const qbp = Math.max(qts * 2.18, qts * 1.2);
+    const b = P.bandpassDesign(d, qts, ripple, qbp);
+    set({ qL: ql7, volumeL: Number((b.vrM3 * 1000).toPrecision(4)), frontVolumeL: Number((b.vfM3 * 1000).toPrecision(4)), tuneHz: Number(b.fbHz.toPrecision(4)) });
+  };
+  const prInfo = design.type === 'passive' ? prOf(design) : null;
   const hornFields: HornField[] = [...(flare === 'conical' ? [] : (['cutoffHz'] as HornField[])), ...(flare === 'hyperbolic' ? (['t'] as HornField[]) : []), 'throatCm2', 'mouthCm2', ...(flare === 'conical' ? (['lengthM'] as HornField[]) : []), 'throatChamberL'];
 
   const xmaxMm = d.xmax * 1000;
@@ -152,15 +198,26 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
             <h2>Box</h2>
             <div className="segmented" role="radiogroup" aria-label="Box type">
               {BOX_KINDS.map((k) => (
-                <button key={k.id} type="button" role="radio" aria-checked={design.type === k.id} className={design.type === k.id ? 'on' : ''} onClick={() => set({ type: k.id })}>
+                <button key={k.id} type="button" role="radio" aria-checked={design.type === k.id} className={design.type === k.id ? 'on' : ''} onClick={() => pickType(k.id)}>
                   {k.label}
                 </button>
               ))}
             </div>
             {boxFields.map((k) => (
-              <Field key={k} slider range={k === 'volumeL' ? { ...BOX_RANGES[k], label: volumeLabel } : BOX_RANGES[k]} value={design[k]} onChange={(v) => set({ [k]: v })} />
+              <Field key={k} slider range={k === 'volumeL' ? { ...BOX_RANGES[k], label: volumeLabel } : k === 'tuneHz' && tuneLabel ? { ...BOX_RANGES[k], label: tuneLabel } : BOX_RANGES[k]} value={design[k]} onChange={(v) => set({ [k]: v })} />
             ))}
             {(design.type === 'ported' || design.type === 'bandpass') && <PortControls design={design} onChange={set} idp="box" />}
+            {hasQl && <Field slider range={EXTRA_RANGES.qL} value={design.qL} onChange={(v) => set({ qL: v })} />}
+            {design.type === 'sealed' && <Field slider range={EXTRA_RANGES.fillPct} value={design.fillPct} onChange={(v) => set({ fillPct: v })} />}
+            {hasQl && (
+              <div className="segmented" aria-label="Box losses presets">
+                {[0, 3, 7, 15].map((q) => (
+                  <button key={q} type="button" className={design.qL === q ? 'on' : ''} onClick={() => set({ qL: q })}>
+                    {q === 0 ? 'Lossless' : `QL ${q}`}
+                  </button>
+                ))}
+              </div>
+            )}
             <Field slider range={BOX_RANGES.powerW} value={design.powerW} onChange={(v) => set({ powerW: v })} />
             <div className="field">
               <label htmlFor="plot-range">Plot range</label>
@@ -173,6 +230,122 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
               </select>
             </div>
           </section>
+
+          {(design.type === 'sealed' || design.type === 'ported' || design.type === 'passive' || design.type === 'bandpass') && (
+            <section>
+              <h2>Design from the Cookbook</h2>
+              {design.type === 'sealed' && (
+                <>
+                  <div className="field">
+                    <label htmlFor="qtc-target">Target Qtc</label>
+                    <select id="qtc-target" value={qtcTarget} onChange={(e) => setQtcTarget(Number(e.target.value))}>
+                      {[0.5, 0.577, 0.707, 0.8, 1.0, 1.2].map((q) => (
+                        <option key={q} value={q}>
+                          {q}
+                          {q === 0.577 ? ' (Bessel)' : q === 0.707 ? ' (Butterworth)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button type="button" disabled={qtcTarget <= qts} onClick={applySealed}>
+                    Set the volume for this Qtc
+                  </button>
+                  <p className="hint">Vb = Vas / ((Qtc / Qts)² − 1). Qtc must be above the driver's Qts ({show(qts)}).</p>
+                </>
+              )}
+              {design.type === 'ported' && (
+                <>
+                  <div className="field">
+                    <label htmlFor="alignment">Alignment</label>
+                    <select id="alignment" value={align} onChange={(e) => setAlign(e.target.value as P.VentedAlignment)}>
+                      <option value="QB3">QB3 (quasi-third-order, the usual)</option>
+                      <option value="B4">B4 (maximally flat)</option>
+                      <option value="BE4">BE4 (Bessel, best transients)</option>
+                      <option value="C4">C4 (Chebyshev, 0.5 dB ripple)</option>
+                    </select>
+                  </div>
+                  <button type="button" onClick={applyVented}>
+                    Set volume and tuning for this alignment (QL {show(ql7)})
+                  </button>
+                  <p className="hint">Fits the box to the alignment's response shape for this driver's Qts. B4 at QL 7 reproduces the book's Table 2.10 (Qts 0.4048: Vas/Vb 1.06, tuned to Fs).</p>
+                </>
+              )}
+              {design.type === 'passive' && (
+                <>
+                  <button type="button" onClick={applyPassive}>
+                    Set the box and tuning for this driver (QL {show(ql7)})
+                  </button>
+                  <p className="hint">Box volume about Vas × Qts / 1.13, tuned for the lowest f3 within 0.5 dB, with a radiator that copies the driver's cone (Table 3.1's case). Then add the mass shown in the results.</p>
+                </>
+              )}
+              {design.type === 'bandpass' && (
+                <>
+                  <div className="field">
+                    <label htmlFor="ripple">Ripple factor S</label>
+                    <select id="ripple" value={ripple} onChange={(e) => setRipple(Number(e.target.value))}>
+                      <option value={0.7}>0.7 (flat, best transients)</option>
+                      <option value={0.6}>0.6 (0.35 dB ripple)</option>
+                      <option value={0.5}>0.5 (1.25 dB ripple)</option>
+                    </select>
+                  </div>
+                  <button type="button" onClick={applyBandpass}>
+                    Set both chambers and the tuning
+                  </button>
+                  <p className="hint">Front chamber (2 S Qts)² Vas, rear chamber Vas / ((Qbp / Qts)² − 1), tuned to Qbp Fs / Qts (Cookbook section 1.300; Qbp about 2.2 Qts). The 8 in example in the book (Qts 0.328, S 0.7) gives its 43 to 115 Hz passband.</p>
+                </>
+              )}
+            </section>
+          )}
+
+          {design.type === 'passive' && prInfo && (
+            <section>
+              <h2>Passive radiator</h2>
+              <p className="hint">Leave a field at 0 and the radiator copies the driver's cone, the book's standard case. The mass to add tunes the box to the tuning above.</p>
+              {(['sdpCm2', 'vapL', 'massG', 'xmaxMm'] as (keyof PassiveDesign)[]).map((k) => (
+                <Field key={k} id={`pr-${k}`} range={PR_RANGES[k]} value={design.pr[k]} onChange={(v) => setPr({ [k]: v })} />
+              ))}
+            </section>
+          )}
+
+          {design.type === 'tline' && (
+            <section>
+              <h2>Transmission line</h2>
+              <div className="field">
+                <label htmlFor="tl-kind">Line type</label>
+                <select id="tl-kind" value={design.tl.kind} onChange={(e) => setTl({ kind: e.target.value as P.TlKind })}>
+                  <option value="taper">Tapered 1:4 (standard)</option>
+                  <option value="chamber">Coupled chamber</option>
+                  <option value="offset">Offset driver</option>
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="tl-table">Table</label>
+                <select id="tl-table" value={design.tl.table} onChange={(e) => setTl({ table: e.target.value as P.TlTable })}>
+                  <option value="extended">Extended bass (Table 4.3)</option>
+                  <option value="standard">Standard (Table 4.2)</option>
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="tl-stuff">Stuffing</label>
+                <select id="tl-stuff" value={design.tl.stuffing} onChange={(e) => setTl({ stuffing: e.target.value as P.Stuffing })}>
+                  {STUFFINGS.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" className="on" onClick={() => set({ tl: tlSettingsFor(driverOf(design), design.tl.kind, design.tl.table, design.tl.stuffing) })}>
+                Size the line from the tables for this driver
+              </button>
+              {(Object.keys(TL_RANGES) as (keyof typeof TL_RANGES)[])
+                .filter((k) => (k !== 'chamberL' || design.tl.kind === 'chamber') && (k !== 'offsetPct' || design.tl.kind === 'offset'))
+                .map((k) => (
+                  <Field key={k} slider id={`tl-${k}`} range={TL_RANGES[k]} value={design.tl[k]} onChange={(v) => setTl({ [k]: v })} />
+                ))}
+              <p className="hint">Line length is c / 4 fp; the tables fix fp from Fs and the volume from Vas. The stuffing density is the book's Table 4.1 value for this length; the line is simulated as a stuffed tube.</p>
+            </section>
+          )}
 
           {!isHorn && (
             <section>
@@ -274,7 +447,7 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
           <section>
             <h2>Result</h2>
             <dl className="sheet wide">
-              {c.readouts.map((r) => (
+              {[...c.readouts, ...c.extras].map((r) => (
                 <div key={r.label}>
                   <dt>{r.label}</dt>
                   <dd>{r.value}</dd>

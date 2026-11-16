@@ -48,7 +48,7 @@ describe('system level', () => {
     const pTop = P.referencePressure(M.driverOf(top), S.REF_VOLTS);
     const trimTop = 20 * Math.log10(pSub / pTop);
     const sys = S.systemEvaluator(project([band(sub, { delayMs: 1.5 }), band(top, { trimDb: trimTop })], { xover: [100, 800, 3500] }));
-    const box = (d: M.Design): P.BoxParams => ({ driver: M.driverOf(d), type: d.type as P.BoxType, volumeL: d.volumeL, tuneHz: d.tuneHz, frontVolumeL: d.frontVolumeL, hornThroatCm2: 600, hornMouthCm2: 4000, hornLengthM: 1 });
+    const box = (d: M.Design): P.BoxParams => ({ driver: M.driverOf(d), type: d.type as P.BoxType, volumeL: d.volumeL, tuneHz: d.tuneHz, frontVolumeL: d.frontVolumeL, hornThroatCm2: 600, hornMouthCm2: 4000, hornLengthM: 1, ...(d.qL > 0 ? { qL: d.qL } : {}) });
     const lib: P.SystemParams = { bands: 2, xover: [100, 800, 3500], align: true, band: [{ box: box(sub), solo: false, mute: false, trimDb: 0, delayMs: 1.5 }, { box: box(top), solo: false, mute: false, trimDb: 0, delayMs: 0 }] };
     for (const f of [30, 70, 100, 140, 400, 2000]) {
       const want = P.scale(P.systemResponse(lib, f), pSub);

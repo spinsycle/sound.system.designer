@@ -21,7 +21,7 @@ const ref = vec('driver_derived');
 const custom = { fsHz: ref.inputs.fs!, qts: ref.outputs.qts!, qms: ref.inputs.qms!, vasL: ref.inputs.vas_m3! * 1000, sdCm2: ref.inputs.sd_m2! * 1e4, reOhm: ref.inputs.re!, xmaxMm: 10, powerW: 100 };
 // 1 V peak: excursion in mm is then the vectors' metres per volt x 1000
 const onePeakVolt = 0.5 / ref.inputs.re!;
-const base: M.Design = { ...M.DEFAULT_DESIGN, driverClass: M.CUSTOM_CLASS, custom, powerW: onePeakVolt };
+const base: M.Design = { ...M.DEFAULT_DESIGN, qL: 0, driverClass: M.CUSTOM_CLASS, custom, powerW: onePeakVolt }; // the shared vectors are lossless
 const near = (got: number, want: number): void => expect(Math.abs(got - want)).toBeLessThanOrEqual(1e-7 * Math.max(Math.abs(want), 1e-6));
 
 describe('plotted values at the reference box equal the shared vectors', () => {
@@ -214,6 +214,7 @@ describe('design model', () => {
     expect(M.sanitize(null)).toEqual(M.DEFAULT_DESIGN);
     expect(M.sanitize({ type: 'bogus', driverClass: 99, volumeL: 'x', plotRange: 'mid', horn: { flare: 'spiral', t: 7, panelsCm: 5 } })).toEqual({
       ...M.DEFAULT_DESIGN,
+      qL: 0, // a stored object with no box-loss field is an older design: lossless
       driverClass: M.CUSTOM_CLASS,
       horn: { ...M.DEFAULT_DESIGN.horn, t: 1 },
     });

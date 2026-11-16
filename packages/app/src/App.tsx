@@ -91,7 +91,7 @@ export function App() {
     <div className="app">
       <header>
         <h1>Sound System Designer</h1>
-        <p>Boxes, horns and whole systems. Lossless models; generic driver classes are invented values, not products.</p>
+        <p>Boxes, horns and whole systems. Box losses default to the Cookbook's QL 7; generic driver classes are invented values, not products.</p>
         <div className="segmented" role="radiogroup" aria-label="What to design">
           <button type="button" role="radio" aria-checked={!speaker && !car} className={speaker || car ? '' : 'on'} onClick={() => set({ kind: 'system', view: 'system' })}>
             PA system

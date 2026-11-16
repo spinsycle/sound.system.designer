@@ -5,7 +5,7 @@
 // calculators as the rest of the app judge the result. Pure functions; no network here.
 import * as P from '@soundsystemdesigner/physics';
 import { computeBuild } from './buildlist';
-import { BOX_KINDS, BOX_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, DEFAULT_DESIGN, type Design, FLARES, HORN_RANGES, type Range, compute, sanitize } from './model';
+import { BOX_KINDS, BOX_RANGES, BRIEF_KINDS, CUSTOM_CLASS, CUSTOM_RANGES, DEFAULT_DESIGN, type Design, FLARES, HORN_RANGES, type Range, compute, sanitize } from './model';
 import { AMP_LOADS, BAND_RANGES, COUNT_RANGE, DEFAULT_PROJECT, DISTANCE_RANGE, LOWEST_RANGE, MAX_BANDS, type Project, XOVER_RANGE, computeSystem, levelTrims, sanitizeProject } from './system';
 
 export type BriefMode = 'system' | 'box' | 'speaker' | 'car';
@@ -90,7 +90,7 @@ export function validateDesign(raw: unknown, path: string, meta: boolean, opts: 
     }
   } else patch.driverClass = P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === raw.driver);
 
-  const kinds = BOX_KINDS.filter((k) => !opts.types || opts.types.includes(k.id));
+  const kinds = BOX_KINDS.filter((k) => (opts.types ? opts.types.includes(k.id) : BRIEF_KINDS.includes(k.id)));
   const kind = kinds.find((k) => k.id === raw.type)?.id;
   if (!kind) errors.push(`${path}.type: expected one of ${kinds.map((k) => `"${k.id}"`).join(', ')}`);
   else patch.type = kind;
@@ -210,7 +210,7 @@ export function designSchema(meta: boolean, opts: DesignOpts = {}): Record<strin
   const properties: Record<string, unknown> = {
     driver: { type: 'string', enum: opts.classes ? [...opts.classes] : P.DRIVER_CLASSES.map((d) => d.name) },
     custom: { type: 'object', properties: Object.fromEntries(Object.entries(CUSTOM_RANGES).map(([k, r]) => [k, range(r)])) },
-    type: { type: 'string', enum: BOX_KINDS.map((k) => k.id).filter((k) => !opts.types || opts.types.includes(k)) },
+    type: { type: 'string', enum: BOX_KINDS.map((k) => k.id).filter((k) => (opts.types ? opts.types.includes(k) : BRIEF_KINDS.includes(k))) },
     volumeL: range(BOX_RANGES.volumeL),
     tuneHz: range(BOX_RANGES.tuneHz),
     frontVolumeL: range(BOX_RANGES.frontVolumeL),

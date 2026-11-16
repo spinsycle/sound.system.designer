@@ -4,13 +4,17 @@
 // compute() returns, and the tests assert the same path against the shared physics vectors.
 import * as P from '@soundsystemdesigner/physics';
 
-export type BoxKind = 'sealed' | 'ported' | 'bandpass' | 'horn';
+export type BoxKind = 'sealed' | 'ported' | 'bandpass' | 'horn' | 'passive' | 'tline';
 export const BOX_KINDS: readonly { id: BoxKind; label: string }[] = [
   { id: 'sealed', label: 'Sealed' },
   { id: 'ported', label: 'Ported' },
+  { id: 'passive', label: 'Passive radiator' },
   { id: 'bandpass', label: 'Band-pass' },
+  { id: 'tline', label: 'Transmission line' },
   { id: 'horn', label: 'Horn' },
 ];
+/** The box kinds the Ollama brief may choose: the original four (the new Cookbook types are designed by hand). */
+export const BRIEF_KINDS: readonly BoxKind[] = ['sealed', 'ported', 'bandpass', 'horn'];
 
 export const FLARES: readonly { id: P.FlareKind; label: string }[] = [
   { id: 'exponential', label: 'Exponential' },
@@ -59,6 +63,57 @@ export interface HornDesign {
   depthCm: number;
   /** 'tapered' is the scoop: legs that widen along their length, with sloped septa. */
   foldStyle: P.FoldStyle;
+}
+
+/**
+ * Passive radiator (Cookbook ch. 3). Zero means "the same as the driver": the book's standard case is a radiator that is a
+ * copy of the driver's cone (same area, same compliance, same own mass), tuned by adding mass.
+ */
+export interface PassiveDesign {
+  sdpCm2: number;
+  /** Air volume equivalent to the radiator's suspension compliance. */
+  vapL: number;
+  /** The radiator's own moving mass, before any added mass. */
+  massG: number;
+  /** One-way excursion the radiator's suspension allows. */
+  xmaxMm: number;
+}
+
+/** Transmission line (Cookbook ch. 4): a stuffed, tapered line behind the driver, sized from the book's tables. */
+export interface TlDesign {
+  kind: P.TlKind;
+  table: P.TlTable;
+  stuffing: P.Stuffing;
+  lengthCm: number;
+  /** Area at the driver end and at the exit. */
+  startCm2: number;
+  exitCm2: number;
+  /** Coupling chamber between the cone and the line (kind 'chamber'). */
+  chamberL: number;
+  /** Driver distance from the closed end, percent of the line (kind 'offset'). */
+  offsetPct: number;
+  /** Stuffing density, lb/ft3 (the book's unit). */
+  densityLb: number;
+  /** Share of the line length stuffed, from the closed end. */
+  stuffedPct: number;
+}
+
+/** The line the book's tables give for a driver, as editable settings. */
+export function tlSettingsFor(driver: P.DriverSpec, kind: P.TlKind, table: P.TlTable, stuffing: P.Stuffing): TlDesign {
+  const des = P.tlDesign(driver, kind, table);
+  const r = (v: number): number => Number(v.toPrecision(4));
+  return {
+    kind,
+    table,
+    stuffing,
+    lengthCm: r(des.lengthM * 100),
+    startCm2: r(des.startM2 * 1e4),
+    exitCm2: r(des.exitM2 * 1e4),
+    chamberL: r(des.chamberM3 * 1000),
+    offsetPct: Math.round(des.offset * 100),
+    densityLb: r(P.stuffingDensityLb(stuffing, des.lengthM)),
+    stuffedPct: 80,
+  };
 }
 
 export type PlotRange = 'low' | 'high';
@@ -114,6 +169,12 @@ export interface Design {
   portHeightCm: number;
   portOrient: PortOrient;
   layout: DriverLayout;
+  /** Box leakage Q of a ported, band-pass or passive-radiator box (Cookbook: design at 7). 0 is lossless, the plugin's model. */
+  qL: number;
+  /** Fibre fill of a sealed box, percent of full fill (Small and Margolis, Cookbook p. 41). 0 is none. */
+  fillPct: number;
+  pr: PassiveDesign;
+  tl: TlDesign;
   /** Amplifier power for the excursion plot. */
   powerW: number;
   plotRange: PlotRange;
@@ -142,6 +203,33 @@ export const CUSTOM_RANGES: Record<keyof P.CustomDriverFields, Range> = {
 };
 
 export type BoxField = 'volumeL' | 'tuneHz' | 'frontVolumeL' | 'portDiameterCm' | 'portWidthCm' | 'portHeightCm' | 'powerW';
+export type ExtraField = 'qL' | 'fillPct';
+export const EXTRA_RANGES: Record<ExtraField, Range> = {
+  qL: { label: 'Box losses QL (0 = lossless)', unit: '', min: 0, max: 50, linear: true },
+  fillPct: { label: 'Fibre fill', unit: '%', min: 0, max: 100, linear: true },
+};
+export const PR_RANGES: Record<keyof PassiveDesign, Range> = {
+  sdpCm2: { label: 'Radiator area (0 = same as driver)', unit: 'cm²', min: 0, max: 5000, linear: true },
+  vapL: { label: 'Radiator compliance Vap (0 = same as driver)', unit: 'L', min: 0, max: 5000, linear: true },
+  massG: { label: 'Radiator own mass (0 = same as driver)', unit: 'g', min: 0, max: 20000, linear: true },
+  xmaxMm: { label: 'Radiator Xmax', unit: 'mm', min: 1, max: 60 },
+};
+export const TL_RANGES: Record<'lengthCm' | 'startCm2' | 'exitCm2' | 'chamberL' | 'offsetPct' | 'densityLb' | 'stuffedPct', Range> = {
+  lengthCm: { label: 'Line length', unit: 'cm', min: 20, max: 1000 },
+  startCm2: { label: 'Area at the driver', unit: 'cm²', min: 10, max: 20000 },
+  exitCm2: { label: 'Exit area', unit: 'cm²', min: 5, max: 20000 },
+  chamberL: { label: 'Coupling chamber', unit: 'L', min: 0, max: 1000, linear: true },
+  offsetPct: { label: 'Driver offset from the closed end', unit: '% of line', min: 0, max: 50, linear: true },
+  densityLb: { label: 'Stuffing density', unit: 'lb/ft³', min: 0, max: 5, linear: true },
+  stuffedPct: { label: 'Stuffed length', unit: '% of line', min: 0, max: 100, linear: true },
+};
+export const STUFFINGS: readonly { id: P.Stuffing; label: string }[] = [
+  { id: 'acousta', label: 'Acousta-Stuf' },
+  { id: 'polyester', label: 'Polyester fibre' },
+  { id: 'fiberglass', label: 'Fibreglass' },
+  { id: 'microfibre', label: 'Microfibre' },
+];
+
 export const BOX_RANGES: Record<BoxField, Range> = {
   volumeL: { label: 'Volume', unit: 'L', min: 0.1, max: 1000 },
   tuneHz: { label: 'Tuning', unit: 'Hz', min: 10, max: 200 },
@@ -181,6 +269,10 @@ export const DEFAULT_DESIGN: Design = {
   portHeightCm: 4,
   portOrient: 'horizontal',
   layout: DEFAULT_LAYOUT,
+  qL: 7,
+  fillPct: 0,
+  pr: { sdpCm2: 0, vapL: 0, massG: 0, xmaxMm: 12 },
+  tl: tlSettingsFor(P.ALL_DRIVER_CLASSES[3]!, 'taper', 'extended', 'acousta'),
   powerW: 100,
   plotRange: 'low',
   horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '', fold: false, legs: 4, depthCm: 100, foldStyle: 'stepped' },
@@ -234,6 +326,20 @@ export function sanitize(input: unknown): Design {
     horn,
   };
   for (const k of Object.keys(BOX_RANGES) as BoxField[]) out[k] = num(i[k], BOX_RANGES[k], d[k]);
+  // a stored design with no box-loss field was made before 1.8.0 and stays lossless; a new design starts at the Cookbook's QL = 7
+  for (const k of Object.keys(EXTRA_RANGES) as ExtraField[]) out[k] = num(i[k], EXTRA_RANGES[k], k === 'qL' && Object.keys(i).length > 0 && !('qL' in i) ? 0 : d[k]);
+  const pr = obj(i.pr);
+  out.pr = { ...d.pr };
+  for (const k of Object.keys(PR_RANGES) as (keyof PassiveDesign)[]) out.pr[k] = num(pr[k], PR_RANGES[k], d.pr[k]);
+  const tl = obj(i.tl);
+  const tlOut: TlDesign = {
+    ...d.tl,
+    kind: tl.kind === 'chamber' || tl.kind === 'offset' ? tl.kind : 'taper',
+    table: tl.table === 'standard' ? 'standard' : 'extended',
+    stuffing: STUFFINGS.some((s) => s.id === tl.stuffing) ? (tl.stuffing as P.Stuffing) : d.tl.stuffing,
+  };
+  for (const k of Object.keys(TL_RANGES) as (keyof typeof TL_RANGES)[]) tlOut[k] = num(tl[k], TL_RANGES[k], d.tl[k]);
+  out.tl = tlOut;
   return out;
 }
 
@@ -345,8 +451,86 @@ function hornRaw(d: Design, joints: readonly P.Joint[]): (f: number) => Raw {
   return (f) => P.hornSystem(sys, f);
 }
 
+/** The passive radiator a design describes: the driver's own cone unless the fields say otherwise, tuned to the box tuning with added mass. */
+export interface PrBuilt {
+  radiator: P.PassiveRadiator;
+  /** Radiator mass with no added mass, kg. */
+  ownKg: number;
+  /** Mass to add so the box tunes to `tuneHz`, kg; negative when the radiator is already too heavy. */
+  addedKg: number;
+  alpha: number;
+  delta: number;
+  /** The radiator's own resonance at the mass used, Hz, and the box tuning it makes. */
+  fpHz: number;
+  fbHz: number;
+}
+export function prOf(d: Design): PrBuilt {
+  const driver = driverOf(d);
+  const derived = P.deriveDriver(driver);
+  const vb = Math.max(d.volumeL, 0.01) / 1000;
+  const sdp = d.pr.sdpCm2 > 0 ? d.pr.sdpCm2 * 1e-4 : driver.sd;
+  const vap = d.pr.vapL > 0 ? d.pr.vapL / 1000 : driver.vasM3;
+  const own = d.pr.massG > 0 ? d.pr.massG / 1000 : derived.mms;
+  const delta = vap / vb;
+  const fpWanted = Math.max(d.tuneHz, 1) / Math.sqrt(1 + delta);
+  const needed = P.prMassForResonance({ sdp, vapM3: vap }, fpWanted);
+  const used = Math.max(needed, own);
+  const radiator = { sdp, vapM3: vap, massKg: used };
+  const fp = P.prResonance(radiator);
+  return { radiator, ownKg: own, addedKg: needed - own, alpha: driver.vasM3 / vb, delta, fpHz: fp, fbHz: P.prBoxTuning(fp, delta) };
+}
+
+function passiveRaw(d: Design): (f: number) => Raw {
+  const driver = driverOf(d);
+  const r = P.deriveDriver(driver);
+  const pr = prOf(d);
+  const ql = d.qL > 0 ? d.qL : undefined;
+  return (f) => {
+    const x = P.passiveX(f, driver, r, pr.alpha, pr.delta, pr.fpHz, ql);
+    return { g: P.passiveG(f, driver.fs, r.qts, pr.alpha, pr.delta, pr.fpHz, ql), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+  };
+}
+
+/** The line a design describes, in the physics library's units. */
+export function tlGeometryOf(d: Design): P.TlGeometry {
+  const t = d.tl;
+  return {
+    lengthM: t.lengthCm / 100,
+    startM2: t.startCm2 * 1e-4,
+    exitM2: t.exitCm2 * 1e-4,
+    chamberM3: t.chamberL / 1000,
+    offset: t.kind === 'offset' ? t.offsetPct / 100 : 0,
+    stuffing: t.stuffing,
+    densityLb: t.densityLb,
+    stuffedShare: t.stuffedPct / 100,
+  };
+}
+
+function tlRaw(d: Design): (f: number) => Raw {
+  const driver = driverOf(d);
+  const geo = tlGeometryOf(d);
+  return (f) => P.tlSystem(driver, geo, f);
+}
+
+/** Sealed box with fibre fill: the same response with the effective volume and the added loss of the Cookbook's fill rule. */
+function sealedFilledRaw(d: Design): (f: number) => Raw {
+  const driver = driverOf(d);
+  const r = P.deriveDriver(driver);
+  const vb = Math.max(d.volumeL, 0.01) / 1000;
+  const fill = d.fillPct / 100;
+  const s = P.sealedFilled(driver.fs, r.qts, driver.vasM3, vb, fill);
+  const vEff = vb * P.fillEffect(fill).volumeGain;
+  return (f) => {
+    const x = P.sealedX(f, driver, r, vEff);
+    return { g: P.sealedHP(f, s.fc, s.qtc), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+  };
+}
+
 function directRaw(d: Design): (f: number) => Raw {
-  const box: P.BoxParams = { driver: driverOf(d), type: d.type === 'horn' ? 'sealed' : d.type, volumeL: d.volumeL, tuneHz: d.tuneHz, frontVolumeL: d.frontVolumeL, hornThroatCm2: 600, hornMouthCm2: 4000, hornLengthM: 1 };
+  if (d.type === 'passive') return passiveRaw(d);
+  if (d.type === 'tline') return tlRaw(d);
+  if (d.type === 'sealed' && d.fillPct > 0) return sealedFilledRaw(d);
+  const box: P.BoxParams = { driver: driverOf(d), type: d.type === 'horn' ? 'sealed' : (d.type as P.BoxType), volumeL: d.volumeL, tuneHz: d.tuneHz, frontVolumeL: d.frontVolumeL, hornThroatCm2: 600, hornMouthCm2: 4000, hornLengthM: 1, ...(d.qL > 0 ? { qL: d.qL } : {}) };
   return (f) => ({ g: P.boxResponse(box, f), x: P.boxDisplacement(box, f), z: P.boxImpedance(box, f) });
 }
 
@@ -416,6 +600,7 @@ export interface Computed {
   curves: Record<keyof Point, number[]>;
   overlays: Partial<Record<keyof Point, Overlay[]>>;
   readouts: Readout[];
+  extras: Readout[];
   warnings: string[];
   notes: string[];
   /** Frequencies worth a marker on the plots (box resonance, tuning, flare cutoff). */
@@ -444,11 +629,32 @@ export function passband(freqs: readonly number[], db: readonly number[]): { pea
   return { peakDb: db[k]!, peakHz: freqs[k]!, loHz: edge(-1), hiHz: edge(1) };
 }
 
+/** -3 dB point of a high-pass plot curve measured from 0 dB (the direct-radiator passband), Hz; -1 if it never gets there. */
+function f3Of(freqs: readonly number[], db: readonly number[]): number {
+  for (let i = 0; i < db.length; ++i) {
+    if (db[i]! >= -3) {
+      if (i === 0) return freqs[0]!;
+      const a = db[i - 1]!;
+      const b = db[i]!;
+      return freqs[i - 1]! * (freqs[i]! / freqs[i - 1]!) ** ((-3 - a) / (b - a));
+    }
+  }
+  return -1;
+}
+
+/** Air volume of the line itself (not the chamber): an exponential taper from start to exit area, m3. */
+export function tlLineVolumeM3(g: P.TlGeometry): number {
+  const r = g.startM2 / g.exitM2;
+  return Math.abs(r - 1) < 1e-9 ? g.startM2 * g.lengthM : (g.lengthM * (g.startM2 - g.exitM2)) / Math.log(r);
+}
+
 export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
   const driver = driverOf(d);
   const derived = P.deriveDriver(driver);
   const freqs = plotFreqs(d.plotRange);
   const readouts: Readout[] = [];
+  /** Cookbook design checks shown after the main readouts (kept apart so the brief's metrics stay as they were). */
+  const extras: Readout[] = [];
   const warnings: string[] = [];
   const notes: string[] = [];
   const markers: Computed['markers'] = [];
@@ -463,6 +669,15 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
     if (lengthCm <= 0)
       warnings.push(`A ${portLabel(d)} port cannot tune ${fmt(chamberL)} L to ${fmt(d.tuneHz)} Hz: the length comes out negative. Use a narrower port, a smaller chamber or a lower tuning.`);
     markers.push({ f: d.tuneHz, label: 'fb' });
+    // Cookbook p. 69-71: smallest vent from the displacement volume, and the cone-to-vent area ratio
+    const vd = P.displacementVolume(driver);
+    const dMin = P.minVentDiameterM(vd, d.tuneHz);
+    const dNow = portEquivDiameterM(d);
+    extras.push({ label: 'Smallest vent (Cookbook)', value: `${fmt(dMin * 100)} cm (Small's stricter bound ${fmt(P.minVentDiameterConservativeM(vd, d.tuneHz) * 100)} cm)` });
+    if (dNow < dMin) warnings.push(`The vent is ${fmt(dNow * 100)} cm across; the Cookbook's minimum for this driver and tuning is ${fmt(dMin * 100)} cm. Expect port noise and compression.`);
+    const ratio = P.ventAreaRatio(driver.sd, portAreaM2(d));
+    if (ratio > 9) warnings.push(`The cone is ${fmt(ratio)} times the vent's area. The Cookbook allows 9:1 at most and wants 4:1 or better for a clean vent.`);
+    else if (ratio > 4) notes.push(`Cone to vent area is ${fmt(ratio)}:1; the Cookbook calls 4:1 or better reasonably linear.`);
   };
 
   if (d.type === 'horn') {
@@ -539,14 +754,69 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
       readouts.push({ label: 'Box resonance fc', value: `${fmt(s.fc)} Hz` }, { label: 'Qtc', value: s.qtc.toFixed(3) }, { label: 'F3', value: `${fmt(P.sealedF3(s.fc, s.qtc))} Hz` });
       markers.push({ f: s.fc, label: 'fc' });
     } else if (d.type === 'ported') {
-      const f3 = P.ventedF3(driver.fs, derived.qts, driver.vasM3 / vb, d.tuneHz);
+      const f3 = P.ventedF3(driver.fs, derived.qts, driver.vasM3 / vb, d.tuneHz, d.qL > 0 ? d.qL : undefined);
       readouts.push({ label: 'F3', value: f3 > 0 ? `${fmt(f3)} Hz` : 'none below 4 Fs' });
       port(d.volumeL);
+      if (d.qL === 0) notes.push('Lossless box (QL = infinity). The Cookbook designs ported boxes at QL = 7; set the box losses to see a realistic response.');
+    } else if (d.type === 'passive') {
+      const pr = prOf(d);
+      const ql = d.qL > 0 ? d.qL : undefined;
+      const xp = freqs.map((f) => P.abs(P.passiveXp(f, driver, derived, pr.radiator, pr.alpha, ql)) * P.peakVoltsForPower(d.powerW, driver.re) * 1000);
+      const f3 = f3Of(freqs, curves.responseDb);
+      readouts.push(
+        { label: 'F3', value: f3 > 0 ? `${fmt(f3)} Hz` : 'none in the plot' },
+        { label: 'Box compliance ratio (Vas / Vb)', value: pr.alpha.toFixed(2) },
+        { label: 'Radiator compliance ratio delta (Vap / Vb)', value: pr.delta.toFixed(2) },
+        { label: 'Box tuning fB', value: `${fmt(pr.fbHz)} Hz` },
+        { label: 'Radiator resonance fp', value: `${fmt(pr.fpHz)} Hz` },
+        { label: 'Mass to add to the radiator', value: pr.addedKg >= 0 ? `${fmt(pr.addedKg * 1000, 0)} g` : 'none: already heavier than the tuning needs' },
+        { label: `Radiator excursion at ${fmt(d.powerW)} W (peak)`, value: `${fmt(Math.max(...xp))} mm` },
+      );
+      markers.push({ f: pr.fbHz, label: 'fB' });
+      if (pr.addedKg < 0) warnings.push(`The radiator alone is heavier than ${fmt(d.tuneHz)} Hz needs: it tunes the box to ${fmt(pr.fbHz)} Hz. Use a lighter or more compliant radiator, or tune higher.`);
+      if (Math.max(...xp) > d.pr.xmaxMm) warnings.push(`At ${fmt(d.powerW)} W the radiator moves ${fmt(Math.max(...xp))} mm, past its ${fmt(d.pr.xmaxMm)} mm Xmax. The Cookbook's radiator travels more than twice the driver: use a larger or more compliant radiator or less power.`);
+      if (derived.qts > 0.5) warnings.push(`Qts ${derived.qts.toFixed(2)} is above 0.5: the Cookbook finds no usable passive-radiator alignment there (flat QB3 holds to about 0.35, ripple to 0.44).`);
+      if (d.qL === 0) notes.push('Lossless box. The Cookbook designs passive radiators at QL = 7.');
+      notes.push("The Cookbook prints no transfer function for the passive radiator (\"same as vented\"); this is the circuit worked out, and it reproduces the book's Table 3.1 rows (Qts 0.26: alpha 4.33, fB/fs 1.73, f3/fs 1.98) to a few percent.");
+    } else if (d.type === 'tline') {
+      const geo = tlGeometryOf(d);
+      const fp = P.C / (4 * geo.lengthM);
+      const f3 = f3Of(freqs, curves.responseDb);
+      const lineV = tlLineVolumeM3(geo);
+      readouts.push(
+        { label: 'F3', value: f3 > 0 ? `${fmt(f3)} Hz` : 'none in the plot' },
+        { label: 'Line resonance fp = c / 4L', value: `${fmt(fp)} Hz` },
+        { label: 'Line air volume (with the chamber)', value: `${fmt((lineV + geo.chamberM3) * 1000)} L` },
+        { label: 'Stuffing', value: `${fmt(P.densityKgM3(d.tl.densityLb) * lineV * geo.stuffedShare, 2)} kg (${fmt(d.tl.densityLb, 2)} lb/ft³ over ${fmt(d.tl.stuffedPct, 0)} % of the line)` },
+        { label: 'Book density for +-1 dB ripple', value: `${fmt(P.stuffingDensityLb(d.tl.stuffing, geo.lengthM), 2)} lb/ft³` },
+      );
+      markers.push({ f: fp, label: 'fp' });
+      if (geo.exitM2 > geo.startM2) warnings.push('The exit is larger than the start: the Cookbook tapers the line toward the exit (1:3 to 1:4).');
+      if (geo.startM2 < driver.sd * 0.75) warnings.push(`The line is narrower at the driver than the cone (${fmt(geo.startM2 * 1e4, 0)} against ${fmt(driver.sd * 1e4, 0)} cm²): it chokes the rear of the cone.`);
+      if (d.tl.stuffedPct > 85) warnings.push('The book leaves about the last 20 % of the line unstuffed, or lighter near the driver.');
+      if (d.tl.densityLb < 0.7 * P.stuffingDensityLb(d.tl.stuffing, geo.lengthM)) warnings.push("Less stuffing than the Cookbook's table for this length: expect ripple and a peak near the line resonance.");
+      notes.push("Simulated line: a stuffed, tapered tube (Delany-Bazley fibre) driven from the cone's rear. The Cookbook gives rules and tables, not a model; this reproduces its tables' f3 within about 15 % and is a guide, not a prediction. Exit directivity and bends are not modelled; the cut list builds the line as one box with a septum.");
     } else {
       const pb = passband(freqs, curves.responseDb);
       readouts.push({ label: 'Peak', value: `${pb.peakDb >= 0 ? '+' : ''}${fmt(pb.peakDb)} dB at ${fmt(pb.peakHz)} Hz` }, { label: 'Passband (-3 dB from peak)', value: `${fmt(pb.loHz)} to ${fmt(pb.hiHz)} Hz` });
       port(d.frontVolumeL);
     }
+  }
+
+  if (d.type === 'sealed' || d.type === 'ported' || d.type === 'passive') {
+    // Cookbook pp. 37-38, 75-76: reference efficiency, displacement-limited output and the input that reaches it
+    const eta0 = P.referenceEfficiency(driver);
+    extras.push({ label: 'Reference efficiency', value: `${fmt(eta0 * 100, 2)} % (about ${fmt(P.referenceSpl(eta0))} dB at 1 W, 1 m)` });
+    const f3 = f3Of(freqs, curves.responseDb);
+    if (f3 > 0 && d.type !== 'passive') {
+      const kp = d.type === 'sealed' ? P.closedKp(P.sealedParams(driver.fs, derived.qts, driver.vasM3, vb).qtc) : P.VENTED_KP;
+      const par = P.maxAcousticPower(f3, P.displacementVolume(driver), kp);
+      const per = P.electricalPowerFor(par, eta0);
+      extras.push({ label: 'Displacement-limited output (Par)', value: `${fmt(par, 2)} W acoustic, ${fmt(P.powerSpl(par))} dB at 1 m` }, { label: 'Input that reaches it (Per)', value: `${fmt(per, 0)} W against ${fmt(driver.pe, 0)} W rated` });
+      if (per > driver.pe * 1.5) notes.push('The thermal rating comes first: the driver cannot be driven as far as its displacement limit.');
+    }
+    const ebp = driver.fs / driver.qes;
+    notes.push(`EBP (Fs / Qes) is ${fmt(ebp, 0)}: the Cookbook suggests about 50 or less for a sealed box and about 100 or more for a vented one.`);
   }
 
   const xmaxMm = driver.xmax * 1000;
@@ -559,5 +829,5 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
   if (d.driverClass === CUSTOM_CLASS && d.custom.qms < d.custom.qts * 1.05)
     warnings.push(`Qms must be above Qts: it is treated as ${(d.custom.qts * 1.05).toFixed(2)} so Qes stays positive.`);
 
-  return { driver, derived, freqs, curves, overlays, readouts, warnings, notes, markers: markers.filter((m) => m.f >= freqs[0]! && m.f <= freqs[freqs.length - 1]!), horn };
+  return { driver, derived, freqs, curves, overlays, readouts, extras, warnings, notes, markers: markers.filter((m) => m.f >= freqs[0]! && m.f <= freqs[freqs.length - 1]!), horn };
 }

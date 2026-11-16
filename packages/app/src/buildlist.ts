@@ -6,7 +6,7 @@ import * as P from '@soundsystemdesigner/physics';
 import { type FrontRing, checkFront, ringOf } from './carfront';
 import { computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
 import { arrangementOf, coneDiameterM, slotLabel } from './loudspeaker';
-import { type Design, compute, driverOf, flareOf, portLengthOf, portOpeningM } from './model';
+import { type Design, compute, driverOf, flareOf, portLengthOf, portOpeningM, prOf, tlGeometryOf, tlLineVolumeM3 } from './model';
 import { type Band, type Project, bandName, summary } from './system';
 import { type Units, formatLength } from './units';
 
@@ -101,6 +101,8 @@ export interface BandBuild {
   rings?: FrontRing[];
   /** Car install: whether the box fits its vehicle space (outside size and the space, m). */
   fit?: { fits: boolean; outside: [number, number, number]; space: [number, number, number] | null };
+  /** Loose fibre stuffing for a transmission line, kg per cabinet set. */
+  stuffingKg?: number;
   warnings: string[];
 }
 
@@ -259,6 +261,26 @@ function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number): Cabinet {
   return { title: 'Folded horn', geometry: g, panels, cutouts, holes, fold: f, liningM2: ceilTenth(2 * (f.wI * f.hI + f.wI * f.dI + f.hI * f.dI) - f.wI * f.hI + septaArea) };
 }
 
+/** The Cookbook's interior height : width : depth ratios (p. 113): Thiele's 2.6 : 1.6 : 1, then 2 : 1.44 : 1 and 1.59 : 1.26 : 1. */
+export const BOOK_PROPORTIONS: readonly { label: string; rw: number; rh: number; rd: number }[] = [
+  { label: '2.6 : 1.6 : 1 (Thiele)', rw: 1.6, rh: 2.6, rd: 1 },
+  { label: '2 : 1.44 : 1', rw: 1.44, rh: 2, rd: 1 },
+  { label: '1.59 : 1.26 : 1', rw: 1.26, rh: 1.59, rd: 1 },
+];
+
+/** Equal interior dimensions share one standing wave: the Cookbook's ratios exist to avoid that. Returns the warning, or null. */
+export function proportionWarning(name: string, g: { wI: number; hI: number; dI: number }): string | null {
+  const dims = [g.wI, g.hI, g.dI];
+  const pairs: [number, number, string][] = [[0, 1, 'width and height'], [0, 2, 'width and depth'], [1, 2, 'height and depth']];
+  for (const [a, b, label] of pairs) {
+    if (Math.abs(dims[a]! - dims[b]!) <= 0.05 * Math.max(dims[a]!, dims[b]!)) return `${name}: the ${label} are within 5 % of each other, so they share a standing wave. The Cookbook (p. 113) suggests height : width : depth of 2.6 : 1.6 : 1, 2 : 1.44 : 1 or 1.59 : 1.26 : 1; fibre fill matters more than the shape, but avoid equal sides.`;
+  }
+  return null;
+}
+
+/** Axial standing-wave frequencies of the interior, Hz (c / 2L): standard room-mode physics, not from the Cookbook. */
+export const axialModesHz = (g: { wI: number; hI: number; dI: number }): { w: number; h: number; d: number } => ({ w: P.C / (2 * g.wI), h: P.C / (2 * g.hI), d: P.C / (2 * g.dI) });
+
 function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): BandBuild {
   const d = b.design;
   const t = shop.thicknessMm / 1000;
@@ -277,6 +299,8 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   const cabinets: Cabinet[] = [];
   let horn: HornRows | null = null;
   const ports: PortBuild[] = [];
+  const extraDrivers: { name: string; qty: number }[] = [];
+  let stuffing = 0;
 
   const portFor = (chamberL: number): PortBuild | null => {
     const lengthM = portLengthOf(d, chamberL);
@@ -297,6 +321,23 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     ports.push(...portsFor(d.volumeL));
     const disp = dDisp + ports.reduce((a, x) => a + portDispOf(x, t), 0);
     cabinets.push(cabinet('Box', (n * d.volumeL) / 1000, disp, b, t, false, [...Array.from({ length: n }, () => driverHole), ...ports.map(portCut)]));
+  } else if (d.type === 'passive') {
+    const pr = prOf(d);
+    const prHole: Cutout = { kind: 'driver', diameterM: 2 * Math.sqrt(pr.radiator.sdp / Math.PI) };
+    const disp = dDisp + P.driverDisplacementMount(pr.radiator.sdp, false);
+    cabinets.push(cabinet('Passive-radiator box', d.volumeL / 1000, disp, b, t, false, [driverHole, prHole]));
+    extraDrivers.push({ name: `Passive radiator, ${fmtCm(prHole.diameterM * 100)} cm cone`, qty: 1 });
+    warnings.push(pr.addedKg >= 0 ? `${name}: add ${Math.round(pr.addedKg * 1000)} g to the passive radiator (clay, lead or a metal weight stuck to the centre) to tune the box to ${Math.round(d.tuneHz)} Hz; check the tuning by measuring the impedance dip and adjust.` : `${name}: the passive radiator alone is heavier than ${Math.round(d.tuneHz)} Hz needs (it tunes to ${Math.round(pr.fbHz)} Hz). Use a lighter or more compliant radiator.`);
+    warnings.push(`${name}: the radiator can sit on the baffle beside the driver or on another wall; the Cookbook finds its position and mutual coupling negligible. It needs room to travel about twice the driver's excursion.`);
+  } else if (d.type === 'tline') {
+    const geo = tlGeometryOf(d);
+    const exitD = 2 * Math.sqrt(geo.exitM2 / Math.PI);
+    const vol = tlLineVolumeM3(geo) + geo.chamberM3;
+    cabinets.push(cabinet('Transmission-line box', vol, dDisp, b, t, true, [driverHole, { kind: 'port', diameterM: exitD }]));
+    const lineArea = (geo.startM2 + geo.exitM2) / 2;
+    warnings.push(`${name}: the line is built as one box with a septum. The path from the driver to the exit must be ${fl(geo.lengthM, u)} long with the area tapering from ${Math.round(geo.startM2 * 1e4)} to ${Math.round(geo.exitM2 * 1e4)} cm2 (mean ${Math.round(lineArea * 1e4)} cm2): place the septum and angle it so the path runs the full length, and leave the exit opening on the baffle. The cut list does not shape the taper.`);
+    const kg = P.densityKgM3(d.tl.densityLb) * tlLineVolumeM3(geo) * geo.stuffedShare;
+    stuffing += kg;
   } else if (d.type === 'bandpass') {
     ports.push(...portsFor(d.frontVolumeL));
     const disp = dDisp + ports.reduce((a, x) => a + portDispOf(x, t), 0);
@@ -359,7 +400,12 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
 
   const dname = d.driverClass < P.ALL_DRIVER_CLASSES.length ? `${driver.name} driver` : 'Custom driver';
   const parts = rectPortParts(ports, t);
-  return { name, summary: summary(d), count: b.count / n, driver: dname, drivers: [{ name: dname, qty: n }], cabinets, horn, port: ports[0] ?? null, ports, warnings, ...(parts.length ? { parts } : {}) };
+  for (const c of cabinets) {
+    if (c.fold || c.wedge) continue;
+    const pw = proportionWarning(name, c.geometry);
+    if (pw) warnings.push(pw);
+  }
+  return { name, summary: summary(d), count: b.count / n, driver: dname, drivers: [{ name: dname, qty: n }, ...extraDrivers], cabinets, horn, port: ports[0] ?? null, ports, warnings, ...(parts.length ? { parts } : {}), ...(stuffing > 0 ? { stuffingKg: stuffing } : {}) };
 }
 
 /**
@@ -695,13 +741,31 @@ export function computeBuild(p: Project): BuildView {
     bom.push({ item: `Fuse and fuse holder, ${e.fuseA} A`, qty: 1, unit: 'pcs', note: 'within about 45 cm of the battery' });
   }
   if (lining > 0) bom.push({ item: 'Damping material (wall lining)', qty: Math.round(lining * 10) / 10, unit: 'm2', note: 'all walls except the baffle' });
+  const stuffKg = bands.reduce((a, b) => a + b.count * (b.stuffingKg ?? 0), 0);
+  if (stuffKg > 0) bom.push({ item: 'Line stuffing (loose fibre)', qty: Math.round(stuffKg * 100) / 100, unit: 'kg', note: 'Cookbook Table 4.1 density; none in the last 20 % of the line' });
+  // Cookbook ch. 5 (p. 115): an airtight gasket under each driver flange, plus a silicone bead
+  const holeRim = bands.reduce((a, b) => a + b.count * b.cabinets.reduce((s, c) => s + c.cutouts.filter((x) => x.kind === 'driver').reduce((q, x) => q + Math.PI * x.diameterM, 0), 0), 0);
+  if (holeRim > 0) bom.push({ item: 'Driver gasket (foam or rubber strip)', qty: Math.ceil(holeRim * 1.1 * 10 - 1e-9) / 10, unit: 'm', note: 'one turn under every driver flange; a 6 mm silicone bead on the flange also seals and damps' });
+  const wallArea = bands.reduce((a, b) => a + b.count * b.cabinets.reduce((s, c) => s + 2 * (c.geometry.wO * c.geometry.hO + c.geometry.wO * c.geometry.dO + c.geometry.hO * c.geometry.dO), 0), 0);
+  if (p.shop.thicknessMm < 15 && wallArea > 0) bom.push({ item: 'Wall damping sheet (roofing felt or bitumen)', qty: Math.ceil(wallArea * 0.6 * 10 - 1e-9) / 10, unit: 'm2', note: 'Cookbook p. 114: thin walls need heavy damping; 4 to 6 layers of felt over 50 to 75 % of the walls and the baffle, or a constrained layer' });
 
+  if (p.shop.thicknessMm < 12) warnings.push(`The ${p.shop.thicknessMm} mm wall is thinner than the Cookbook's lightest approach (1/2 in, 12 mm, marine plywood with heavy damping): large panels will ring. Use thicker sheet, brace each panel and damp the walls.`);
+  const rooms = bands.filter((b) => b.cabinets.some((c) => !c.fold && !c.wedge));
+  const modes = rooms.slice(0, 1).flatMap((b) => {
+    const g = b.cabinets.find((c) => !c.fold && !c.wedge)!.geometry;
+    const m = axialModesHz(g);
+    return [`Axial standing waves of the first box (${b.name}) at ${Math.round(m.w)}, ${Math.round(m.h)} and ${Math.round(m.d)} Hz (width, height, depth; c / 2L, standard physics). Fibre fill damps them; the Cookbook finds shape and ratio secondary once the box is filled, and vented boxes (fill under half) show them more.`];
+  });
   const notes = [
     ...(p.kind === 'car' ? ['The amplifier, ring terminals and the remote lead are not in this list; the cable and fuse follow the 12 V check. A wedge is cut with plain butt joints: expect to bevel the baffle edges and the sides.'] : []),
     ...(p.kind === 'speaker' ? ['The crossover is not part of this list: the speaker is designed with an active crossover. A passive network, its parts and the wiring are yours to add.'] : []),
     'Butt joints, no rabbets or mitres: add allowance yourself if you cut them. Hole sizes are estimates: check the driver datasheet.',
     'The shelf layout is a heuristic: a good hand layout, or a nesting tool, often saves a sheet. Pieces lie long side along the sheet, so grain direction is not respected.',
     `Driver displacement is estimated at 0.15 Sd^1.5, a round port tube at its outer volume, a window brace as a ${fl(0.05, p.units)} frame: boxes are sized so the air left is the designed volume.`,
+    ...modes,
+    'Fill (Cookbook ch. 5): a sealed box takes full fibre fill; keep a vented box under about half full and never block the port. Brace each large panel; a single brace off centre (about 40 % of the depth) avoids halving the panel exactly, since two equal halves ring together. Crossing dowels or 3/4 x 2 in lumber braces work as well as a window frame.',
+    'Baffle (Cookbook ch. 6): edge diffraction adds up to about 1.5 to 3 dB of ripple between 1 and 10 kHz on a flat baffle. Small round-overs (3/4 in) do little; an edge radius or bevel of several inches is needed to see the effect. Felt or foam on the baffle (1/4 in, around the drivers) smoothed the response in the book\'s tests. Floor-standing boxes want three spikes and weight at the base.',
+    ...(p.kind === 'speaker' ? ['Driver position (Cookbook ch. 6): keep the baffle symmetrical; put the woofer at the top with the tweeter below it or at the bottom with the tweeter above it so the tilts cancel; a tweeter offset to the side smooths the response but tilts the pattern about 15 degrees; a 2.5-way trades lobing for vertical asymmetry and loses some depth of image; centre-channel woofers sit close or 5 to 8 in from the centre each.'] : []),
   ];
   return { bands, cutList, pieces, sheets: packed.sheets, waste, bom, warnings, notes };
 }

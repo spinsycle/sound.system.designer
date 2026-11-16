@@ -23,6 +23,8 @@ export interface BoxParams {
   hornThroatCm2: number;
   hornMouthCm2: number;
   hornLengthM: number;
+  /** Box leakage Q for ported and band-pass (Cookbook: design at 7). Left out = lossless, the plugin's model. */
+  qL?: number;
 }
 
 function evaluate(p: BoxParams, f: number): { g: Cx; x: Cx } {
@@ -34,11 +36,11 @@ function evaluate(p: BoxParams, f: number): { g: Cx; x: Cx } {
     case 'sealed':
       return { g: sealedG(f, d.fs, r.qts, d.vasM3, vb), x: sealedX(f, d, r, vb) };
     case 'ported':
-      return { g: ventedG(f, d.fs, r.qts, d.vasM3 / vb, fb), x: ventedX(f, d, r, d.vasM3 / vb, fb) };
+      return { g: ventedG(f, d.fs, r.qts, d.vasM3 / vb, fb, p.qL), x: ventedX(f, d, r, d.vasM3 / vb, fb, p.qL) };
     case 'bandpass': {
       const ar = d.vasM3 / vb;
       const af = d.vasM3 / (Math.max(p.frontVolumeL, 0.01) / 1000);
-      return { g: bandpassG(f, d.fs, r.qts, ar, af, fb), x: bandpassX(f, d, r, ar, af, fb) };
+      return { g: bandpassG(f, d.fs, r.qts, ar, af, fb, p.qL), x: bandpassX(f, d, r, ar, af, fb, p.qL) };
     }
     case 'horn': {
       const st = Math.max(p.hornThroatCm2, 0.5) * 1e-4;

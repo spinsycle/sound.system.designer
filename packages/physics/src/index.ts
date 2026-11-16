@@ -19,3 +19,6 @@ export * from './room';
 export * from './cabinet';
 export * from './speaker';
 export * from './car';
+export * from './alignments';
+export * from './passive';
+export * from './transmissionline';

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
 import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
 import type { Range } from './model';
-import { type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
+import { BOOK_PROPORTIONS, type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
 import { saveText } from './desktop';
 import { baffleHeight, baffleSvg, foldSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
 import { type FrontRing, RING_SCREW_CM, ringScrews } from './carfront';
@@ -177,6 +177,13 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             <Field id={`rw-${k}`} range={BUILD_RANGES.rw} value={band.build.rw} onChange={(x) => setBuild(k, { rw: x })} />
             <Field id={`rh-${k}`} range={BUILD_RANGES.rh} value={band.build.rh} onChange={(x) => setBuild(k, { rh: x })} />
             <Field id={`rd-${k}`} range={BUILD_RANGES.rd} value={band.build.rd} onChange={(x) => setBuild(k, { rd: x })} />
+            <div className="segmented" aria-label="Cookbook proportions">
+              {BOOK_PROPORTIONS.map((r) => (
+                <button key={r.label} type="button" onClick={() => setBuild(k, { rw: r.rw, rh: r.rh, rd: r.rd })}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <div className="field">
               <label htmlFor={`brace-${k}`}>Bracing</label>
               <select id={`brace-${k}`} value={band.build.brace} onChange={(e) => setBuild(k, { brace: e.target.value as Band['build']['brace'] })}>
