@@ -104,7 +104,7 @@ describe('push-pull', () => {
 
 describe('facing down', () => {
   it('the baffle is the bottom panel and the floor clearance is checked', () => {
-    const d = design({ type: 'sealed', volumeL: 60, layout: lay({ facing: 'down', clearanceCm: 1 }) });
+    const d = design({ type: 'sealed', volumeL: 200, layout: lay({ facing: 'down', clearanceCm: 1 }) });
     const v = L.computeBuild(project([band(d)]));
     const cab = v.bands[0]!.cabinets[0]!;
     expect(cab.facing).toBe('down');

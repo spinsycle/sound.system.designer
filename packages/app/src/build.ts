@@ -32,7 +32,8 @@ export const BUILD_RANGES: Record<BuildField, Range> = {
   rh: { label: 'Height', unit: '', min: 0.2, max: 5 },
   rd: { label: 'Depth', unit: '', min: 0.2, max: 5 },
 };
-export const DEFAULT_BUILD: BuildOpts = { rw: 1, rh: 1.5, rd: 1, brace: 'none' };
+/** The Cookbook's interior ratios (p. 113): Thiele's 2.6 : 1.6 : 1 height : width : depth, which avoids equal sides and pipe resonances. */
+export const DEFAULT_BUILD: BuildOpts = { rw: 1.6, rh: 2.6, rd: 1, brace: 'none' };
 
 export type ShopField = keyof Shop;
 export const SHOP_RANGES: Record<ShopField, Range> = {

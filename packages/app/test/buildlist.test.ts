@@ -20,15 +20,16 @@ describe('cut list of a sealed box', () => {
   const t = 18;
 
   it('hand calculation: panel sizes follow from the interior and the wall', () => {
-    const s = (0.1 + P.driverDisplacement(0.0855)) ** (1 / 3) / (1 * 1.5 * 1) ** (1 / 3);
-    const wI = s * 1000;
-    const hI = s * 1500;
+    const s = (0.1 + P.driverDisplacement(0.0855)) ** (1 / 3) / (1.6 * 2.6 * 1) ** (1 / 3);
+    const wI = s * 1600;
+    const hI = s * 2600;
+    const dI = s * 1000;
     expect(row(v, 'Front baffle').l).toBe(Math.round(wI + 2 * t));
     expect(row(v, 'Front baffle').w).toBe(Math.round(hI + 2 * t));
     expect(row(v, 'Top and bottom').l).toBe(Math.round(wI + 2 * t));
-    expect(row(v, 'Top and bottom').w).toBe(Math.round(wI)); // depth ratio 1: interior depth = interior width
+    expect(row(v, 'Top and bottom').w).toBe(Math.round(dI)); // the Cookbook's 2.6 : 1.6 : 1 height : width : depth
     expect(row(v, 'Sides').l).toBe(Math.round(hI));
-    expect(row(v, 'Sides').w).toBe(Math.round(wI));
+    expect(row(v, 'Sides').w).toBe(Math.round(dI));
     expect([row(v, 'Front baffle').qty, row(v, 'Back').qty, row(v, 'Top and bottom').qty, row(v, 'Sides').qty]).toEqual([1, 1, 2, 2]);
   });
 
