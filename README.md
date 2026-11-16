@@ -1,7 +1,7 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.5.0.
+Version 1.6.0.
 
 - **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
@@ -21,7 +21,12 @@ Version 1.5.0.
   A PA band can put several drivers in one box ("Drivers per box"). Ports are round or rectangular (horizontal or vertical); a
   rectangular port is built from sheet and appears in the cut list. The Build page's 3D view has a **Show speakers** switch that
   draws the drivers installed. Rectangular-port length uses the equivalent diameter for its end correction (approximate for slots);
-  push-pull changes the build, not the response.
+  push-pull changes the build, not the response (opposed walls, or side by side on the front with one magnet inside and one outside).
+- **Folded horns:** tick **Fold the horn into the box** on a horn's box page and set the number of legs and the box depth. The
+  horn path folds into stacked legs with U-turns inside one rectangular box (the horn width is its inside width, the height
+  follows from the flare); the cut list gets the walls and one septum per fold, the Build page a side-view fold drawing (SVG) and
+  the 3D view the septa. Front-loaded horns and scoops both fold. The simulation uses the legs and turns as built (a staircase of
+  the flare); bend reflections, losses and the mouth's floor or corner loading are not modelled.
 - **Start:** the installed app asks whether to run as a **desktop app** or in your **web browser** (a local page served only on
   your own computer; it closes itself when you close the tab). `--desktop` and `--web` on the command line skip the question.
 - **Build:** wall material and sheet size, box shape and bracing, a cut list, baffle drawings, sheet layouts and a bill of
@@ -50,7 +55,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.5.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.6.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 

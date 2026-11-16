@@ -4,6 +4,7 @@ import * as P from '@soundsystemdesigner/physics';
 // One box or horn: driver, enclosure, plots. Edits a Design it is given; the app shell owns and stores it.
 import { useMemo, useState } from 'react';
 import { Chart, ProfileChart, niceScale } from './Chart';
+import { foldSvg } from './export';
 import { LayoutControls, PortControls } from './LayoutControls';
 import {
   BOX_KINDS,
@@ -11,6 +12,7 @@ import {
   type BoxField,
   CUSTOM_CLASS,
   CUSTOM_RANGES,
+  DEFAULT_WALL_M,
   type Design,
   FLARES,
   HORN_PRESETS,
@@ -60,9 +62,9 @@ export function Field(p: { range: Range; value: number; onChange: (v: number) =>
   );
 }
 
-export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox }: { design: Design; onChange: (d: Design) => void; count?: number; perBox?: number; onPerBox?: (n: number) => void }) {
+export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox, wallM }: { design: Design; onChange: (d: Design) => void; count?: number; perBox?: number; onPerBox?: (n: number) => void; wallM?: number }) {
   const [hover, setHover] = useState<number | null>(null);
-  const c = useMemo(() => compute(design), [design]);
+  const c = useMemo(() => compute(design, wallM), [design, wallM]);
 
   const set = (patch: Partial<Design>): void => onChange(sanitize({ ...design, ...patch }));
   const setHorn = (patch: Partial<HornDesign>): void => set({ horn: { ...design.horn, ...patch } });
@@ -224,6 +226,36 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox 
               {hornFields.map((k) => (
                 <Field key={k} slider range={k === 'throatChamberL' && isRear ? { ...HORN_RANGES[k], label: 'Chamber behind cone' } : HORN_RANGES[k]} value={design.horn[k]} onChange={(v) => setHorn({ [k]: v })} />
               ))}
+              <div className="field">
+                <label htmlFor="fold-on">Fold the horn into the box</label>
+                <input id="fold-on" type="checkbox" checked={design.horn.fold} onChange={(e) => setHorn({ fold: e.target.checked })} />
+                <span className="unit">{design.horn.fold ? 'folded' : 'straight'}</span>
+              </div>
+              {design.horn.fold && (
+                <>
+                  <Field id="fold-legs" range={HORN_RANGES.legs} value={design.horn.legs} onChange={(v) => setHorn({ legs: Math.round(v) })} />
+                  <Field id="fold-depth" range={HORN_RANGES.depthCm} value={design.horn.depthCm} onChange={(v) => setHorn({ depthCm: v })} />
+                  {c.horn?.suggest && (
+                    <button type="button" className="on" onClick={() => setHorn({ legs: c.horn!.suggest!.legs, widthCm: Math.round(c.horn!.suggest!.widthM * 1000) / 10, depthCm: Math.round(c.horn!.suggest!.depthOutM * 1000) / 10 })}>
+                      Use the recommended fold: {c.horn.suggest.legs} legs, {show(c.horn.suggest.widthM * 100)} cm wide, {show(c.horn.suggest.depthOutM * 100)} cm deep
+                    </button>
+                  )}
+                  {c.horn?.maxMouthCm2 != null && c.horn.suggestAtMax && (
+                    <button
+                      type="button"
+                      className="on"
+                      onClick={() => setHorn({ mouthCm2: c.horn!.maxMouthCm2!, legs: c.horn!.suggestAtMax!.legs, widthCm: Math.round(c.horn!.suggestAtMax!.widthM * 1000) / 10, depthCm: Math.round(c.horn!.suggestAtMax!.depthOutM * 1000) / 10 })}
+                    >
+                      Shrink the mouth to {show(c.horn.maxMouthCm2)} cm² and use the recommended fold ({c.horn.suggestAtMax.legs} legs, {show(c.horn.suggestAtMax.widthM * 100)} cm wide, {show(c.horn.suggestAtMax.depthOutM * 100)} cm deep)
+                    </button>
+                  )}
+                  <button type="button" onClick={() => c.horn?.fold && setHorn({ depthCm: Math.min(1000, Math.ceil((c.horn.fold.minDepthI + 2 * (wallM ?? DEFAULT_WALL_M)) * 100)) })}>
+                    Use the depth the folds need
+                  </button>
+                  <p className="hint">Horn width above is the inside width of the box. Use an even number of legs so the mouth is on the front. The box height follows from the flare.</p>
+                  {c.horn?.fold && <div className="fold-drawing" aria-label="Fold drawing, side view" dangerouslySetInnerHTML={{ __html: foldSvg(c.horn.fold, wallM ?? DEFAULT_WALL_M, 'Folded horn') }} />}
+                </>
+              )}
               {flare !== 'conical' && (
                 <button type="button" onClick={() => setHorn({ mouthCm2: Math.ceil(P.hornMinMouthArea(design.horn.cutoffHz) * 1e4) })}>
                   Full-size mouth for the cutoff

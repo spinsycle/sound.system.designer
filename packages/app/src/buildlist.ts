@@ -6,7 +6,7 @@ import * as P from '@soundsystemdesigner/physics';
 import { type FrontRing, checkFront, ringOf } from './carfront';
 import { computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
 import { arrangementOf, coneDiameterM, slotLabel } from './loudspeaker';
-import { type Design, compute, driverOf, portLengthOf, portOpeningM } from './model';
+import { type Design, compute, driverOf, flareOf, portLengthOf, portOpeningM } from './model';
 import { type Band, type Project, bandName, summary } from './system';
 import { type Units, formatLength } from './units';
 
@@ -31,6 +31,8 @@ export interface Cutout {
   shape?: 'round' | 'rect';
   wM?: number;
   hM?: number;
+  /** A driver mounted the other way from the cabinet's setting (push-pull side by side): true = motor outside. */
+  magnetOut?: boolean;
 }
 
 /** A positioned hole on a baffle (m from the top-left). */
@@ -60,6 +62,8 @@ export interface Cabinet {
   magnetOut?: boolean;
   /** Gap under a cabinet whose baffle faces down, m. */
   clearanceM?: number;
+  /** A folded horn's layout: the legs, the septa (also in `panels`) and the box. */
+  fold?: P.FoldLayout;
   /** A wedge enclosure's geometry (the baffle drawing uses `geometry` with the sloping baffle as its height). */
   wedge?: P.WedgeGeometry;
   /** Outside width, height and depth for a caption, when `geometry` describes the baffle. */
@@ -197,12 +201,14 @@ export interface HolePos {
   /** Bounding radius: half the diameter, or half the longer side of a rectangle. */
   r: number;
   shape: 'round' | 'rect';
+  /** Per-driver motor position when it differs from the cabinet's; absent follows the cabinet. */
+  magnetOut?: boolean;
   /** Width and height of the hole (both the diameter when round), m. */
   w: number;
   h: number;
 }
 
-const holePos = (h: Cutout, cx: number, cy: number): HolePos => ({ kind: h.kind, cx, cy, r: h.diameterM / 2, shape: h.shape === 'rect' ? 'rect' : 'round', w: h.shape === 'rect' ? h.wM! : h.diameterM, h: h.shape === 'rect' ? h.hM! : h.diameterM });
+const holePos = (h: Cutout, cx: number, cy: number): HolePos => ({ kind: h.kind, cx, cy, r: h.diameterM / 2, shape: h.shape === 'rect' ? 'rect' : 'round', w: h.shape === 'rect' ? h.wM! : h.diameterM, h: h.shape === 'rect' ? h.hM! : h.diameterM, ...(h.magnetOut === undefined ? {} : { magnetOut: h.magnetOut }) });
 
 export function holePositions(c: Cabinet, rear = false): HolePos[] {
   if (rear) return (c.rearHoles ?? []).map((h) => holePos(h, h.cx, h.cy));
@@ -229,6 +235,29 @@ function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: num
   };
 }
 
+/**
+ * The box of a folded horn (spec v0.14): six walls, one septum panel per fold, a rectangular mouth on the front when the leg
+ * count is even, and the throat opening at the top front where the throat chamber joins.
+ */
+function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number): Cabinet {
+  const g: P.BoxGeometry = { wI: f.wI, hI: f.hI, dI: f.dI, wO: f.wO, hO: f.hO, dO: f.dO, braces: 0, netM3: 0 };
+  const panels = P.boxPanels(g, t, false);
+  f.septaLength.forEach((len, k) => panels.push({ name: `Fold septum ${k + 1}`, l: len, w: f.wI, qty: 1 }));
+  g.netM3 = f.wI * f.hI * f.dI - f.septaLength.reduce((a, l) => a + f.wI * l * t, 0);
+  const rect = (w: number, h: number): Cutout => ({ kind: 'port', shape: 'rect', wM: w, hM: h, diameterM: Math.max(w, h) });
+  const throat = rect(f.wI, Math.min(throatM2 / f.wI, f.heights[0]!));
+  const holes: Hole[] = [{ ...throat, cx: f.wO / 2, cy: t + f.heights[0]! / 2 }];
+  const cutouts: Cutout[] = [throat];
+  if (f.mouthAtFront) {
+    const last = f.heights[f.heights.length - 1]!;
+    const mouth = rect(f.wI, last);
+    holes.push({ ...mouth, cx: f.wO / 2, cy: f.hO - t - last / 2 });
+    cutouts.push(mouth);
+  }
+  const septaArea = f.septaLength.reduce((a, l) => a + 2 * f.wI * l, 0);
+  return { title: 'Folded horn', geometry: g, panels, cutouts, holes, fold: f, liningM2: ceilTenth(2 * (f.wI * f.hI + f.wI * f.dI + f.hI * f.dI) - f.wI * f.hI + septaArea) };
+}
+
 function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): BandBuild {
   const d = b.design;
   const t = shop.thicknessMm / 1000;
@@ -240,7 +269,10 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   const n = shared ? b.perBox : 1;
   if (!shared && b.perBox > 1) warnings.push(`${name}: ${b.perBox} drivers per box is for sealed and ported boxes; this ${d.type} box is built with one driver per cabinet.`);
   const driverHole: Cutout = { kind: 'driver', diameterM: 2 * Math.sqrt(driver.sd / Math.PI) };
-  const dDisp = n * P.driverDisplacementMount(driver.sd, lay.mount === 'out');
+  // push-pull side by side: the second half of the drivers is mounted the other way round
+  const side = lay.pushPull && lay.pushPullStyle === 'side' && n >= 2;
+  const nOut = side ? (lay.mount === 'out' ? Math.ceil(n / 2) : Math.floor(n / 2)) : lay.mount === 'out' ? n : 0;
+  const dDisp = (n - nOut) * P.driverDisplacementMount(driver.sd, false) + nOut * P.driverDisplacementMount(driver.sd, true);
   const cabinets: Cabinet[] = [];
   let horn: HornRows | null = null;
   const ports: PortBuild[] = [];
@@ -277,8 +309,15 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
       cabinets.push(cabinet('Rear chamber', d.volumeL / 1000, dDisp, b, t, false, [driverHole]));
       if (d.horn.throatChamberL >= 0.05) cabinets.push(cabinet('Throat chamber', d.horn.throatChamberL / 1000, 0, b, t, false, []));
     }
-    const view = compute(d).horn;
-    if (view) {
+    const view = compute(d, t).horn;
+    if (view?.fold) {
+      const f = view.fold;
+      cabinets.push(foldedCabinet(f, flareOf(d).throatM2, t));
+      if (!f.feasible) warnings.push(`${name}: ${d.horn.legs} folds cannot fit this flare at ${fl(d.horn.widthCm / 100, u)} wide: the turns alone are longer than the horn. The cut list is a stand-in; use fewer folds or a wider horn.`);
+      if (!f.mouthAtFront) warnings.push(`${name}: an odd number of legs ends the horn at the back of the box, so the folded box has no mouth on the front. Use an even number of legs.`);
+      if (f.dI > d.horn.depthCm / 100 - 2 * t + 1e-9) warnings.push(`${name}: ${d.horn.legs} legs need ${fl(f.dO, u)} of outside depth, more than the ${fl(d.horn.depthCm / 100, u)} asked for: the folded box is built ${fl(f.dO, u)} deep.`);
+      warnings.push(`${name}: the folded horn is its own box; the driver sits in the chamber beside it and the throat chamber joins the throat opening at the top front. Bends and losses are not modelled.`);
+    } else if (view) {
       horn = { sections: P.hornPanels(view.table.map((r) => ({ x: r.xCm / 100, h: r.heightCm / 100 })), d.horn.widthCm / 100, t) };
       if (d.horn.panelsCm.trim() === '') warnings.push(`${name}: no panel lengths are entered, so the horn is cut as ${view.table.length - 1} straight sections along the ideal flare. Enter panel lengths on the box page to build it as simulated.`);
     }
@@ -288,6 +327,7 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   const down = lay.facing === 'down';
   const custom = n > 1 || lay.cols > 0 || lay.pushPull || down || ports.some((x) => x.shape === 'rect');
   for (const c of cabinets) {
+    if (c.fold) continue; // the folded horn's openings are the flare's, not a driver and a port
     const baffle = Math.min(c.geometry.wO, c.geometry.hO);
     const holes = c.cutouts.map((x) => x.diameterM);
     if (!custom) {
@@ -299,10 +339,10 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   if (custom && main && shared || (custom && main && d.type === 'bandpass')) {
     const g = main.geometry;
     const bh = down ? g.dO : g.hO;
-    const split = pushPullSplit(n, lay.pushPull);
+    const split = side ? { front: n, back: 0 } : pushPullSplit(n, lay.pushPull);
     if (lay.pushPull && n < 2) warnings.push(`${name}: push-pull needs at least two drivers in the box; this box has one.`);
-    if (lay.pushPull && n % 2 === 1) warnings.push(`${name}: push-pull works in pairs; ${n} drivers leaves one unpaired on the front.`);
-    const frontDrivers = Array.from({ length: split.front }, () => driverHole);
+    if (lay.pushPull && n % 2 === 1) warnings.push(`${name}: push-pull works in pairs; ${n} drivers leaves one unpaired ${side ? 'with the first magnet position' : 'on the front'}.`);
+    const frontDrivers: Cutout[] = Array.from({ length: split.front }, (_, i) => (side ? { ...driverHole, magnetOut: (i < Math.ceil(n / 2)) === (lay.mount === 'out') } : driverHole));
     main.holes = gridHoles(frontDrivers, ports.map(portCut), lay.cols, g.wO, bh);
     if (split.back > 0) main.rearHoles = gridHoles(Array.from({ length: split.back }, () => driverHole), [], lay.cols, g.wO, bh);
     main.facing = lay.facing;
@@ -497,7 +537,9 @@ export function carBuild(p: Project): BandBuild {
   if (d.type === 'horn') warnings.push(`${name}: a horn is built as a sealed box here. Use sealed, ported or band-pass.`);
   const ports: BandBuild['ports'] = [];
   const lay = d.layout;
-  let disp = c.count * P.driverDisplacementMount(driver.sd, lay.mount === 'out');
+  const side = lay.pushPull && lay.pushPullStyle === 'side' && c.count >= 2;
+  const nOut = side ? (lay.mount === 'out' ? Math.ceil(c.count / 2) : Math.floor(c.count / 2)) : lay.mount === 'out' ? c.count : 0;
+  let disp = (c.count - nOut) * P.driverDisplacementMount(driver.sd, false) + nOut * P.driverDisplacementMount(driver.sd, true);
   if (d.type === 'ported') {
     for (let i = 0; i < c.count; i++) {
       const lengthM = portLengthOf(d, d.volumeL / c.count);
@@ -514,12 +556,12 @@ export function carBuild(p: Project): BandBuild {
   const o = c.build;
   const wedge = c.shape === 'wedge';
   const driverDia = coneDiameterM(driver.sd);
-  const split = pushPullSplit(c.count, lay.pushPull);
+  const split = side ? { front: c.count, back: 0 } : pushPullSplit(c.count, lay.pushPull);
   if (lay.pushPull && c.count < 2) warnings.push(`${name}: push-pull needs at least two subs; this install has one.`);
   if (lay.pushPull && c.count % 2 === 1) warnings.push(`${name}: push-pull works in pairs; ${c.count} subs leaves one unpaired on the front.`);
   const down = lay.facing === 'down' && !wedge;
   if (lay.facing === 'down' && wedge) warnings.push(`${name}: a wedge box cannot fire down; it is built firing front.`);
-  const frontDrivers0: Cutout[] = Array.from({ length: split.front }, () => ({ kind: 'driver', diameterM: driverDia }));
+  const frontDrivers0: Cutout[] = Array.from({ length: split.front }, (_, i) => ({ kind: 'driver', diameterM: driverDia, ...(side ? { magnetOut: (i < Math.ceil(c.count / 2)) === (lay.mount === 'out') } : {}) }));
   const rearDrivers0: Cutout[] = Array.from({ length: split.back }, () => ({ kind: 'driver', diameterM: driverDia }));
   let g: P.BoxGeometry;
   let panels: P.Panel[];

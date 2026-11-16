@@ -50,6 +50,13 @@ export interface HornDesign {
   widthCm: number;
   /** Straight panel lengths along the centreline, cm, separated by commas or spaces. Empty: the ideal curve. */
   panelsCm: string;
+  /**
+   * Fold the horn into a box (spec v0.14): `legs` stacked legs with U-turns, the box `depthCm` deep outside and `widthCm` wide
+   * inside; the height follows from the flare. The straight panels are ignored while it is on.
+   */
+  fold: boolean;
+  legs: number;
+  depthCm: number;
 }
 
 export type PlotRange = 'low' | 'high';
@@ -73,12 +80,17 @@ export interface DriverLayout {
   /** 'in': motor inside the box. 'out': cone inside, motor sticking out through the baffle. */
   mount: MountKind;
   pushPull: boolean;
+  /**
+   * 'walls': the pairs sit on opposite walls. 'side': every driver is on the front baffle, side by side, the first half with the
+   * chosen magnet position and the second half mounted the other way (one magnet inside, one outside), in opposite polarity.
+   */
+  pushPullStyle: 'walls' | 'side';
   /** Baffle on the front, or on the bottom with the drivers firing at the floor. */
   facing: 'front' | 'down';
   /** Gap between the cabinet bottom and the floor when it faces down, cm. */
   clearanceCm: number;
 }
-export const DEFAULT_LAYOUT: DriverLayout = { cols: 0, mount: 'in', pushPull: false, facing: 'front', clearanceCm: 10 };
+export const DEFAULT_LAYOUT: DriverLayout = { cols: 0, mount: 'in', pushPull: false, pushPullStyle: 'walls', facing: 'front', clearanceCm: 10 };
 export const LAYOUT_RANGES = {
   cols: { label: 'Columns', unit: '', min: 0, max: 8, linear: true },
   clearanceCm: { label: 'Floor clearance', unit: 'cm', min: 0, max: 100, linear: true },
@@ -138,7 +150,7 @@ export const BOX_RANGES: Record<BoxField, Range> = {
   powerW: { label: 'Amp power', unit: 'W', min: 1, max: 5000 },
 };
 
-export type HornField = 'cutoffHz' | 't' | 'throatCm2' | 'mouthCm2' | 'lengthM' | 'throatChamberL' | 'widthCm';
+export type HornField = 'cutoffHz' | 't' | 'throatCm2' | 'mouthCm2' | 'lengthM' | 'throatChamberL' | 'widthCm' | 'legs' | 'depthCm';
 export const HORN_RANGES: Record<HornField, Range> = {
   cutoffHz: { label: 'Flare cutoff', unit: 'Hz', min: 15, max: 2000 },
   t: { label: 'T', unit: '', min: 0, max: 1, linear: true },
@@ -147,7 +159,12 @@ export const HORN_RANGES: Record<HornField, Range> = {
   lengthM: { label: 'Length', unit: 'm', min: 0.05, max: 6 },
   throatChamberL: { label: 'Throat chamber', unit: 'L', min: 0, max: 50, linear: true },
   widthCm: { label: 'Horn width', unit: 'cm', min: 5, max: 300 },
+  legs: { label: 'Folds (legs)', unit: '', min: 2, max: 8, linear: true },
+  depthCm: { label: 'Box depth (outside)', unit: 'cm', min: 20, max: 1000 },
 };
+
+/** Wall thickness the fold geometry assumes when none is given (m): 18 mm, the app's default sheet. */
+export const DEFAULT_WALL_M = 0.018;
 
 export const DEFAULT_DESIGN: Design = {
   driverClass: 3,
@@ -164,7 +181,7 @@ export const DEFAULT_DESIGN: Design = {
   layout: DEFAULT_LAYOUT,
   powerW: 100,
   plotRange: 'low',
-  horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '' },
+  horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '', fold: false, legs: 4, depthCm: 100 },
 };
 
 /** Generic starting points. Invented values, not any product. */
@@ -198,8 +215,10 @@ export function sanitize(input: unknown): Design {
     flare: FLARES.some((f) => f.id === h.flare) ? (h.flare as P.FlareKind) : d.horn.flare,
     loading: h.loading === 'rear' ? 'rear' : 'front',
     panelsCm: typeof h.panelsCm === 'string' ? h.panelsCm.slice(0, 200) : d.horn.panelsCm,
+    fold: h.fold === true,
   };
   for (const k of Object.keys(HORN_RANGES) as HornField[]) horn[k] = num(h[k], HORN_RANGES[k], d.horn[k]);
+  horn.legs = Math.round(horn.legs);
   const out: Design = {
     ...d,
     driverClass: typeof i.driverClass === 'number' && Number.isInteger(i.driverClass) ? classOf(i.driverClass) : d.driverClass,
@@ -223,6 +242,7 @@ export function sanitizeLayout(input: unknown): DriverLayout {
     cols: typeof l.cols === 'number' && Number.isFinite(l.cols) ? Math.round(P.clamp(l.cols, LAYOUT_RANGES.cols.min, LAYOUT_RANGES.cols.max)) : d.cols,
     mount: l.mount === 'out' ? 'out' : 'in',
     pushPull: l.pushPull === true,
+    pushPullStyle: l.pushPullStyle === 'side' ? 'side' : 'walls',
     facing: l.facing === 'down' ? 'down' : 'front',
     clearanceCm: num(l.clearanceCm, LAYOUT_RANGES.clearanceCm, d.clearanceCm),
   };
@@ -328,11 +348,16 @@ function directRaw(d: Design): (f: number) => Raw {
 }
 
 /** The horn as it is simulated: the builder's panels when given, else the ideal flare in IDEAL_SEGMENTS pieces. */
-function hornGeometry(d: Design): { flare: P.Flare; lengthM: number; ideal: P.Joint[]; built: P.Joint[] | null } {
+export function hornGeometry(d: Design, wallM = DEFAULT_WALL_M): { flare: P.Flare; lengthM: number; ideal: P.Joint[]; built: P.Joint[] | null; fold: P.FoldLayout | null } {
   const flare = flareOf(d);
   const lengthM = P.flareLength(flare);
+  if (d.horn.fold) {
+    // folded: the legs and turns are the built horn (a staircase of the ideal flare)
+    const fold = P.foldHorn(flare, d.horn.widthCm / 100, d.horn.legs, d.horn.depthCm / 100, wallM);
+    return { flare, lengthM, ideal: P.hornJoints(flare, IDEAL_SEGMENTS), built: fold.joints, fold };
+  }
   const xs = panelJointsCm(d.horn.panelsCm, lengthM * 100);
-  return { flare, lengthM, ideal: P.hornJoints(flare, IDEAL_SEGMENTS), built: xs && P.hornJointsAt(flare, xs.map((x) => x / 100)) };
+  return { flare, lengthM, ideal: P.hornJoints(flare, IDEAL_SEGMENTS), built: xs && P.hornJointsAt(flare, xs.map((x) => x / 100)), fold: null };
 }
 
 /**
@@ -340,9 +365,9 @@ function hornGeometry(d: Design): { flare: P.Flare; lengthM: number; ideal: P.Jo
  * displacement per volt x, and impedance z. A horn is simulated as built when panels are given. The geometry is
  * worked out once, so call this once and reuse the function across frequencies.
  */
-export function rawEvaluator(d: Design): (f: number) => Raw {
+export function rawEvaluator(d: Design, wallM = DEFAULT_WALL_M): (f: number) => Raw {
   if (d.type !== 'horn') return directRaw(d);
-  const g = hornGeometry(d);
+  const g = hornGeometry(d, wallM);
   return hornRaw(d, g.built ?? g.ideal);
 }
 
@@ -369,6 +394,14 @@ export interface HornView {
   lengthM: number;
   ideal: P.Joint[];
   built: P.Joint[] | null;
+  /** The folded layout when the horn is folded. */
+  fold: P.FoldLayout | null;
+  /** Settings that make the fold work, when the current ones do not (null: they work, or none exist). */
+  suggest: P.FoldSuggestion | null;
+  /** When no fold exists at this width: the largest mouth area (cm2) that does fold, or null if none does. */
+  maxMouthCm2: number | null;
+  /** The recommended fold once the mouth is set to `maxMouthCm2`. */
+  suggestAtMax: P.FoldSuggestion | null;
   /** Stations for the builder: distance from the throat, area, and the height of a rectangular horn of the given width. */
   table: { xCm: number; areaCm2: number; heightCm: number }[];
 }
@@ -408,7 +441,7 @@ export function passband(freqs: readonly number[], db: readonly number[]): { pea
   return { peakDb: db[k]!, peakHz: freqs[k]!, loHz: edge(-1), hiHz: edge(1) };
 }
 
-export function compute(d: Design): Computed {
+export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
   const driver = driverOf(d);
   const derived = P.deriveDriver(driver);
   const freqs = plotFreqs(d.plotRange);
@@ -430,7 +463,7 @@ export function compute(d: Design): Computed {
   };
 
   if (d.type === 'horn') {
-    const g = hornGeometry(d);
+    const g = hornGeometry(d, wallM);
     const sim = (joints: readonly P.Joint[]): Record<keyof Point, number[]> => {
       const raw = hornRaw(d, joints);
       return curvesOf(freqs.map((f) => toPoint(raw, d, f)));
@@ -450,7 +483,7 @@ export function compute(d: Design): Computed {
     }
 
     const stations = g.built ?? P.hornJoints(g.flare, 8);
-    horn = { lengthM: g.lengthM, ideal: g.ideal, built: g.built, table: stations.map((j) => ({ xCm: j.x * 100, areaCm2: j.area * 1e4, heightCm: (j.area * 1e4) / d.horn.widthCm })) };
+    horn = { lengthM: g.lengthM, ideal: g.ideal, built: g.built, fold: g.fold, suggest: null, maxMouthCm2: null, suggestAtMax: null, table: stations.map((j) => ({ xCm: j.x * 100, areaCm2: j.area * 1e4, heightCm: (j.area * 1e4) / d.horn.widthCm })) };
 
     const conical = g.flare.kind === 'conical';
     readouts.push({ label: 'Length', value: `${g.lengthM.toFixed(2)} m` });
@@ -465,7 +498,30 @@ export function compute(d: Design): Computed {
 
     if (g.flare.mouthM2 < d.horn.mouthCm2 * 1e-4 - 1e-9 && g.flare.kind === 'tractrix') notes.push(`A tractrix mouth cannot be larger than its cutoff's full mouth, so ${fmt(g.flare.mouthM2 * 1e4, 0)} cm² is used.`);
     if (g.flare.throatM2 < d.horn.throatCm2 * 1e-4 - 1e-9) notes.push(`The throat is held to ${fmt(g.flare.throatM2 * 1e4, 0)} cm², half the tractrix's full mouth.`);
-    if (g.built) {
+    if (g.fold) {
+      const f = g.fold;
+      const fm = (v: number): string => fmt(v * 100, 0);
+      readouts.push({ label: `Folded box (${d.horn.legs} legs), outside`, value: `${fm(f.wO)} x ${fm(f.hO)} x ${fm(f.dO)} cm` }, { label: 'Depth the folds need (outside)', value: `${fm(f.minDepthI + 2 * wallM)} cm` });
+      if (f.dI > d.horn.depthCm / 100 - 2 * wallM + 1e-9) warnings.push(`${d.horn.legs} legs need ${fm(f.minDepthI + 2 * wallM)} cm of outside depth and ${fmt(d.horn.depthCm, 0)} cm was asked for: the box is built ${fm(f.minDepthI + 2 * wallM)} cm deep. Use more folds, a wider horn or more depth.`);
+      else if (f.dI > f.minDepthI * 1.25) warnings.push(`The box is ${fm(f.dO)} cm deep but ${d.horn.legs} legs need only ${fm(f.minDepthI + 2 * wallM)} cm: fewer legs or less depth would do.`);
+      if (!f.feasible) warnings.push(`${d.horn.legs} folds cannot fit this flare at ${fmt(d.horn.widthCm, 0)} cm wide: the turns alone are longer than the horn (the last leg would be ${fm(f.heights[f.heights.length - 1]!)} cm tall). Use fewer folds, a wider horn, a smaller mouth area or a lower mouth area limit.`);
+      if (!f.mouthAtFront) warnings.push('An odd number of legs ends the horn at the back of the box. Use an even number so the mouth is on the front.');
+      const fine = f.feasible && f.mouthAtFront && f.dI <= d.horn.depthCm / 100 - 2 * wallM + 1e-9 && f.dI <= f.minDepthI * 1.25;
+      if (!fine) {
+        const sug = P.suggestFold(g.flare, d.horn.widthCm / 100, wallM);
+        if (sug) {
+          horn!.suggest = sug;
+          warnings.push(`Recommended fold for this flare: ${sug.legs} legs, ${fmt(sug.widthM * 100, 0)} cm wide, ${fmt(sug.depthOutM * 100, 0)} cm deep (outside). The button under the fold settings applies it.`);
+        } else {
+          const mm = P.maxFoldableMouthM2(g.flare, d.horn.widthCm / 100, wallM);
+          horn!.maxMouthCm2 = mm === null ? null : Math.floor(mm * 1e4);
+          if (mm !== null) horn!.suggestAtMax = P.suggestFold({ ...g.flare, mouthM2: horn!.maxMouthCm2! * 1e-4 }, d.horn.widthCm / 100, wallM);
+          warnings.push(mm === null ? `No fold of this flare fits a box up to ${P.FOLD_MAX_DEPTH_M} m deep and ${P.FOLD_MAX_WIDTH_M} m wide, even with the smallest mouth at ${fmt(d.horn.widthCm, 0)} cm wide. Make the horn wider or the throat smaller.` : `No fold of a ${fmt(g.flare.mouthM2 * 1e4, 0)} cm² mouth fits a box up to ${P.FOLD_MAX_DEPTH_M} m deep and ${P.FOLD_MAX_WIDTH_M} m wide. A mouth of up to ${fmt(Math.floor(mm * 1e4), 0)} cm² folds; the button under the fold settings sets it.`);
+        }
+      }
+      notes.push('Folded: the horn is simulated as the legs and turns, with the flare height at the middle of each leg, so the response includes that staircase. Bend reflections and losses are not modelled.');
+    }
+    if (g.built && !g.fold) {
       const given = d.horn.panelsCm.split(/[,;\s]+/).map(Number).filter((n) => Number.isFinite(n) && n > 0).reduce((a, b) => a + b, 0);
       if (Math.abs(given - g.lengthM * 100) > 0.01 * g.lengthM * 100) warnings.push(`The panel lengths add up to ${fmt(given)} cm but the flare is ${fmt(g.lengthM * 100)} cm long: the last panel was ${given > g.lengthM * 100 ? 'cut short' : 'stretched'} to end at the mouth.`);
     }

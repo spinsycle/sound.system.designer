@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // File exports as plain strings: SVG of a sheet layout or a baffle, ASCII DXF (R12) of a sheet layout. Millimetres or inches, as the project's units say.
 // No dependencies; the page turns the strings into downloads.
+import type * as P from '@soundsystemdesigner/physics';
 import { type BuildView, type Cabinet, holePositions } from './buildlist';
 import { type FrontRing, RING_SCREW_CM, ringScrews } from './carfront';
 import type { Project } from './system';
@@ -57,6 +58,31 @@ export function baffleSvg(c: Cabinet, title: string, u: Units = 'mm', rear = fal
 ${holes}
 </svg>
 `;
+}
+
+/**
+ * A folded horn's side view to scale (front on the right): the box, each septum, the leg numbers, the throat at the top front and
+ * the mouth at the bottom front. Dimensions are the layout's, in millimetres in the file.
+ */
+export function foldSvg(f: P.FoldLayout, t: number, title: string, u: Units = 'mm'): string {
+  const W = mm(f.dO);
+  const H = mm(f.hO);
+  const font = Math.max(14, Math.round(Math.min(W, H) / 28));
+  const septa = f.septaLength
+    .map((len, k) => {
+      const y = mm(t + f.septaTop[k]!);
+      const x = f.septaAnchor[k] === 'front' ? mm(f.dO - t - len) : mm(t);
+      return `<rect x="${x}" y="${y}" width="${mm(len)}" height="${Math.max(mm(t), 2)}" ${STYLE}/>`;
+    })
+    .join('\n');
+  const labels = f.heights
+    .map((h, k) => {
+      const y = t + f.heights.slice(0, k).reduce((a, b) => a + b + t, 0) + h / 2;
+      return `<text x="${mm(f.dO / 2)}" y="${mm(y) + Math.round(font / 3)}" font-size="${font}" text-anchor="middle" font-family="sans-serif">leg ${k + 1} (${mm(h)} mm)</text>`;
+    })
+    .join('\n');
+  const ends = `<text x="${W - font / 2}" y="${mm(t) + font}" font-size="${font}" text-anchor="end" font-family="sans-serif">throat, front</text>` + (f.mouthAtFront ? `\n<text x="${W - font / 2}" y="${H - mm(t) - Math.round(font / 2)}" font-size="${font}" text-anchor="end" font-family="sans-serif">mouth</text>` : '');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">\n<title>${esc(title)}</title>\n<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>\n${septa}\n${labels}\n${ends}\n</svg>\n`;
 }
 
 /** An adapter ring to scale, millimetres: the outside, the cut-out for the driver and four screw holes. Round, or oval for a 6x9. */

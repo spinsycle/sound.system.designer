@@ -41,7 +41,8 @@ export function PortControls({ design, onChange, idp }: { design: Design; onChan
  */
 export function LayoutControls({ layout, count, onChange, idp, pushPullOk = true, colsOk = true }: { layout: DriverLayout; count: number; onChange: (l: DriverLayout) => void; idp: string; pushPullOk?: boolean; colsOk?: boolean }) {
   const set = (patch: Partial<DriverLayout>): void => onChange(sanitizeLayout({ ...layout, ...patch }));
-  const face = layout.pushPull && count >= 2 ? Math.ceil(count / 2) : count;
+  const split = layout.pushPull && layout.pushPullStyle === 'walls' && count >= 2;
+  const face = split ? Math.ceil(count / 2) : count;
   const cols = layout.cols > 0 ? Math.min(layout.cols, Math.max(face, 1)) : face;
   const rows = Math.ceil(face / Math.max(cols, 1));
   return (
@@ -51,7 +52,7 @@ export function LayoutControls({ layout, count, onChange, idp, pushPullOk = true
           <Field id={`${idp}-cols`} range={{ ...LAYOUT_RANGES.cols, label: 'Columns (0 = automatic)' }} value={layout.cols} onChange={(v) => set({ cols: Math.round(v) })} />
           <p className="hint">
             {face} driver{face === 1 ? '' : 's'} on the {layout.facing === 'down' ? 'bottom' : 'front'}: {layout.cols === 0 ? 'automatic layout' : `${cols} column${cols === 1 ? '' : 's'} x ${rows} row${rows === 1 ? '' : 's'}`}
-            {layout.pushPull && count >= 2 ? `, and ${count - face} on the back wall` : ''}.
+            {split ? `, and ${count - face} on the back wall` : ''}.
           </p>
         </>
       )}
@@ -62,9 +63,10 @@ export function LayoutControls({ layout, count, onChange, idp, pushPullOk = true
         <div className="field">
           <label htmlFor={`${idp}-pp`}>Push-pull</label>
           <input id={`${idp}-pp`} type="checkbox" checked={layout.pushPull} onChange={(e) => set({ pushPull: e.target.checked })} />
-          <span className="unit">{layout.pushPull ? (count >= 2 ? 'pairs on opposite walls, opposite polarity' : 'needs two or more drivers') : 'off'}</span>
+          <span className="unit">{layout.pushPull ? (count >= 2 ? (layout.pushPullStyle === 'side' ? 'side by side, one magnet in and one out, opposite polarity' : 'pairs on opposite walls, opposite polarity') : 'needs two or more drivers') : 'off'}</span>
         </div>
       )}
+      {pushPullOk && layout.pushPull && <Segmented label="Push-pull style" value={layout.pushPullStyle} options={[{ id: 'walls', label: 'Opposite walls' }, { id: 'side', label: 'Side by side, magnet in and out' }]} onPick={(pushPullStyle) => set({ pushPullStyle })} />}
     </div>
   );
 }

@@ -81,6 +81,39 @@ describe('shared vectors', () => {
     expect(P.portLengthFromAreaM(pl.vb_m3!, pl.fb!, Math.PI * (pl.d_m! / 2) ** 2)).toBeCloseTo(P.portLengthM(pl.vb_m3!, pl.fb!, pl.d_m!), 12);
   });
 
+  it('folded horn (app only, v0.14)', () => {
+    for (const id of ['fold_4legs', 'fold_2legs']) {
+      const v = vec(id).inputs;
+      const fl: P.Flare = { kind: 'exponential', throatM2: v.st_m2!, mouthM2: v.sm_m2!, cutoffHz: v.fc!, t: 1, lengthM: 0 };
+      const f = P.foldHorn(fl, v.width_m!, v.legs!, v.depth_out_m!, v.t!);
+      expectVec(id, 'leg_m', f.leg);
+      expectVec(id, 'd_o', f.dO);
+      expectVec(id, 'h_o', f.hO);
+      expectVec(id, 'min_depth_i', f.minDepthI);
+      f.heights.forEach((h, k) => expectVec(id, `h${k}`, h));
+      f.gaps.forEach((g, k) => expectVec(id, `gap${k}`, g));
+      f.septaLength.forEach((l, k) => expectVec(id, `sep_len${k}`, l));
+      f.septaTop.forEach((y, k) => expectVec(id, `sep_top${k}`, y));
+      if (id === 'fold_4legs') expectVec(id, 'w_o', f.wO);
+      expect(f.feasible).toBe(true);
+      // the path is the flare's, and no turn is narrower than the legs it joins
+      expect(f.ends[f.ends.length - 1]).toBeCloseTo(f.length, 12);
+      f.gaps.forEach((g, k) => expect(g).toBeGreaterThanOrEqual(Math.max(f.heights[k]!, f.heights[k + 1]!) - 1e-15));
+    }
+  });
+
+  it('an infeasible fold is finite and flagged (app only, v0.14)', () => {
+    const v = vec('fold_infeasible').inputs;
+    const fl: P.Flare = { kind: 'exponential', throatM2: v.st_m2!, mouthM2: v.sm_m2!, cutoffHz: v.fc!, t: 1, lengthM: 0 };
+    const f = P.foldHorn(fl, v.width_m!, v.legs!, v.depth_out_m!, v.t!);
+    expectVec('fold_infeasible', 'leg_m', f.leg);
+    expectVec('fold_infeasible', 'feasible', f.feasible ? 1 : 0);
+    expectVec('fold_infeasible', 'h0', f.heights[0]!);
+    expectVec('fold_infeasible', 'h3', f.heights[3]!);
+    expectVec('fold_infeasible', 'h_o', f.hO);
+    expectVec('fold_infeasible', 'min_depth_i', f.minDepthI);
+  });
+
   it('thermal', () => {
     expectVec('thermal_gain', 'db', P.thermalGainDb(vec('thermal_gain').inputs.delta_t_k!));
   });

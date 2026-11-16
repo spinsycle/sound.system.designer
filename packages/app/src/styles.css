@@ -711,3 +711,17 @@ button:disabled {
     display: none !important;
   }
 }
+
+/* A folded horn's side view is the exported SVG (black lines), so it sits on light paper in both themes. */
+.fold-drawing {
+  background: #ecebe5;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 8px 0;
+}
+.fold-drawing svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+}

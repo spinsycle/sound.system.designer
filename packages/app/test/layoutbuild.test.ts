@@ -124,7 +124,7 @@ describe('old designs are unchanged', () => {
   });
   it('layout values are clamped and unknown values dropped', () => {
     const l = M.sanitizeLayout({ cols: 99, mount: 'sideways', pushPull: 'yes', facing: 'up', clearanceCm: -5 });
-    expect(l).toEqual({ cols: 8, mount: 'in', pushPull: false, facing: 'front', clearanceCm: 0 });
+    expect(l).toEqual({ cols: 8, mount: 'in', pushPull: false, pushPullStyle: 'walls', facing: 'front', clearanceCm: 0 });
   });
 });
 
@@ -255,5 +255,41 @@ describe('details the first pass left uncovered', () => {
     const sq = design({ portShape: 'rect', portWidthCm: 10, portHeightCm: 10 });
     expect(M.portEquivDiameterM(sq)).toBeCloseTo((2 * 0.1) / Math.sqrt(Math.PI), 12);
     expect(M.portEquivDiameterM(design({ portDiameterCm: 12 }))).toBeCloseTo(0.12, 12);
+  });
+});
+
+describe('push-pull side by side, one magnet in and one out', () => {
+  const sideBand = (n: number, mount: 'in' | 'out' = 'in'): S.Project => project([band(design({ type: 'sealed', volumeL: 30, layout: lay({ pushPull: true, pushPullStyle: 'side', mount }) }), { count: n, perBox: n })]);
+  it('both drivers are on the front baffle, the second mounted the other way', () => {
+    const v = L.computeBuild(sideBand(2));
+    const cab = v.bands[0]!.cabinets[0]!;
+    const holes = L.holePositions(cab).filter((h) => h.kind === 'driver');
+    expect(holes).toHaveLength(2);
+    expect(L.holePositions(cab, true)).toHaveLength(0);
+    expect(holes.map((h) => h.magnetOut)).toEqual([false, true]);
+    const l = layout3d(v, sideBand(2));
+    expect(l.drivers.map((d) => d.dir[2]).sort()).toEqual([-1, 1]);
+  });
+  it('with the first magnet out the second is in, and the box holds one of each displacement', () => {
+    const cab = L.computeBuild(sideBand(2, 'out')).bands[0]!.cabinets[0]!;
+    expect(L.holePositions(cab).map((h) => h.magnetOut)).toEqual([true, false]);
+    const g = cab.geometry;
+    expect(g.wI * g.hI * g.dI).toBeCloseTo(0.06 + P.driverDisplacementMount(0.0855, false) + P.driverDisplacementMount(0.0855, true), 9);
+  });
+  it('an odd count puts the extra driver in the first mounting', () => {
+    const g = L.computeBuild(sideBand(3)).bands[0]!.cabinets[0]!.geometry;
+    expect(g.wI * g.hI * g.dI).toBeCloseTo(0.09 + 2 * P.driverDisplacementMount(0.0855, false) + P.driverDisplacementMount(0.0855, true), 9);
+  });
+  it('a floor-facing side-by-side pair follows the magnet of each driver', () => {
+    const p = project([band(design({ type: 'sealed', volumeL: 30, layout: lay({ pushPull: true, pushPullStyle: 'side', facing: 'down', clearanceCm: 20 }) }), { count: 2, perBox: 2 })]);
+    expect(layout3d(L.computeBuild(p), p).drivers.map((d) => d.dir[1]).sort()).toEqual([-1, 1]);
+  });
+  it('the car build does the same', () => {
+    const car = structuredClone(C.DEFAULT_CAR);
+    car.count = 2;
+    car.design = { ...car.design, layout: lay({ pushPull: true, pushPullStyle: 'side' }) };
+    const cab = L.computeBuild(S.sanitizeProject({ ...S.DEFAULT_PROJECT, kind: 'car', car })).bands[0]!.cabinets[0]!;
+    expect(L.holePositions(cab).filter((h) => h.kind === 'driver').map((h) => h.magnetOut)).toEqual([false, true]);
+    expect(cab.rearHoles).toBeUndefined();
   });
 });

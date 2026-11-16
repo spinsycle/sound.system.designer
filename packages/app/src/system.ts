@@ -325,7 +325,7 @@ export function systemEvaluator(p: Project) {
   // level at the listening distance outdoors: the distance law and air absorption, free field
   const room: P.RoomParams = { distanceM: p.distanceM, held: false, boundary: 0, boundaryDistM: 1, indoor: false, rt60: 1, volumeM3: 1000 };
   const bands = active.map((b, k) => {
-    const raw = rawEvaluator(b.design);
+    const raw = rawEvaluator(b.design, p.shop.thicknessMm / 1000);
     // the group as one coherent source: every driver at its share of the reference voltage
     const pRef = P.referencePressure(driverOf(b.design), REF_VOLTS * P.wiring(b.count, b.series).voltsFactor) * b.count;
     const gain = 10 ** (b.trimDb / 20) * (b.invert ? -1 : 1);

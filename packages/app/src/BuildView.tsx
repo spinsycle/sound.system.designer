@@ -8,7 +8,7 @@ import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
 import type { Range } from './model';
 import { type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
 import { saveText } from './desktop';
-import { baffleHeight, baffleSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
+import { baffleHeight, baffleSvg, foldSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
 import { type FrontRing, RING_SCREW_CM, ringScrews } from './carfront';
 import { layout3d } from './layout3d';
 import { Scene3D } from './Scene3D';
@@ -63,7 +63,7 @@ function Baffle({ c, u, rear = false }: { c: Cabinet; u: Units; rear?: boolean }
       </svg>
       <figcaption>
         {c.title}, {what}: {mm(c.outside?.[0] ?? g.wO, u)} x {mm(c.outside?.[1] ?? g.hO, u)} x {mm(c.outside?.[2] ?? g.dO, u)} {u} outside{c.wedge ? ` (baffle ${mm(g.wO, u)} x ${mm(g.hO, u)})` : ''}.{' '}
-        {holes.map((h) => (h.shape === 'rect' ? `Port opening ${mm(h.wM!, u)} x ${mm(h.hM!, u)} ${u}` : `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`)).join(', ')}.
+        {holes.map((h, i) => (h.shape === 'rect' ? `${c.fold ? (i === 0 ? 'Throat opening' : 'Mouth') : 'Port opening'} ${mm(h.wM!, u)} x ${mm(h.hM!, u)} ${u}` : `${h.kind === 'port' ? 'Port' : 'Driver'} hole ${mm(h.diameterM, u)} ${u}`)).join(', ')}.
         {c.magnetOut && !rear ? ' Motors stick out through the baffle: leave room for them outside.' : ''}
       </figcaption>
     </figure>
@@ -280,6 +280,23 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
                   )}
                 </div>
               )),
+            )}
+            {v.bands.flatMap((b) =>
+              b.cabinets
+                .filter((c) => c.fold)
+                .map((c, i) => (
+                  <div key={`${b.name}-fold-${i}`}>
+                    <figure className="baffle">
+                      <div className="fold-drawing" aria-label={`${b.name} fold drawing, side view`} dangerouslySetInnerHTML={{ __html: foldSvg(c.fold!, project.shop.thicknessMm / 1000, `${b.name}: folded horn`, project.units) }} />
+                      <figcaption>
+                        {b.name}: folded horn, side view, front on the right. {c.fold!.septaLength.length} septa; each runs the width of the box and stops short of one end for the turn.
+                      </figcaption>
+                    </figure>
+                    <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-fold.svg`, foldSvg(c.fold!, project.shop.thicknessMm / 1000, `${b.name}: folded horn`, project.units), 'image/svg+xml')}>
+                      Download SVG
+                    </button>
+                  </div>
+                )),
             )}
             {v.bands.flatMap((b) =>
               (b.rings ?? []).map((r, i) => (

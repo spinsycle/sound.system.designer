@@ -136,7 +136,7 @@ export function App() {
       {build ? (
         <BuildView project={project} onChange={setProject} />
       ) : box ? (
-        <BoxDesigner design={project.bands[project.selected]!.design} count={project.bands[project.selected]!.count} perBox={project.bands[project.selected]!.perBox} onPerBox={(perBox) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, perBox } : b)) })} onChange={(design) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) })} />
+        <BoxDesigner wallM={project.shop.thicknessMm / 1000} design={project.bands[project.selected]!.design} count={project.bands[project.selected]!.count} perBox={project.bands[project.selected]!.perBox} onPerBox={(perBox) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, perBox } : b)) })} onChange={(design) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) })} />
       ) : speaker ? (
         <SpeakerView project={project} onChange={setProject} />
       ) : car ? (

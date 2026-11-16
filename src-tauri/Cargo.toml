@@ -1,6 +1,6 @@
 [package]
 name = "sound-system-designer"
-version = "1.5.0"
+version = "1.6.0"
 description = "Design loudspeaker enclosures and whole sound systems"
 authors = ["Spinsycle"]
 license = "AGPL-3.0-only"

@@ -140,18 +140,29 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   if (dividerShare !== null) add('divider', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + g.dI * dividerShare);
   // a speaker's chamber shelves lie flat, wI x dI, at the depth the cut list's air shares put them
   for (const fromTop of c.shelves ?? []) add('divider', [g.wI, t, g.dI], 0, g.hO / 2 - t - fromTop, 0);
+  // a folded horn's septa: fixed to the front wall (even index) or the back wall, stopping short of the other for the U-turn
+  c.fold?.septaLength.forEach((len, k) => {
+    const front = c.fold!.septaAnchor[k] === 'front';
+    add('divider', [g.wI, t, len], 0, g.hO / 2 - t - c.fold!.septaTop[k]! - t / 2, front ? g.dO / 2 - t - len / 2 : -(g.dO / 2 - t) + len / 2);
+  });
   const motorOut = c.magnetOut === true;
   const rect = (h: ReturnType<typeof holePositions>[number]): Pick<Disc3, 'shape' | 'w' | 'h'> => (h.shape === 'rect' ? { shape: 'rect', w: h.w, h: h.h } : {});
   if (c.facing === 'down') {
     // the baffle is the bottom panel: cy runs back from the front edge, the discs lie flat facing the floor
     for (const h of holePositions(c)) {
       out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, lift - LIFT, z0 - h.cy], radius: h.r, tilt: Math.PI / 2, ...rect(h) });
-      if (h.kind === 'driver') out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, lift + (motorOut ? t : 0), z0 - h.cy], dir: motorOut ? [0, -1, 0] : [0, 1, 0], radius: h.r });
+      if (h.kind === 'driver') {
+        const mo = h.magnetOut ?? motorOut;
+        out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, lift + (mo ? t : 0), z0 - h.cy], dir: mo ? [0, -1, 0] : [0, 1, 0], radius: h.r });
+      }
     }
   } else {
     for (const h of holePositions(c)) {
       out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 + LIFT], radius: h.r, ...rect(h) });
-      if (h.kind === 'driver') out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 - (motorOut ? t : 0)], dir: motorOut ? [0, 0, 1] : [0, 0, -1], radius: h.r });
+      if (h.kind === 'driver') {
+        const mo = h.magnetOut ?? motorOut;
+        out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 - (mo ? t : 0)], dir: mo ? [0, 0, 1] : [0, 0, -1], radius: h.r });
+      }
     }
   }
   // push-pull: the second set of drivers on the back wall, seen from behind, mounted the other way round

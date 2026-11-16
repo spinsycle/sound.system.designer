@@ -2423,6 +2423,93 @@
       }
     },
     {
+      "id": "fold_4legs",
+      "desc": "Exponential 60 -> 4000 cm2, 40 Hz, folded into 4 legs of a 0.60 m wide, 18 mm box with 1.00 m outside depth: leg length, leg heights, turn gaps, septa and the box size (m)",
+      "inputs": {
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "fc": 40.0,
+        "width_m": 0.6,
+        "legs": 4.0,
+        "depth_out_m": 1.0,
+        "t": 0.018
+      },
+      "outputs": {
+        "leg_m": 0.1202665548857158,
+        "w_o": 0.636,
+        "h_o": 1.2363073188881184,
+        "d_o": 1.0324859858423352,
+        "min_depth_i": 0.9964859858423352,
+        "h0": 0.10921227410195657,
+        "h1": 0.1608756138295425,
+        "h2": 0.26578743313530173,
+        "h3": 0.6104319978213176,
+        "gap0": 0.1608756138295425,
+        "sep_len0": 0.8356103720127926,
+        "sep_top0": 0.10921227410195657,
+        "gap1": 0.26578743313530173,
+        "sep_len1": 0.7306985527070334,
+        "sep_top1": 0.2880878879314991,
+        "gap2": 0.6104319978213176,
+        "sep_len2": 0.38605398802101754,
+        "sep_top2": 0.5718753210668008
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "fold_2legs",
+      "desc": "The same horn folded into 2 legs, 2.00 m outside depth: leg length, heights, gap, septum and box size (m)",
+      "inputs": {
+        "st_m2": 0.06,
+        "sm_m2": 0.4,
+        "fc": 40.0,
+        "width_m": 0.6,
+        "legs": 2.0,
+        "depth_out_m": 2.0,
+        "t": 0.018
+      },
+      "outputs": {
+        "leg_m": 0.49062208040593,
+        "h0": 0.14326057362019842,
+        "h1": 0.46535250405605877,
+        "gap0": 0.46535250405605877,
+        "min_depth_i": 0.9559745844619887,
+        "d_o": 2.0,
+        "h_o": 0.6626130776762572,
+        "sep_len0": 1.498647495943941,
+        "sep_top0": 0.14326057362019842
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "fold_infeasible",
+      "desc": "Exponential 506 -> 60000 cm2, 40.9 Hz, 4 legs in a 0.60 m wide box: the turns are longer than the horn, so the legs are held to the minimum length (m)",
+      "inputs": {
+        "st_m2": 0.0506,
+        "sm_m2": 6.0,
+        "fc": 40.9,
+        "width_m": 0.6,
+        "legs": 4.0,
+        "depth_out_m": 3.0,
+        "t": 0.018
+      },
+      "outputs": {
+        "leg_m": 0.03983781911771862,
+        "feasible": 0.0,
+        "h0": 0.08688839420359624,
+        "h3": 10.000000000000002,
+        "h_o": 10.425315871241065,
+        "min_depth_i": 10.180066753079327
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
       "id": "pack_sheets",
       "desc": "Shelf packing of six rectangles onto 1220 x 2440 mm sheets, kerf 3 mm",
       "inputs": {
