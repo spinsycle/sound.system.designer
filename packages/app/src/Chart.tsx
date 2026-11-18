@@ -30,6 +30,9 @@ export interface ChartProps {
   /** Up to two comparison curves, drawn dashed behind the main one and named in a legend. */
   overlays?: readonly { label: string; values: readonly number[]; className?: string }[];
   hLine?: { y: number; label: string };
+  /** Fixed frequency axis, for a curve that is still being measured; defaults to the first and last of freqs. */
+  fMin?: number;
+  fMax?: number;
   vLines?: readonly { f: number; label: string }[];
   /** Index into freqs under the pointer, shared by every chart; null when the pointer is elsewhere. */
   hover: number | null;
@@ -37,8 +40,8 @@ export interface ChartProps {
 }
 
 export function Chart(p: ChartProps) {
-  const fMin = p.freqs[0]!;
-  const fMax = p.freqs[p.freqs.length - 1]!;
+  const fMin = p.fMin ?? p.freqs[0]!;
+  const fMax = p.fMax ?? p.freqs[p.freqs.length - 1]!;
   const x = (f: number): number => M.l + ((W - M.l - M.r) * Math.log(f / fMin)) / Math.log(fMax / fMin);
   const y = (v: number): number => H - M.b - ((H - M.t - M.b) * (v - p.yMin)) / (p.yMax - p.yMin);
   // values far outside the axis are pulled in so the path stays finite; the clip rectangle hides the excess

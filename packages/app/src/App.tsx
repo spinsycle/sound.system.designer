@@ -11,6 +11,7 @@ import { BuildView } from './BuildView';
 import { CarView } from './CarView';
 import { SpeakerView } from './SpeakerView';
 import { SystemView } from './SystemView';
+import { ProbeView } from './probe/ProbeView';
 import { type Design, sanitize } from './model';
 import { migrateDesignV1, migrateProjectV1 } from './migrate';
 import type { Loudspeaker } from './loudspeaker';
@@ -43,6 +44,8 @@ export function App() {
   const [undo, setUndo] = useState<Project | null>(null);
   /** The last thing Save or Open project did, in plain words. */
   const [fileMsg, setFileMsg] = useState('');
+  /** The Driver Probe page replaces the design while it is open. */
+  const [probeOpen, setProbeOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -123,6 +126,9 @@ export function App() {
           <button type="button" onClick={openProject}>
             Open project
           </button>
+          <button type="button" aria-pressed={probeOpen} onClick={() => setProbeOpen(!probeOpen)}>
+            Driver Probe
+          </button>
           {fileMsg && (
             <span className="hint" role="status">
               {fileMsg}
@@ -131,6 +137,10 @@ export function App() {
         </div>
       </header>
 
+      {probeOpen ? (
+        <ProbeView onClose={() => setProbeOpen(false)} />
+      ) : (
+        <>
       {!build && <BriefPanel key={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} mode={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} onLoadSpeaker={loadSpeaker} onLoadCar={loadCar} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
 
       {build ? (
@@ -143,6 +153,8 @@ export function App() {
         <CarView project={project} onChange={setProject} />
       ) : (
         <SystemView project={project} onChange={setProject} />
+      )}
+        </>
       )}
       <footer className="about">
         <details>

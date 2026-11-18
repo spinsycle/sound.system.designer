@@ -8,8 +8,10 @@
 // needs parallel loads.
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 const PING_TIMEOUT: Duration = Duration::from_secs(20);
@@ -76,8 +78,79 @@ fn run_web(app: AppHandle) {
     });
 }
 
+// Driver Probe over USB serial: list ports, open one, write a line, and a reader thread that emits each received line as
+// a "probe-line" event (and "probe-closed" when the port goes away). One port at a time. The protocol itself lives in the
+// web app (packages/app/src/probe); this is only the pipe.
+#[derive(Default)]
+struct Probe {
+    port: Mutex<Option<Box<dyn serialport::SerialPort>>>,
+    generation: AtomicU64,
+}
+
+#[tauri::command]
+fn probe_ports() -> Vec<String> {
+    serialport::available_ports().map(|v| v.into_iter().map(|p| p.port_name).collect()).unwrap_or_default()
+}
+
+#[tauri::command]
+fn probe_close(state: tauri::State<Probe>) {
+    state.generation.fetch_add(1, Ordering::SeqCst);
+    *state.port.lock().unwrap() = None;
+}
+
+#[tauri::command]
+fn probe_open(app: AppHandle, state: tauri::State<Probe>, port: String) -> Result<(), String> {
+    probe_close(state.clone());
+    let mut sp = serialport::new(&port, 115200).timeout(Duration::from_millis(100)).open().map_err(|e| e.to_string())?;
+    // Opening a COM port can pulse DTR/RTS, which resets an ESP32 board; release both.
+    let _ = sp.write_data_terminal_ready(false);
+    let _ = sp.write_request_to_send(false);
+    let mut rd = sp.try_clone().map_err(|e| e.to_string())?;
+    let gen = state.generation.load(Ordering::SeqCst);
+    *state.port.lock().unwrap() = Some(sp);
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 256];
+        let mut line: Vec<u8> = Vec::new();
+        loop {
+            if handle.state::<Probe>().generation.load(Ordering::SeqCst) != gen {
+                break;
+            }
+            match rd.read(&mut buf) {
+                Ok(n) => {
+                    for b in &buf[..n] {
+                        if *b == 10u8 {
+                            let _ = handle.emit("probe-line", String::from_utf8_lossy(&line).to_string());
+                            line.clear();
+                        } else if *b != 13u8 && line.len() < 4096 {
+                            line.push(*b);
+                        }
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
+                Err(_) => {
+                    let _ = handle.emit("probe-closed", ());
+                    break;
+                }
+            }
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn probe_write(state: tauri::State<Probe>, line: String) -> Result<(), String> {
+    let mut g = state.port.lock().unwrap();
+    let sp = g.as_mut().ok_or("no probe port open")?;
+    let mut bytes = line.into_bytes();
+    bytes.push(10u8);
+    sp.write_all(&bytes).map_err(|e| e.to_string())
+}
+
 pub fn run() {
     tauri::Builder::default()
+        .manage(Probe::default())
+        .invoke_handler(tauri::generate_handler![probe_ports, probe_open, probe_write, probe_close])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
