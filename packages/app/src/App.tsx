@@ -12,7 +12,7 @@ import { CarView } from './CarView';
 import { SpeakerView } from './SpeakerView';
 import { SystemView } from './SystemView';
 import { ProbeView } from './probe/ProbeView';
-import { type Design, sanitize } from './model';
+import { CUSTOM_CLASS, type Design, sanitize } from './model';
 import { migrateDesignV1, migrateProjectV1 } from './migrate';
 import type { Loudspeaker } from './loudspeaker';
 import type { CarSub } from './carsub';
@@ -138,7 +138,15 @@ export function App() {
       </header>
 
       {probeOpen ? (
-        <ProbeView onClose={() => setProbeOpen(false)} />
+        <ProbeView
+          onClose={() => setProbeOpen(false)}
+          canUse={!speaker && !car}
+          onUse={(custom, name) => {
+            set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design: { ...b.design, driverClass: CUSTOM_CLASS, custom } } : b)), view: 'box' });
+            setFileMsg(`${name} is now the driver of the selected box.`);
+            setProbeOpen(false);
+          }}
+        />
       ) : (
         <>
       {!build && <BriefPanel key={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} mode={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} onLoadSpeaker={loadSpeaker} onLoadCar={loadCar} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
