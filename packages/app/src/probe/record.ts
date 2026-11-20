@@ -21,7 +21,8 @@ export interface DriverRecord {
   schema: typeof RECORD_SCHEMA;
   name: string;
   measuredAt: string;
-  method: 'free-air' | 'free-air+added-mass';
+  /** 'datasheet' = typed or imported numbers, every band 0, no sweeps. */
+  method: 'free-air' | 'free-air+added-mass' | 'datasheet';
   probe?: { id: string; fw: string };
   re: Val;
   fs: Val;
@@ -154,7 +155,7 @@ export function parseRecord(text: string): { ok: true; record: DriverRecord } | 
     if (!o || o.schema !== RECORD_SCHEMA) return { ok: false, error: 'This is not a Driver Probe record (wrong or missing "schema").' };
     if (typeof o.name !== 'string' || !o.name.trim()) throw new Error('name is missing.');
     if (typeof o.measuredAt !== 'string') throw new Error('measuredAt is missing.');
-    if (o.method !== 'free-air' && o.method !== 'free-air+added-mass') throw new Error('method must be free-air or free-air+added-mass.');
+    if (o.method !== 'free-air' && o.method !== 'free-air+added-mass' && o.method !== 'datasheet') throw new Error('method must be free-air, free-air+added-mass or datasheet.');
     const r: DriverRecord = {
       schema: RECORD_SCHEMA,
       name: o.name.trim(),

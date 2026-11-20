@@ -6,6 +6,7 @@
 import type { CustomDriverFields, FreeAirFit, ImpedancePoint } from '@soundsystemdesigner/physics';
 import { useMemo, useState } from 'react';
 import { openText, saveText } from '../desktop';
+import { CSV_TEMPLATE, parseDriverCsv } from './csvimport';
 import { loadLibrary, remove, saveLibrary, upsert } from './library';
 import { type DriverRecord, RECORD_EXTENSION, bandProblems, buildRecord, parseRecord, recordFileName, serializeRecord, toCustomFields } from './record';
 
@@ -72,6 +73,13 @@ export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; poi
     store(upsert(lib, r.record));
     setMsg(`Imported ${r.record.name}${r.record.incomplete ? ' (incomplete: ' + missing(r.record).join(', ') + ' still to enter)' : ''}.`);
   };
+  const importCsv = async (): Promise<void> => {
+    const res = await openText(['csv', 'tsv', 'txt']);
+    if (!res.ok) return setMsg(res.cancelled ? '' : res.error);
+    const { records, errors } = parseDriverCsv(res.text, today());
+    if (records.length) store(records.reduce(upsert, lib));
+    setMsg(`${res.name}: imported ${records.length} driver${records.length === 1 ? '' : 's'} (a name already in the library is replaced).${errors.length ? ' Skipped: ' + errors.join(' ') : ''}`);
+  };
   const use = (r: DriverRecord): void => {
     const f = toCustomFields(r);
     if (f) p.onUse(f, r.name);
@@ -131,7 +139,14 @@ export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; poi
         <button type="button" onClick={importRec}>
           Import a driver file
         </button>
+        <button type="button" onClick={importCsv}>
+          Import drivers from CSV
+        </button>
+        <button type="button" onClick={async () => { const r = await saveText('drivers-template.csv', CSV_TEMPLATE, 'text/csv'); setMsg(r.ok ? `Saved ${r.where}` : r.cancelled ? '' : r.error); }}>
+          Download CSV template
+        </button>
       </div>
+      <p className="hint">CSV columns: name, fs_hz, qts, qes, qms, re_ohm, vas_l, sd_cm2, xmax_mm, pe_w, le_mh. Needs name, fs, re and two of the three Q values; Sd, Xmax, Pe and Vas are needed before a driver can be used in a design. Imported numbers are typed values, not measurements.</p>
       {lib.length === 0 ? (
         <p className="hint">No measured drivers saved yet.</p>
       ) : (
