@@ -2,16 +2,15 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
-## Unreleased (after 1.9.0)
+## Unreleased (after the first 1.9.0 build)
 
-- **Driver Probe page and driver library:** measure a driver with the Driver Probe rig over USB or WiFi, live impedance curve and Thiele-Small fit, added-mass method, save to a library, export and import `.driver.json`, Use in design. See [docs/driver-probe.md](docs/driver-probe.md).
 - **Datasheet import:** bulk-import drivers from a CSV, with derived Q values and consistency checks, and a downloadable template.
 - **Home speaker port position:** put the port under the drivers, beside the top or lowest driver (left or right), or on the back wall, with offsets; it moves the hole in the cut list, baffle drawing and 3D view only.
 - Documentation: README, [box types](docs/box-types.md), User Guide, and all screenshots refreshed.
 
 ## 1.9.0 (2026-11-19)
 
-6th-order and 8th-order band-pass, TQWT, level readouts on every box, transmission line cut as a real folded box, the new types on the car and speaker pages and in the Brief. Shared spec v0.19 (273 vectors).
+6th-order and 8th-order band-pass, TQWT, level readouts on every box, transmission line cut as a real folded box, the new types on the car and speaker pages and in the Brief. Also in 1.9.0: the **Driver Probe page and driver library** (measure a driver with the Driver Probe rig over USB or WiFi, live impedance curve and Thiele-Small fit, added-mass method, save, export and import `.driver.json`, Use in design; see [docs/driver-probe.md](docs/driver-probe.md)). Shared spec v0.19 (273 vectors).
 
 ## 1.8.0 (2026-11-16)
 

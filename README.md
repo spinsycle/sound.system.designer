@@ -33,7 +33,7 @@ Version 1.9.0.
   push-pull changes the build, not the response (opposed walls, or side by side on the front with one magnet inside and one outside).
 - **Nine box types:** sealed, ported, passive radiator, band-pass, 6th-order band-pass, 8th-order band-pass, transmission line, TQWT and
   horn. See [docs/box-types.md](docs/box-types.md) for each one with screenshots and what is and is not checked.
-- **Driver Probe and driver library:** measure a real driver with the Driver Probe rig (USB or WiFi) and keep it in a library, or
+- **Driver Probe and driver library (in the 1.9.0 build; CSV import came after):** measure a real driver with the Driver Probe rig (USB or WiFi) and keep it in a library, or
   bulk-import datasheet drivers from a CSV; a saved driver becomes the Custom driver of a box. See
   [docs/driver-probe.md](docs/driver-probe.md).
 - **Home speaker port position:** choose where the port goes (under the drivers, beside the top or lowest driver, or on the back
