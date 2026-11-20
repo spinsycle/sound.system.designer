@@ -170,7 +170,7 @@ export function App() {
             About {APP_NAME} {APP_VERSION}
           </summary>
           <p>
-            Version {APP_VERSION}. Free software under the {LICENCE}: you may use, change and share it under that licence, and the source is at {SOURCE_URL} (the repository is private until its author makes it public).
+            Version {APP_VERSION}. Free software under the {LICENCE}: you may use, change and share it under that licence, and the source is at {SOURCE_URL}.
           </p>
           <p>Generic parts only: the driver classes are invented values, not products, and no brand, driver-model or named sound-system claims are made. Levels and limits are small-signal calculations, not measurements: check anything you build against real drivers and a real amplifier. Project files end in {FILE_EXTENSION}.</p>
         </details>
