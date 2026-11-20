@@ -1,7 +1,7 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.9.0.
+Version 1.9.1.
 
 - **Boxes and horns:** sealed, ported, passive-radiator, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), transmission lines, and, new in 1.9, the **6th-order band-pass** (a
@@ -33,7 +33,7 @@ Version 1.9.0.
   push-pull changes the build, not the response (opposed walls, or side by side on the front with one magnet inside and one outside).
 - **Nine box types:** sealed, ported, passive radiator, band-pass, 6th-order band-pass, 8th-order band-pass, transmission line, TQWT and
   horn. See [docs/box-types.md](docs/box-types.md) for each one with screenshots and what is and is not checked.
-- **Driver Probe and driver library (in the 1.9.0 build; CSV import came after):** measure a real driver with the Driver Probe rig (USB or WiFi) and keep it in a library, or
+- **Driver Probe and driver library (CSV import new in 1.9.1):** measure a real driver with the Driver Probe rig (USB or WiFi) and keep it in a library, or
   bulk-import datasheet drivers from a CSV; a saved driver becomes the Custom driver of a box. See
   [docs/driver-probe.md](docs/driver-probe.md).
 - **Home speaker port position:** choose where the port goes (under the drivers, beside the top or lowest driver, or on the back
@@ -106,7 +106,7 @@ Every box type has its own screenshots in [docs/box-types.md](docs/box-types.md)
 
 ## Install
 
-Run `Sound System Designer_1.9.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.9.1_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 

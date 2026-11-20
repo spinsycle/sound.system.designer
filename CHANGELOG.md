@@ -2,11 +2,11 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
-## Unreleased (after the first 1.9.0 build)
+## 1.9.1 (2026-11-19)
 
 - **Datasheet import:** bulk-import drivers from a CSV, with derived Q values and consistency checks, and a downloadable template.
 - **Home speaker port position:** put the port under the drivers, beside the top or lowest driver (left or right), or on the back wall, with offsets; it moves the hole in the cut list, baffle drawing and 3D view only.
-- Documentation: README, [box types](docs/box-types.md), User Guide, and all screenshots refreshed.
+- Documentation: README, CHANGELOG, [box types](docs/box-types.md), User Guide, and all screenshots refreshed.
 
 ## 1.9.0 (2026-11-19)
 
