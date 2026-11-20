@@ -4,17 +4,20 @@
 // compute() returns, and the tests assert the same path against the shared physics vectors.
 import * as P from '@soundsystemdesigner/physics';
 
-export type BoxKind = 'sealed' | 'ported' | 'bandpass' | 'horn' | 'passive' | 'tline';
+export type BoxKind = 'sealed' | 'ported' | 'bandpass' | 'bandpass6' | 'bandpass8' | 'horn' | 'passive' | 'tline' | 'tqwt';
 export const BOX_KINDS: readonly { id: BoxKind; label: string }[] = [
   { id: 'sealed', label: 'Sealed' },
   { id: 'ported', label: 'Ported' },
   { id: 'passive', label: 'Passive radiator' },
   { id: 'bandpass', label: 'Band-pass' },
+  { id: 'bandpass6', label: '6th-order band-pass' },
+  { id: 'bandpass8', label: '8th-order band-pass' },
   { id: 'tline', label: 'Transmission line' },
+  { id: 'tqwt', label: 'TQWT (tapered quarter-wave)' },
   { id: 'horn', label: 'Horn' },
 ];
-/** The box kinds the Ollama brief may choose: the original four (the new Cookbook types are designed by hand). */
-export const BRIEF_KINDS: readonly BoxKind[] = ['sealed', 'ported', 'bandpass', 'horn'];
+/** The box kinds the Ollama brief may choose: every one (v1.9). The 6th- and 8th-order band-pass, the transmission line and the TQWT are sized by the app from the driver (and the passband asked for); the model names the part. */
+export const BRIEF_KINDS: readonly BoxKind[] = ['sealed', 'ported', 'passive', 'bandpass', 'bandpass6', 'bandpass8', 'tline', 'tqwt', 'horn'];
 
 export const FLARES: readonly { id: P.FlareKind; label: string }[] = [
   { id: 'exponential', label: 'Exponential' },
@@ -98,6 +101,42 @@ export interface TlDesign {
   stuffedPct: number;
 }
 
+/**
+ * 6th-order band-pass (app only, spec v0.16): a vented rear chamber as well as the vented front one, both ports radiating. The
+ * rear chamber's volume is the design's `volumeL`, the front's `frontVolumeL`, the front tuning `tuneHz` and the front port the
+ * design's port; this holds the rear tuning and its (always round) port, and the passband the design helper aims at.
+ */
+export interface Bp6Design {
+  rearTuneHz: number;
+  rearPortDiameterCm: number;
+  /** Passband the design helper aims at, Hz. */
+  loHz: number;
+  hiHz: number;
+}
+
+/**
+ * 8th-order band-pass (app only, spec v0.18): the 6th-order box with the front made of two chambers in series. The rear chamber is the
+ * design's `volumeL` (its tuning and round port are `bp6.rearTuneHz` and `bp6.rearPortDiameterCm`), the OUTER front chamber (to the room)
+ * its `frontVolumeL` with the design's `tuneHz` and port; this holds the INNER front chamber (next to the driver) and port 1 that joins it
+ * to the outer chamber. The helper's passband is `bp6.loHz` to `bp6.hiHz`.
+ */
+export interface Bp8Design {
+  innerVolumeL: number;
+  innerTuneHz: number;
+  innerPortDiameterCm: number;
+  /**
+   * What the rear chamber does (spec v0.19): 'vented' its own port opens to the room (8th order); 'chain' its port opens into the inner front
+   * chamber, so the three chambers chain to the room (8th order); 'sealed' no rear port (6th order by pole count).
+   */
+  layout: P.Bp8Layout;
+}
+
+export const BP8_LAYOUTS: readonly { id: P.Bp8Layout; label: string }[] = [
+  { id: 'vented', label: 'Rear vented to the room' },
+  { id: 'chain', label: 'Rear vented into the front chamber' },
+  { id: 'sealed', label: 'Rear sealed' },
+];
+
 /** The line the book's tables give for a driver, as editable settings. */
 export function tlSettingsFor(driver: P.DriverSpec, kind: P.TlKind, table: P.TlTable, stuffing: P.Stuffing): TlDesign {
   const des = P.tlDesign(driver, kind, table);
@@ -113,6 +152,27 @@ export function tlSettingsFor(driver: P.DriverSpec, kind: P.TlKind, table: P.TlT
     offsetPct: Math.round(des.offset * 100),
     densityLb: r(P.stuffingDensityLb(stuffing, des.lengthM)),
     stuffedPct: 80,
+  };
+}
+
+/**
+ * A starting TQWT for a driver as editable line settings (spec v0.17): quarter-wave length, mouth the cone's area, closed end four
+ * times that, driver a third of the way up, light stuffing over the closed half. Same line fields as a transmission line.
+ */
+export function tqwtSettingsFor(driver: P.DriverSpec, stuffing: P.Stuffing = 'acousta'): TlDesign {
+  const des = P.tqwtDesign(driver);
+  const r = (v: number): number => Number(v.toPrecision(4));
+  return {
+    kind: 'offset',
+    table: 'extended',
+    stuffing,
+    lengthCm: r(des.lengthM * 100),
+    startCm2: r(des.startM2 * 1e4),
+    exitCm2: r(des.exitM2 * 1e4),
+    chamberL: 0,
+    offsetPct: Math.round(des.offset * 100),
+    densityLb: P.TQWT_DENSITY_LB,
+    stuffedPct: Math.round(P.TQWT_STUFFED_SHARE * 100),
   };
 }
 
@@ -175,6 +235,8 @@ export interface Design {
   fillPct: number;
   pr: PassiveDesign;
   tl: TlDesign;
+  bp6: Bp6Design;
+  bp8: Bp8Design;
   /** Amplifier power for the excursion plot. */
   powerW: number;
   plotRange: PlotRange;
@@ -222,6 +284,17 @@ export const TL_RANGES: Record<'lengthCm' | 'startCm2' | 'exitCm2' | 'chamberL' 
   offsetPct: { label: 'Driver offset from the closed end', unit: '% of line', min: 0, max: 50, linear: true },
   densityLb: { label: 'Stuffing density', unit: 'lb/ft³', min: 0, max: 5, linear: true },
   stuffedPct: { label: 'Stuffed length', unit: '% of line', min: 0, max: 100, linear: true },
+};
+export const BP6_RANGES: Record<keyof Bp6Design, Range> = {
+  rearTuneHz: { label: 'Rear tuning', unit: 'Hz', min: 10, max: 200 },
+  rearPortDiameterCm: { label: 'Rear port diameter', unit: 'cm', min: 2, max: 40 },
+  loHz: { label: 'Low edge', unit: 'Hz', min: 15, max: 150 },
+  hiHz: { label: 'High edge', unit: 'Hz', min: 20, max: 300 },
+};
+export const BP8_RANGES: Record<'innerVolumeL' | 'innerTuneHz' | 'innerPortDiameterCm', Range> = {
+  innerVolumeL: { label: 'Inner front volume', unit: 'L', min: 1, max: 1000 },
+  innerTuneHz: { label: 'Inner tuning (port 1)', unit: 'Hz', min: 10, max: 200 },
+  innerPortDiameterCm: { label: 'Inner port diameter', unit: 'cm', min: 2, max: 40 },
 };
 export const STUFFINGS: readonly { id: P.Stuffing; label: string }[] = [
   { id: 'acousta', label: 'Acousta-Stuf' },
@@ -273,6 +346,8 @@ export const DEFAULT_DESIGN: Design = {
   fillPct: 0,
   pr: { sdpCm2: 0, vapL: 0, massG: 0, xmaxMm: 12 },
   tl: tlSettingsFor(P.ALL_DRIVER_CLASSES[3]!, 'taper', 'extended', 'acousta'),
+  bp6: { rearTuneHz: 45, rearPortDiameterCm: 12, loHz: 40, hiHz: 80 },
+  bp8: { innerVolumeL: 60, innerTuneHz: 70, innerPortDiameterCm: 10, layout: 'vented' },
   powerW: 100,
   plotRange: 'low',
   horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '', fold: false, legs: 4, depthCm: 100, foldStyle: 'stepped' },
@@ -340,6 +415,14 @@ export function sanitize(input: unknown): Design {
   };
   for (const k of Object.keys(TL_RANGES) as (keyof typeof TL_RANGES)[]) tlOut[k] = num(tl[k], TL_RANGES[k], d.tl[k]);
   out.tl = tlOut;
+  const bp6 = obj(i.bp6);
+  out.bp6 = { ...d.bp6 };
+  for (const k of Object.keys(BP6_RANGES) as (keyof Bp6Design)[]) out.bp6[k] = num(bp6[k], BP6_RANGES[k], d.bp6[k]);
+  // the helper needs a passband at least 1.2 apart
+  if (out.bp6.hiHz < out.bp6.loHz * 1.2) out.bp6.hiHz = Math.min(BP6_RANGES.hiHz.max, out.bp6.loHz * 1.2);
+  const bp8 = obj(i.bp8);
+  out.bp8 = { ...d.bp8, layout: bp8.layout === 'sealed' || bp8.layout === 'chain' ? bp8.layout : 'vented' };
+  for (const k of Object.keys(BP8_RANGES) as (keyof typeof BP8_RANGES)[]) out.bp8[k] = num(bp8[k], BP8_RANGES[k], d.bp8[k]);
   return out;
 }
 
@@ -526,9 +609,128 @@ function sealedFilledRaw(d: Design): (f: number) => Raw {
   };
 }
 
+/** 6th-order band-pass: both chambers vented, QL on both (lossless when 0). */
+function bandpass6Raw(d: Design): (f: number) => Raw {
+  const driver = driverOf(d);
+  const r = P.deriveDriver(driver);
+  const ar = driver.vasM3 / (d.volumeL / 1000);
+  const af = driver.vasM3 / (d.frontVolumeL / 1000);
+  const ql = d.qL > 0 ? d.qL : undefined;
+  return (f) => {
+    const x = P.bandpass6X(f, driver, r, ar, af, d.bp6.rearTuneHz, d.tuneHz, ql, ql);
+    return { g: P.bandpass6G(f, driver.fs, r.qts, ar, af, d.bp6.rearTuneHz, d.tuneHz, ql, ql), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+  };
+}
+
+/**
+ * Smallest round port diameter (cm) that tunes a chamber to a frequency with a port at least `minLengthCm` long and no thinner than
+ * the Cookbook's minimum vent for the driver; held to the box range (a chamber too big for its tuning gives the largest). `internal`: a port that
+ * joins two chambers (end correction 0.85 d).
+ */
+export function portDiameterCmFor(driver: P.DriverSpec, chamberL: number, tuneHz: number, minLengthCm = 8, internal = false): number {
+  const lengthM = internal ? P.portLengthInternalM : P.portLengthM;
+  const dMin = P.minVentDiameterM(P.displacementVolume(driver), tuneHz) * 100;
+  const { min, max } = BOX_RANGES.portDiameterCm;
+  let lo = Math.max(min, dMin);
+  // rounded up to 1 mm so the rounded port is never under the minimum vent or the length
+  const up = (cm: number): number => Math.min(max, Math.ceil(cm * 10 - 1e-9) / 10);
+  if (lengthM(chamberL / 1000, tuneHz, lo / 100) * 100 >= minLengthCm) return up(lo);
+  let hi = max;
+  if (lengthM(chamberL / 1000, tuneHz, hi / 100) * 100 < minLengthCm) return hi;
+  for (let i = 0; i < 40; ++i) {
+    const mid = (lo + hi) / 2;
+    if (lengthM(chamberL / 1000, tuneHz, mid / 100) * 100 >= minLengthCm) hi = mid;
+    else lo = mid;
+  }
+  return up(hi);
+}
+
+/** 8th-order band-pass: rear chamber, inner front chamber and outer front chamber each vented, QL on all three (lossless when 0). */
+function bandpass8Raw(d: Design): (f: number) => Raw {
+  const driver = driverOf(d);
+  const r = P.deriveDriver(driver);
+  const ar = driver.vasM3 / (d.volumeL / 1000);
+  const a1 = driver.vasM3 / (d.bp8.innerVolumeL / 1000);
+  const a2 = driver.vasM3 / (d.frontVolumeL / 1000);
+  const ql = d.qL > 0 ? d.qL : undefined;
+  return (f) => {
+    const x = P.bandpass8X(f, driver, r, ar, a1, a2, d.bp6.rearTuneHz, d.bp8.innerTuneHz, d.tuneHz, ql, ql, ql, d.bp8.layout);
+    return { g: P.bandpass8G(f, driver.fs, r.qts, ar, a1, a2, d.bp6.rearTuneHz, d.bp8.innerTuneHz, d.tuneHz, ql, ql, ql, d.bp8.layout), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+  };
+}
+
+/** Port 1 (inner front chamber into the outer one) length for the inner tuning, m (a round port joining two chambers: both ends flanged, spec v0.19). */
+export const bp8InnerPortLengthM = (d: Design): number => P.portLengthInternalM(d.bp8.innerVolumeL / 1000, d.bp8.innerTuneHz, d.bp8.innerPortDiameterCm / 100);
+
+/** Rear port length of an 8th-order box, m: to the room ('vented', one end free) or into the inner front chamber ('chain', both ends flanged); none when sealed. */
+export const bp8RearPortLengthM = (d: Design): number =>
+  d.bp8.layout === 'chain' ? P.portLengthInternalM(d.volumeL / 1000, d.bp6.rearTuneHz, d.bp6.rearPortDiameterCm / 100) : bp6RearPortLengthM(d);
+
+/**
+ * The Cookbook's passive-radiator starting point for a driver (the PA page's button, also used by the car and speaker pages): box air about
+ * Vas / alpha for each driver (all of them together for `count` drivers sharing a box), tuned for the lowest f3, QL 7 if none, and a radiator
+ * that copies the driver's cone (Table 3.1's case).
+ */
+export function passiveDefaults(d: Design, count = 1): Pick<Design, 'volumeL' | 'tuneHz' | 'qL' | 'pr'> {
+  const driver = driverOf(d);
+  const qts = P.deriveDriver(driver).qts;
+  const ql = d.qL > 0 ? d.qL : 7;
+  const alpha = P.recommendedPassiveAlpha(qts);
+  const s = P.solvePassiveTuning(qts, alpha, ql);
+  const volume = ((driver.vasM3 * 1000) / alpha) * Math.max(count, 1);
+  return {
+    qL: ql,
+    volumeL: Number(P.clamp(volume, BOX_RANGES.volumeL.min, BOX_RANGES.volumeL.max).toPrecision(4)),
+    tuneHz: s ? Number(P.clamp(s.h * driver.fs, BOX_RANGES.tuneHz.min, BOX_RANGES.tuneHz.max).toPrecision(4)) : d.tuneHz,
+    pr: { ...d.pr, sdpCm2: 0, vapL: 0, massG: 0 },
+  };
+}
+
+/**
+ * A starting 6th- or 8th-order band-pass for a driver (the helper's chambers and tunings for a passband, one box's worth times `count` for an
+ * install's total air, round ports wide enough to tune their chambers). The 8th order keeps the design's layout. Used by the car page and by the brief.
+ */
+export function bandpassStart(d: Design, kind: 'bandpass6' | 'bandpass8', count = 1, passband: { loHz: number; hiHz: number } = { loHz: d.bp6.loHz, hiHz: d.bp6.hiHz }): Partial<Design> {
+  const driver = driverOf(d);
+  const ql = d.qL > 0 ? d.qL : 7;
+  const n = Math.max(count, 1);
+  const { loHz, hiHz } = passband;
+  const t = (v: number): number => Number(v.toPrecision(4));
+  if (kind === 'bandpass6') {
+    const a = P.bandpass6Design(driver, loHz, hiHz, ql);
+    return {
+      type: kind,
+      qL: ql,
+      volumeL: t(a.rearL * n),
+      frontVolumeL: t(a.frontL * n),
+      tuneHz: t(a.frontHz),
+      portShape: 'round',
+      portDiameterCm: portDiameterCmFor(driver, t(a.frontL), t(a.frontHz)),
+      bp6: { ...d.bp6, rearTuneHz: t(a.rearHz), rearPortDiameterCm: portDiameterCmFor(driver, t(a.rearL), t(a.rearHz)) },
+    };
+  }
+  const a = P.bandpass8Design(driver, loHz, hiHz, ql, d.bp8.layout);
+  return {
+    type: kind,
+    qL: ql,
+    volumeL: t(a.rearL * n),
+    frontVolumeL: t(a.outerL * n),
+    tuneHz: t(a.outerHz),
+    portShape: 'round',
+    portDiameterCm: portDiameterCmFor(driver, t(a.outerL), t(a.outerHz)),
+    bp6: { ...d.bp6, rearTuneHz: t(a.rearHz), rearPortDiameterCm: portDiameterCmFor(driver, t(a.rearL), t(a.rearHz), 8, d.bp8.layout === 'chain') },
+    bp8: { ...d.bp8, innerVolumeL: t(a.innerL * n), innerTuneHz: t(a.innerHz), innerPortDiameterCm: portDiameterCmFor(driver, t(a.innerL), t(a.innerHz), 8, true) },
+  };
+}
+
+/** Rear port length for the design's rear tuning, m (a round port). */
+export const bp6RearPortLengthM = (d: Design): number => P.portLengthM(d.volumeL / 1000, d.bp6.rearTuneHz, d.bp6.rearPortDiameterCm / 100);
+
 function directRaw(d: Design): (f: number) => Raw {
+  if (d.type === 'bandpass8') return bandpass8Raw(d);
+  if (d.type === 'bandpass6') return bandpass6Raw(d);
   if (d.type === 'passive') return passiveRaw(d);
-  if (d.type === 'tline') return tlRaw(d);
+  if (d.type === 'tline' || d.type === 'tqwt') return tlRaw(d);
   if (d.type === 'sealed' && d.fillPct > 0) return sealedFilledRaw(d);
   const box: P.BoxParams = { driver: driverOf(d), type: d.type === 'horn' ? 'sealed' : (d.type as P.BoxType), volumeL: d.volumeL, tuneHz: d.tuneHz, frontVolumeL: d.frontVolumeL, hornThroatCm2: 600, hornMouthCm2: 4000, hornLengthM: 1, ...(d.qL > 0 ? { qL: d.qL } : {}) };
   return (f) => ({ g: P.boxResponse(box, f), x: P.boxDisplacement(box, f), z: P.boxImpedance(box, f) });
@@ -778,7 +980,7 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
       if (derived.qts > 0.5) warnings.push(`Qts ${derived.qts.toFixed(2)} is above 0.5: the Cookbook finds no usable passive-radiator alignment there (flat QB3 holds to about 0.35, ripple to 0.44).`);
       if (d.qL === 0) notes.push('Lossless box. The Cookbook designs passive radiators at QL = 7.');
       notes.push("The Cookbook prints no transfer function for the passive radiator (\"same as vented\"); this is the circuit worked out, and it reproduces the book's Table 3.1 rows (Qts 0.26: alpha 4.33, fB/fs 1.73, f3/fs 1.98) to a few percent.");
-    } else if (d.type === 'tline') {
+    } else if (d.type === 'tline' || d.type === 'tqwt') {
       const geo = tlGeometryOf(d);
       const fp = P.C / (4 * geo.lengthM);
       const f3 = f3Of(freqs, curves.responseDb);
@@ -791,11 +993,57 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
         { label: 'Book density for +-1 dB ripple', value: `${fmt(P.stuffingDensityLb(d.tl.stuffing, geo.lengthM), 2)} lb/ft³` },
       );
       markers.push({ f: fp, label: 'fp' });
+      if (d.type === 'tqwt') {
+        readouts.push({ label: 'Driver position from the closed end', value: `${fmt((d.tl.lengthCm * d.tl.offsetPct) / 100)} cm (${fmt(d.tl.offsetPct, 0)} % of the line)` }, { label: 'Mouth area against the cone', value: `${fmt((geo.exitM2 / driver.sd) * 100, 0)} %` });
+        if (geo.exitM2 < 0.75 * driver.sd) warnings.push(`The mouth is ${fmt((geo.exitM2 / driver.sd) * 100, 0)} % of the cone's area: expect port noise and a lifted bass. A TQWT mouth is normally at least the cone's area.`);
+        if (d.tl.offsetPct < 20 || d.tl.offsetPct > 45) warnings.push(`The driver is ${fmt(d.tl.offsetPct, 0)} % of the way up the line; a TQWT usually has it between a quarter and 40 %, about a third.`);
+      }
       if (geo.exitM2 > geo.startM2) warnings.push('The exit is larger than the start: the Cookbook tapers the line toward the exit (1:3 to 1:4).');
       if (geo.startM2 < driver.sd * 0.75) warnings.push(`The line is narrower at the driver than the cone (${fmt(geo.startM2 * 1e4, 0)} against ${fmt(driver.sd * 1e4, 0)} cm²): it chokes the rear of the cone.`);
       if (d.tl.stuffedPct > 85) warnings.push('The book leaves about the last 20 % of the line unstuffed, or lighter near the driver.');
       if (d.tl.densityLb < 0.7 * P.stuffingDensityLb(d.tl.stuffing, geo.lengthM)) warnings.push("Less stuffing than the Cookbook's table for this length: expect ripple and a peak near the line resonance.");
-      notes.push("Simulated line: a stuffed, tapered tube (Delany-Bazley fibre) driven from the cone's rear. The Cookbook gives rules and tables, not a model; this reproduces its tables' f3 within about 15 % and is a guide, not a prediction. Exit directivity and bends are not modelled; the cut list builds the line as one box with a septum.");
+      notes.push(`Simulated line: a stuffed, tapered tube (Delany-Bazley fibre) driven from the cone's rear. The Cookbook gives rules and tables, not a model; this reproduces its tables' f3 within about 15 % and is a guide, not a prediction. Exit directivity and bends are not modelled; ${d.type === 'tqwt' ? 'the cut list builds a straight tapered column (flat front, closed top, mouth open at the bottom).' : 'the cut list folds the line into stacked legs.'}`);
+    } else if (d.type === 'bandpass8') {
+      const pb = passband(freqs, curves.responseDb);
+      const lay = d.bp8.layout;
+      readouts.push({ label: 'Peak', value: `${pb.peakDb >= 0 ? '+' : ''}${fmt(pb.peakDb)} dB at ${fmt(pb.peakHz)} Hz` }, { label: 'Passband (-3 dB from peak)', value: `${fmt(pb.loHz)} to ${fmt(pb.hiHz)} Hz` });
+      port(d.frontVolumeL);
+      const rearM = bp8RearPortLengthM(d);
+      const innerM = bp8InnerPortLengthM(d);
+      readouts.push({ label: `Port 1 length, inner to outer chamber (${fmt(d.bp8.innerPortDiameterCm)} cm round)`, value: innerM > 0 ? `${fmt(innerM * 100)} cm` : 'does not fit' });
+      if (lay !== 'sealed') readouts.push({ label: `Rear port length${lay === 'chain' ? ', into the inner chamber' : ''} (${fmt(d.bp6.rearPortDiameterCm)} cm round)`, value: rearM > 0 ? `${fmt(rearM * 100)} cm` : 'does not fit' });
+      readouts.push({ label: 'Chambers: rear, inner front, outer front', value: `${fmt(d.volumeL)}, ${fmt(d.bp8.innerVolumeL)}, ${fmt(d.frontVolumeL)} L` });
+      markers.push({ f: d.bp8.innerTuneHz, label: 'f1' });
+      if (lay !== 'sealed') markers.push({ f: d.bp6.rearTuneHz, label: 'fr' });
+      if (lay !== 'sealed' && rearM <= 0) warnings.push(`A ${fmt(d.bp6.rearPortDiameterCm)} cm rear port cannot tune ${fmt(d.volumeL)} L to ${fmt(d.bp6.rearTuneHz)} Hz: the length comes out negative. Use a narrower port, a smaller rear chamber or a lower tuning.`);
+      if (innerM <= 0) warnings.push(`A ${fmt(d.bp8.innerPortDiameterCm)} cm port 1 cannot tune ${fmt(d.bp8.innerVolumeL)} L to ${fmt(d.bp8.innerTuneHz)} Hz: the length comes out negative. Use a narrower port, a smaller inner chamber or a lower tuning.`);
+      const vd = P.displacementVolume(driver);
+      const vents: (readonly [string, number, number])[] = [['port 1', d.bp8.innerPortDiameterCm, d.bp8.innerTuneHz]];
+      if (lay !== 'sealed') vents.unshift(['rear vent', d.bp6.rearPortDiameterCm, d.bp6.rearTuneHz]);
+      for (const [label, dia, hz] of vents) {
+        const dMin = P.minVentDiameterM(vd, hz);
+        if (dia / 100 < dMin) warnings.push(`The ${label} is ${fmt(dia)} cm across; the Cookbook's minimum for this driver and tuning is ${fmt(dMin * 100)} cm. Expect port noise and compression.`);
+      }
+      if (d.qL === 0) notes.push('Lossless boxes (QL = infinity). Set the box losses to see a realistic response.');
+      const shared = 'Not from a book: this is the acoustic circuit worked out, checked against a numeric solve of the circuit and against a simpler box (outer chamber shrunk to nothing). Every chamber uses the box-loss QL; the ports are round, the room-facing ones on the baffle. Port 1 joins two chambers, so both its ends are flanged (end correction 0.85 d in all, against 0.732 d for a port to open air).';
+      if (lay === 'vented') notes.push(`8th-order band-pass, rear vented to the room: the driver between a vented rear chamber and a front of two chambers in series (the inner one next to the driver opens through port 1 into the outer one, which opens through port 2 to the room); the rear port also vents to the room (opposite in phase). Driver plus three vented resonators is 8th order. ${shared}`);
+      else if (lay === 'chain') notes.push(`8th-order band-pass, rear vented into the front chamber: the rear chamber's port opens into the inner front chamber, so the rear, inner and outer chambers chain to the room and port 2 alone is the output. Driver plus three vented resonators is 8th order. ${shared}`);
+      else notes.push(`Rear-sealed layout: the rear chamber has no port, so the driver with its sealed rear and the two vented front chambers make a 6th-order box by pole count (the 4th-order box with a second front chamber). The sealed chamber's leakage is referenced to the driver's Fs. ${shared}`);
+    } else if (d.type === 'bandpass6') {
+      const pb = passband(freqs, curves.responseDb);
+      readouts.push({ label: 'Peak', value: `${pb.peakDb >= 0 ? '+' : ''}${fmt(pb.peakDb)} dB at ${fmt(pb.peakHz)} Hz` }, { label: 'Passband (-3 dB from peak)', value: `${fmt(pb.loHz)} to ${fmt(pb.hiHz)} Hz` });
+      port(d.frontVolumeL);
+      const rearM = bp6RearPortLengthM(d);
+      readouts.push({ label: `Rear port length (${fmt(d.bp6.rearPortDiameterCm)} cm round)`, value: rearM > 0 ? `${fmt(rearM * 100)} cm` : 'does not fit' });
+      markers.push({ f: d.bp6.rearTuneHz, label: 'fr' });
+      if (rearM <= 0) warnings.push(`A ${fmt(d.bp6.rearPortDiameterCm)} cm rear port cannot tune ${fmt(d.volumeL)} L to ${fmt(d.bp6.rearTuneHz)} Hz: the length comes out negative. Use a narrower port, a smaller rear chamber or a lower tuning.`);
+      const vd = P.displacementVolume(driver);
+      const dMinRear = P.minVentDiameterM(vd, d.bp6.rearTuneHz);
+      extras.push({ label: 'Smallest rear vent (Cookbook)', value: `${fmt(dMinRear * 100)} cm` });
+      if (d.bp6.rearPortDiameterCm / 100 < dMinRear) warnings.push(`The rear vent is ${fmt(d.bp6.rearPortDiameterCm)} cm across; the Cookbook's minimum for this driver and tuning is ${fmt(dMinRear * 100)} cm. Expect port noise and compression.`);
+      if (Math.abs(d.bp6.rearTuneHz - d.tuneHz) < 0.02 * d.tuneHz) warnings.push('The rear and front tunings are almost equal: the two ports then cancel and the box has almost no output. Separate them.');
+      if (d.qL === 0) notes.push('Lossless boxes (QL = infinity). Set the box losses to see a realistic response.');
+      notes.push('6th-order band-pass: a vented rear chamber and a vented front chamber, both ports into the room (front port in phase with the cone, rear port opposite). The Cookbook has no equations for it: this is the acoustic circuit worked out, checked against the 4th-order box (rear port closed) and against a numeric solve of the circuit, not against a book or another program. Both chambers use the box-loss QL; the rear port is always round and is placed on the baffle in the cut list.');
     } else {
       const pb = passband(freqs, curves.responseDb);
       readouts.push({ label: 'Peak', value: `${pb.peakDb >= 0 ? '+' : ''}${fmt(pb.peakDb)} dB at ${fmt(pb.peakHz)} Hz` }, { label: 'Passband (-3 dB from peak)', value: `${fmt(pb.loHz)} to ${fmt(pb.hiHz)} Hz` });
@@ -817,6 +1065,40 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
     }
     const ebp = driver.fs / driver.qes;
     notes.push(`EBP (Fs / Qes) is ${fmt(ebp, 0)}: the Cookbook suggests about 50 or less for a sealed box and about 100 or more for a vented one.`);
+  }
+
+  if (d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8' || d.type === 'tline' || d.type === 'tqwt') {
+    // the Cookbook has no Par rule for these, so only the driver's own reference efficiency (Par/Per hidden at the user's request)
+    const eta0 = P.referenceEfficiency(driver);
+    extras.push({ label: 'Reference efficiency', value: `${fmt(eta0 * 100, 2)} % (about ${fmt(P.referenceSpl(eta0))} dB at 1 W, 1 m)` });
+  }
+  if (d.type === 'tline' || d.type === 'tqwt') {
+    const geo = tlGeometryOf(d);
+    extras.push({ label: 'Line exit area', value: `${fmt(geo.exitM2 * 1e4, 0)} cm² (${fmt(Math.sqrt((4 * geo.exitM2) / Math.PI) * 100)} cm across if round)` }, { label: 'Line start area', value: `${fmt(geo.startM2 * 1e4, 0)} cm²` });
+  }
+
+  // Absolute level and limits at the design's amp power. Cone limit is read where the box plays (from its lower -3 dB edge up), as the System page does from its lowest frequency.
+  {
+    const raw = rawEvaluator(d, wallM);
+    const pb = passband(freqs, curves.responseDb);
+    const loHz = d.type === 'horn' || d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8' ? pb.loHz : Math.max(f3Of(freqs, curves.responseDb), freqs[0]!);
+    const inBand = freqs.filter((f) => f >= loHz && f <= pb.hiHz);
+    if (inBand.length) {
+      const pRef = P.referencePressure(driver, REF_VOLTS);
+      const sens = inBand.reduce((a, f) => a + P.splDb(P.abs(P.scale(raw(f).g, pRef))), 0) / inBand.length;
+      const worstX = Math.max(...inBand.map((f) => P.abs(raw(f).x)));
+      const heatV = P.thermalLimitVolts(driver.pe, driver.re, 1);
+      const excV = P.excursionLimitVolts(driver.xmax, worstX, 1);
+      const limV = Math.min(heatV, excV);
+      const atPower = sens + 20 * Math.log10(P.peakVoltsForPower(d.powerW, driver.re) / Math.SQRT2 / REF_VOLTS);
+      extras.push(
+        { label: `Level in the passband (${REF_VOLTS} V, 1 m)`, value: `${fmt(sens)} dB SPL` },
+        { label: `Level at ${fmt(d.powerW)} W`, value: `${fmt(atPower)} dB SPL` },
+        { label: 'Highest steady level', value: `${fmt(sens + 20 * Math.log10(limV / REF_VOLTS))} dB SPL, limited by ${heatV <= excV ? 'driver heat' : 'cone travel (Xmax)'}` },
+        { label: 'Power at that limit', value: `${fmt(limV ** 2 / driver.re, 0)} W (heat ${fmt(driver.pe, 0)} W, cone ${fmt(excV ** 2 / driver.re, 0)} W)` },
+      );
+      notes.push(`Levels are half-space, 1 m, steady sine, averaged over ${fmt(loHz)} to ${fmt(pb.hiHz)} Hz${d.type === 'horn' ? ' (radiated power, not on-axis)' : ''}; the cone limit is the worst cone travel in that range. No power compression or limiter, so treat the highest level as a ceiling.`);
+    }
   }
 
   const xmaxMm = driver.xmax * 1000;

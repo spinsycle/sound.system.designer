@@ -61,6 +61,15 @@ export function portLengthM(vbM3: number, fb: number, dPortM: number): number {
 }
 
 /**
+ * Port length for a round port that joins two chambers (spec v0.19): both ends are flanged inside enclosures, 0.85 a each, so the end correction is
+ * 0.85 d in all (a port to open air has one flanged and one free end, 0.732 d), m. Can be negative: the port does not fit.
+ */
+export function portLengthInternalM(vbM3: number, fb: number, dPortM: number): number {
+  const sp = Math.PI * (dPortM / 2) * (dPortM / 2);
+  return (C * C * sp) / (4 * Math.PI * Math.PI * fb * fb * vbM3) - 0.85 * dPortM;
+}
+
+/**
  * Port length for any cross-section of area `areaM2` (spec v0.13): the flanged end correction uses the equivalent diameter sqrt(4A/pi).
  * ponytail: the end correction of a slot differs a little from a round port's; a measured slot correction is the upgrade if it matters.
  */

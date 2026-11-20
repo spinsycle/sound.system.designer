@@ -9,7 +9,12 @@ import { LayoutControls, PortControls } from './LayoutControls';
 import {
   BOX_KINDS,
   BOX_RANGES,
+  BP6_RANGES,
+  BP8_LAYOUTS,
+  BP8_RANGES,
   type BoxField,
+  type Bp6Design,
+  type Bp8Design,
   CUSTOM_CLASS,
   CUSTOM_RANGES,
   DEFAULT_WALL_M,
@@ -30,9 +35,11 @@ import {
   TL_RANGES,
   compute,
   driverOf,
+  portDiameterCmFor,
   prOf,
   sanitize,
   tlSettingsFor,
+  tqwtSettingsFor,
 } from './model';
 
 export const show =(v: number): string => String(Number(v.toPrecision(4)));
@@ -86,20 +93,21 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
   // a rear-loaded horn (scoop) has no sealed rear chamber: the chamber behind the cone is the one that feeds the throat
   const isRear = isHorn && design.horn.loading === 'rear';
   const customKeys = Object.keys(CUSTOM_RANGES) as (keyof P.CustomDriverFields)[];
-  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz'], passive: ['volumeL', 'tuneHz'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz'], tline: [], horn: isRear ? [] : ['volumeL'] }[design.type] as BoxField[];
-  const volumeLabel = { sealed: 'Volume', ported: 'Volume', passive: 'Volume', bandpass: 'Rear volume', tline: '', horn: 'Rear chamber' }[design.type];
-  const tuneLabel = design.type === 'passive' ? 'Box tuning fB' : undefined;
+  const boxFields: BoxField[] = { sealed: ['volumeL'], ported: ['volumeL', 'tuneHz'], passive: ['volumeL', 'tuneHz'], bandpass: ['volumeL', 'frontVolumeL', 'tuneHz'], bandpass6: ['volumeL', 'frontVolumeL', 'tuneHz'], bandpass8: ['volumeL', 'frontVolumeL', 'tuneHz'], tline: [], tqwt: [], horn: isRear ? [] : ['volumeL'] }[design.type] as BoxField[];
+  const volumeLabel = { sealed: 'Volume', ported: 'Volume', passive: 'Volume', bandpass: 'Rear volume', bandpass6: 'Rear volume (vented)', bandpass8: 'Rear volume (vented)', tline: '', tqwt: '', horn: 'Rear chamber' }[design.type];
+  const tuneLabel = design.type === 'passive' ? 'Box tuning fB' : design.type === 'bandpass6' ? 'Front tuning' : design.type === 'bandpass8' ? 'Outer front tuning (port 2)' : undefined;
   const setPr = (patch: Partial<PassiveDesign>): void => set({ pr: { ...design.pr, ...patch } });
   const setTl = (patch: Partial<TlDesign>): void => set({ tl: { ...design.tl, ...patch } });
   const qts = c.derived.qts;
-  const hasQl = design.type === 'ported' || design.type === 'bandpass' || design.type === 'passive';
+  const hasQl = design.type === 'ported' || design.type === 'bandpass' || design.type === 'bandpass6' || design.type === 'bandpass8' || design.type === 'passive';
   const pickType = (type: Design['type']): void => {
     // a new Cookbook type starts the way the book designs it: QL 7, and a line or radiator sized from the driver
     const patch: Partial<Design> = { type };
-    if (type === 'passive' || type === 'bandpass') {
+    if (type === 'passive' || type === 'bandpass' || type === 'bandpass6' || type === 'bandpass8') {
       if (design.qL === 0) patch.qL = 7;
     }
     if (type === 'tline') patch.tl = tlSettingsFor(driverOf(design), design.tl.kind, design.tl.table, design.tl.stuffing);
+    if (type === 'tqwt') patch.tl = tqwtSettingsFor(driverOf(design), design.tl.stuffing);
     set(patch);
   };
   /** Design helpers: set the box from the Cookbook's alignments (vented, passive radiator, closed Qtc, band-pass ripple). */
@@ -123,6 +131,38 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
     const qbp = Math.max(qts * 2.18, qts * 1.2);
     const b = P.bandpassDesign(d, qts, ripple, qbp);
     set({ qL: ql7, volumeL: Number((b.vrM3 * 1000).toPrecision(4)), frontVolumeL: Number((b.vfM3 * 1000).toPrecision(4)), tuneHz: Number(b.fbHz.toPrecision(4)) });
+  };
+  const setBp6 = (patch: Partial<Bp6Design>): void => set({ bp6: { ...design.bp6, ...patch } });
+  const applyBandpass6 = (): void => {
+    const a = P.bandpass6Design(d, design.bp6.loHz, design.bp6.hiHz, ql7);
+    const t = (v: number): number => Number(v.toPrecision(4));
+    // the ports have to be wide enough to tune their chamber: round, at least 8 cm long and not under the Cookbook's minimum vent
+    set({
+      qL: ql7,
+      volumeL: t(a.rearL),
+      frontVolumeL: t(a.frontL),
+      tuneHz: t(a.frontHz),
+      portShape: 'round',
+      portDiameterCm: portDiameterCmFor(d, t(a.frontL), t(a.frontHz)),
+      bp6: { ...design.bp6, rearTuneHz: t(a.rearHz), rearPortDiameterCm: portDiameterCmFor(d, t(a.rearL), t(a.rearHz)) },
+    });
+  };
+  const setBp8 = (patch: Partial<Bp8Design>): void => set({ bp8: { ...design.bp8, ...patch } });
+  const applyBandpass8 = (): void => {
+    const a = P.bandpass8Design(d, design.bp6.loHz, design.bp6.hiHz, ql7, design.bp8.layout);
+    const t = (v: number): number => Number(v.toPrecision(4));
+    // the ports have to be wide enough to tune their chamber: round, at least 8 cm long and not under the Cookbook's minimum vent
+    set({
+      qL: ql7,
+      volumeL: t(a.rearL),
+      frontVolumeL: t(a.outerL),
+      tuneHz: t(a.outerHz),
+      portShape: 'round',
+      portDiameterCm: portDiameterCmFor(d, t(a.outerL), t(a.outerHz)),
+      bp6: { ...design.bp6, rearTuneHz: t(a.rearHz), rearPortDiameterCm: portDiameterCmFor(d, t(a.rearL), t(a.rearHz), 8, design.bp8.layout === 'chain') },
+      // port 1 joins two chambers: its own end correction (the room-port length rule is not used for it)
+      bp8: { ...design.bp8, innerVolumeL: t(a.innerL), innerTuneHz: t(a.innerHz), innerPortDiameterCm: portDiameterCmFor(d, t(a.innerL), t(a.innerHz), 8, true) },
+    });
   };
   const prInfo = design.type === 'passive' ? prOf(design) : null;
   const hornFields: HornField[] = [...(flare === 'conical' ? [] : (['cutoffHz'] as HornField[])), ...(flare === 'hyperbolic' ? (['t'] as HornField[]) : []), 'throatCm2', 'mouthCm2', ...(flare === 'conical' ? (['lengthM'] as HornField[]) : []), 'throatChamberL'];
@@ -204,9 +244,31 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
               ))}
             </div>
             {boxFields.map((k) => (
-              <Field key={k} slider range={k === 'volumeL' ? { ...BOX_RANGES[k], label: volumeLabel } : k === 'tuneHz' && tuneLabel ? { ...BOX_RANGES[k], label: tuneLabel } : BOX_RANGES[k]} value={design[k]} onChange={(v) => set({ [k]: v })} />
+              <Field key={k} slider range={k === 'volumeL' ? { ...BOX_RANGES[k], label: volumeLabel } : k === 'tuneHz' && tuneLabel ? { ...BOX_RANGES[k], label: tuneLabel } : k === 'frontVolumeL' && design.type === 'bandpass8' ? { ...BOX_RANGES[k], label: 'Outer front volume' } : BOX_RANGES[k]} value={design[k]} onChange={(v) => set({ [k]: v })} />
             ))}
-            {(design.type === 'ported' || design.type === 'bandpass') && <PortControls design={design} onChange={set} idp="box" />}
+            {(design.type === 'ported' || design.type === 'bandpass' || design.type === 'bandpass6' || design.type === 'bandpass8') && <PortControls design={design} onChange={set} idp="box" />}
+            {design.type === 'bandpass8' && (
+              <div className="segmented" role="radiogroup" aria-label="8th-order layout">
+                {BP8_LAYOUTS.map((l) => (
+                  <button key={l.id} type="button" role="radio" aria-checked={design.bp8.layout === l.id} className={design.bp8.layout === l.id ? 'on' : ''} onClick={() => setBp8({ layout: l.id })}>
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {design.type === 'bandpass8' && (
+              <>
+                <Field id="bp8-innerVol" slider range={BP8_RANGES.innerVolumeL} value={design.bp8.innerVolumeL} onChange={(v) => setBp8({ innerVolumeL: v })} />
+                <Field id="bp8-innerTune" slider range={BP8_RANGES.innerTuneHz} value={design.bp8.innerTuneHz} onChange={(v) => setBp8({ innerTuneHz: v })} />
+                <Field id="bp8-innerPort" range={BP8_RANGES.innerPortDiameterCm} value={design.bp8.innerPortDiameterCm} onChange={(v) => setBp8({ innerPortDiameterCm: v })} />
+              </>
+            )}
+            {(design.type === 'bandpass6' || (design.type === 'bandpass8' && design.bp8.layout !== 'sealed')) && (
+              <>
+                <Field id="bp6-rearTune" slider range={BP6_RANGES.rearTuneHz} value={design.bp6.rearTuneHz} onChange={(v) => setBp6({ rearTuneHz: v })} />
+                <Field id="bp6-rearPort" range={BP6_RANGES.rearPortDiameterCm} value={design.bp6.rearPortDiameterCm} onChange={(v) => setBp6({ rearPortDiameterCm: v })} />
+              </>
+            )}
             {hasQl && <Field slider range={EXTRA_RANGES.qL} value={design.qL} onChange={(v) => set({ qL: v })} />}
             {design.type === 'sealed' && <Field slider range={EXTRA_RANGES.fillPct} value={design.fillPct} onChange={(v) => set({ fillPct: v })} />}
             {hasQl && (
@@ -297,6 +359,34 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
             </section>
           )}
 
+          {design.type === 'bandpass8' && (
+            <section>
+              <h2>Design an 8th-order band-pass</h2>
+              <div className="grid2">
+                <Field id="bp8-lo" range={BP6_RANGES.loHz} value={design.bp6.loHz} onChange={(v) => setBp6({ loHz: v })} />
+                <Field id="bp8-hi" range={BP6_RANGES.hiHz} value={design.bp6.hiHz} onChange={(v) => setBp6({ hiHz: v })} />
+              </div>
+              <button type="button" onClick={applyBandpass8}>
+                Find chambers and tunings for this passband (QL {show(ql7)})
+              </button>
+              <p className="hint">Not from the Cookbook: a search for the flattest, loudest passband between these two frequencies, with the skirts an octave outside held 12 dB down, for the layout chosen above. The front is two chambers in series: the inner one next to the driver opens through port 1 into the outer one, which opens through port 2 to the room. The rear chamber vents to the room, vents into the inner front chamber, or is sealed (6th order by pole count). A starting point: refine it on the plots.</p>
+            </section>
+          )}
+
+          {design.type === 'bandpass6' && (
+            <section>
+              <h2>Design a 6th-order band-pass</h2>
+              <div className="grid2">
+                <Field id="bp6-lo" range={BP6_RANGES.loHz} value={design.bp6.loHz} onChange={(v) => setBp6({ loHz: v })} />
+                <Field id="bp6-hi" range={BP6_RANGES.hiHz} value={design.bp6.hiHz} onChange={(v) => setBp6({ hiHz: v })} />
+              </div>
+              <button type="button" onClick={applyBandpass6}>
+                Find chambers and tunings for this passband (QL {show(ql7)})
+              </button>
+              <p className="hint">Not from the Cookbook, which has no 6th-order equations: a search for the flattest, loudest passband between these two frequencies, with the skirts an octave outside held 12 dB down. Both ports radiate. A starting point: refine it on the plots.</p>
+            </section>
+          )}
+
           {design.type === 'passive' && prInfo && (
             <section>
               <h2>Passive radiator</h2>
@@ -304,6 +394,29 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
               {(['sdpCm2', 'vapL', 'massG', 'xmaxMm'] as (keyof PassiveDesign)[]).map((k) => (
                 <Field key={k} id={`pr-${k}`} range={PR_RANGES[k]} value={design.pr[k]} onChange={(v) => setPr({ [k]: v })} />
               ))}
+            </section>
+          )}
+
+          {design.type === 'tqwt' && (
+            <section>
+              <h2>Tapered quarter-wave tube</h2>
+              <div className="field">
+                <label htmlFor="tl-stuff">Stuffing</label>
+                <select id="tl-stuff" value={design.tl.stuffing} onChange={(e) => setTl({ stuffing: e.target.value as P.Stuffing })}>
+                  {STUFFINGS.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" className="on" onClick={() => set({ tl: tqwtSettingsFor(driverOf(design), design.tl.stuffing) })}>
+                Set a TQWT for this driver
+              </button>
+              {(['lengthCm', 'startCm2', 'exitCm2', 'offsetPct', 'densityLb', 'stuffedPct'] as const).map((k) => (
+                <Field key={k} slider id={`tl-${k}`} range={TL_RANGES[k]} value={design.tl[k]} onChange={(v) => setTl({ [k]: v })} />
+              ))}
+              <p className="hint">Length c / 4 Fs, mouth the area of the cone, closed end four times that, the driver a third of the way up from the closed end, light stuffing over the closed half. These are common rules of thumb, not the Cookbook's tables: the response is the same stuffed-line simulation as the transmission line, so read it as a guide and adjust length and stuffing on the plots.</p>
             </section>
           )}
 

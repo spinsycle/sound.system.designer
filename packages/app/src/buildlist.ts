@@ -4,9 +4,9 @@
 // Spec: "Cabinet, cut list and sheets". Metric only (millimetres on the page, metres inside).
 import * as P from '@soundsystemdesigner/physics';
 import { type FrontRing, checkFront, ringOf } from './carfront';
-import { computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
+import { type CarSub, computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
 import { arrangementOf, coneDiameterM, slotLabel } from './loudspeaker';
-import { type Design, compute, driverOf, flareOf, portLengthOf, portOpeningM, prOf, tlGeometryOf, tlLineVolumeM3 } from './model';
+import { type Design, bp6RearPortLengthM, bp8InnerPortLengthM, bp8RearPortLengthM, compute, driverOf, flareOf, portLengthOf, portOpeningM, prOf, tlGeometryOf, tlLineVolumeM3 } from './model';
 import { type Band, type Project, bandName, summary } from './system';
 import { type Units, formatLength } from './units';
 
@@ -64,6 +64,8 @@ export interface Cabinet {
   clearanceM?: number;
   /** A folded horn's layout: the legs, the septa (also in `panels`) and the box. */
   fold?: P.FoldLayout;
+  /** A TQWT's column: flat front, closed top, mouth open at the bottom, the back a staircase of straight sloping sections. */
+  column?: P.Column;
   /** A wedge enclosure's geometry (the baffle drawing uses `geometry` with the sloping baffle as its height). */
   wedge?: P.WedgeGeometry;
   /** Outside width, height and depth for a caption, when `geometry` describes the baffle. */
@@ -95,6 +97,8 @@ export interface BandBuild {
   port: PortBuild | null;
   /** Every port tube in one cabinet (a speaker may have one per ported driver); `port` is the first. */
   ports: PortBuild[];
+  /** Tubes inside the box that join two chambers (an 8th-order band-pass's port 1): no hole in the baffle, but in the bill of materials. */
+  innerPorts?: PortBuild[];
   /** Flat parts that are not panels of a box (adapter rings), listed by their bounding rectangle, in metres. */
   parts?: { part: string; l: number; w: number; qty: number; note: string }[];
   /** Adapter rings to draw. */
@@ -225,8 +229,8 @@ export function holePositions(c: Cabinet, rear = false): HolePos[] {
   });
 }
 
-function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: number, divider: boolean, cutouts: Cutout[]): Cabinet {
-  const o = b.build;
+function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: number, divider: boolean | number, cutouts: Cutout[], shape?: { rw: number; rh: number; rd: number }): Cabinet {
+  const o = shape ? { ...b.build, ...shape } : b.build;
   const g = P.solveBox(vNetM3, dispM3, o.rw, o.rh, o.rd, tM, o.brace, divider);
   return {
     title,
@@ -241,7 +245,7 @@ function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: num
  * The box of a folded horn (spec v0.14): six walls, one septum panel per fold, a rectangular mouth on the front when the leg
  * count is even, and the throat opening at the top front where the throat chamber joins.
  */
-function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number): Cabinet {
+function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number, title = 'Folded horn'): Cabinet {
   const g: P.BoxGeometry = { wI: f.wI, hI: f.hI, dI: f.dI, wO: f.wO, hO: f.hO, dO: f.dO, braces: 0, netM3: 0 };
   const panels = P.boxPanels(g, t, false);
   // a sloped septum is cut to its length along the slope; the angle is in the name (positive: lower at the back)
@@ -258,7 +262,34 @@ function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number): Cabinet {
     cutouts.push(mouth);
   }
   const septaArea = f.septaSlant.reduce((a, l) => a + 2 * f.wI * l, 0);
-  return { title: 'Folded horn', geometry: g, panels, cutouts, holes, fold: f, liningM2: ceilTenth(2 * (f.wI * f.hI + f.wI * f.dI + f.hI * f.dI) - f.wI * f.hI + septaArea) };
+  return { title, geometry: g, panels, cutouts, holes, fold: f, liningM2: ceilTenth(2 * (f.wI * f.hI + f.wI * f.dI + f.hI * f.dI) - f.wI * f.hI + septaArea) };
+}
+
+/** Least depth of the box the driver sits in when the transmission line has no chamber of its own, m (an assumption: the driver's frame and magnet). */
+const TL_COUPLING_DEPTH_M = 0.1;
+
+/**
+ * The cabinet of a TQWT (spec v0.17): a straight column with a flat front (the baffle, driver on it), a closed top, the mouth open at
+ * the bottom, and the exponential taper cut as straight sections of the back and trapezoid sides. Butt joints: the front runs the full height
+ * and the closed top sits on the sides.
+ */
+function columnCabinet(col: P.Column, driverHole: Cutout, t: number): Cabinet {
+  const wO = col.wI + 2 * t;
+  const hO = col.lengthM + t;
+  const dO = col.depthTopI + 2 * t;
+  const g: P.BoxGeometry = { wI: col.wI, hI: col.lengthM, dI: col.depthTopI, wO, hO, dO, braces: 0, netM3: col.volumeM3 };
+  const panels: P.Panel[] = [
+    { name: 'Front baffle', l: wO, w: hO, qty: 1 },
+    { name: 'Closed top', l: wO, w: col.depthTopI + t, qty: 1 },
+  ];
+  col.sections.forEach((s, k) => {
+    panels.push({ name: `Back section ${k + 1}`, l: col.wI, w: s.slant, qty: 1 });
+    panels.push({ name: `Side section ${k + 1} (trapezoid, bounding box)`, l: s.x2 - s.x1, w: Math.max(s.d1, s.d2) + t, qty: 2 });
+  });
+  const holes: Hole[] = [{ ...driverHole, cx: wO / 2, cy: t + col.driverFromTop }];
+  const backArea = col.sections.reduce((a, s) => a + col.wI * s.slant, 0);
+  const sideArea = col.sections.reduce((a, s) => a + (s.d1 + s.d2) * (s.x2 - s.x1), 0);
+  return { title: 'TQWT column', geometry: g, panels, cutouts: [driverHole], holes, column: col, liningM2: ceilTenth(col.wI * col.lengthM + backArea + sideArea) };
 }
 
 /** The Cookbook's interior height : width : depth ratios (p. 113): Thiele's 2.6 : 1.6 : 1, then 2 : 1.44 : 1 and 1.59 : 1.26 : 1. */
@@ -299,6 +330,7 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   const cabinets: Cabinet[] = [];
   let horn: HornRows | null = null;
   const ports: PortBuild[] = [];
+  const innerPorts: PortBuild[] = [];
   const extraDrivers: { name: string; qty: number }[] = [];
   let stuffing = 0;
 
@@ -333,9 +365,26 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     const geo = tlGeometryOf(d);
     const exitD = 2 * Math.sqrt(geo.exitM2 / Math.PI);
     const vol = tlLineVolumeM3(geo) + geo.chamberM3;
-    cabinets.push(cabinet('Transmission-line box', vol, dDisp, b, t, true, [driverHole, { kind: 'port', diameterM: exitD }]));
     const lineArea = (geo.startM2 + geo.exitM2) / 2;
-    warnings.push(`${name}: the line is built as one box with a septum. The path from the driver to the exit must be ${fl(geo.lengthM, u)} long with the area tapering from ${Math.round(geo.startM2 * 1e4)} to ${Math.round(geo.exitM2 * 1e4)} cm2 (mean ${Math.round(lineArea * 1e4)} cm2): place the septum and angle it so the path runs the full length, and leave the exit opening on the baffle. The cut list does not shape the taper.`);
+    const profile = P.tlProfile(geo);
+    // the line folded into stacked legs (the same layout as a folded horn): the narrowest width that gives a box under 2 m deep, 2 to 8 legs
+    const sug = P.suggestFoldProfile(profile, Math.max(0.25, 1.5 * Math.sqrt(geo.startM2)), t, 'stepped');
+    if (sug) {
+      const f = P.foldProfile(profile, sug.widthM, sug.legs, sug.depthOutM, t, 'stepped');
+      // the driver sits in a box that joins the line start: the model's own chamber when it has one, else a coupling box. Either is shaped
+      // so the baffle holds the driver (a square-ish baffle one hole wide) at least TL_COUPLING_DEPTH_M deep.
+      const side = driverHole.diameterM + 2 * HOLE_MARGIN;
+      const chamberM3 = Math.max(geo.chamberM3, TL_COUPLING_DEPTH_M * 1.15 * side * side);
+      const depth = chamberM3 / (1.15 * side * side);
+      cabinets.push(cabinet('Chamber behind the cone', chamberM3, dDisp, b, t, false, [driverHole], { rw: 1, rh: 1.15, rd: depth / side }));
+      cabinets.push(foldedCabinet(f, geo.startM2, t, 'Transmission line'));
+      if (geo.chamberM3 < chamberM3 - 1e-9) warnings.push(`${name}: the driver needs a box to sit in, so the cut list adds a ${Math.round(chamberM3 * 1000 * 10) / 10} L box for it, joined to the line start; the simulation has ${Math.round(geo.chamberM3 * 1000 * 10) / 10} L there. The box is the smallest that holds the driver's baffle ${fl(TL_COUPLING_DEPTH_M, u)} deep, so the real line has more air at its closed end than the simulated one: expect a slightly lower line resonance.`);
+      warnings.push(`${name}: the line is folded into ${f.heights.length} legs of ${fl(f.leg, u)} (stepped: each leg has one height, the taper's at its middle), ${fl(f.wI, u)} wide inside. The path from the driver to the exit is ${fl(geo.lengthM, u)} and the area tapers from ${Math.round(geo.startM2 * 1e4)} to ${Math.round(geo.exitM2 * 1e4)} cm2 (mean ${Math.round(lineArea * 1e4)} cm2); the exit opens on the front. Bends are not modelled and the simulation treats the line as straight.`);
+      if (geo.offset > 0) warnings.push(`${name}: the driver offset along the line is not in the cut list: the line is built from the driver end.`);
+    } else {
+      cabinets.push(cabinet('Transmission-line box', vol, dDisp, b, t, true, [driverHole, { kind: 'port', diameterM: exitD }]));
+      warnings.push(`${name}: no fold of this line fits a box up to ${P.FOLD_MAX_DEPTH_M} m deep and ${P.FOLD_MAX_WIDTH_M} m wide, so it is built as one box with a septum. The path from the driver to the exit must be ${fl(geo.lengthM, u)} long with the area tapering from ${Math.round(geo.startM2 * 1e4)} to ${Math.round(geo.exitM2 * 1e4)} cm2: place the septum and angle it so the path runs the full length, and leave the exit opening on the baffle. The cut list does not shape the taper.`);
+    }
     const kg = P.densityKgM3(d.tl.densityLb) * tlLineVolumeM3(geo) * geo.stuffedShare;
     stuffing += kg;
   } else if (d.type === 'bandpass') {
@@ -343,6 +392,43 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     const disp = dDisp + ports.reduce((a, x) => a + portDispOf(x, t), 0);
     cabinets.push(cabinet('Band-pass box', (d.volumeL + d.frontVolumeL) / 1000, disp, b, t, true, [driverHole, ...ports.map(portCut)]));
     warnings.push(`${name}: the band-pass box is one cabinet; the divider belongs ${((d.volumeL / (d.volumeL + d.frontVolumeL)) * 100).toFixed(0)} % of the interior depth from the back, and the driver mounts on it.`);
+  } else if (d.type === 'bandpass8') {
+    // the outer front chamber's port exits on the baffle; port 1 is a tube through the divider between the front chambers; the rear port exits on the
+    // baffle ('vented'), or is a tube through the divider the driver mounts on into the inner front chamber ('chain'), or does not exist ('sealed')
+    const lay = d.bp8.layout;
+    ports.push(...portsFor(d.frontVolumeL));
+    const rearLen = bp8RearPortLengthM(d);
+    const rearBuilt = rearLen > 0 ? portBuilt({ ...d, portShape: 'round', portDiameterCm: d.bp6.rearPortDiameterCm }, rearLen) : null;
+    if (lay !== 'sealed' && !rearBuilt) warnings.push(`${name}: the rear port does not fit (its length comes out negative), so the cut list has no rear port tube. Fix it on the box page.`);
+    if (lay === 'vented' && rearBuilt) ports.push(rearBuilt);
+    const innerLen = bp8InnerPortLengthM(d);
+    const inner: PortBuild[] = [];
+    if (innerLen > 0) inner.push(portBuilt({ ...d, portShape: 'round', portDiameterCm: d.bp8.innerPortDiameterCm }, innerLen));
+    else warnings.push(`${name}: port 1 does not fit (its length comes out negative), so the cut list has no tube for it. Fix it on the box page.`);
+    if (lay === 'chain' && rearBuilt) inner.push(rearBuilt);
+    innerPorts.push(...inner);
+    const disp = dDisp + [...ports, ...inner].reduce((a, x) => a + portDispOf(x, t), 0);
+    const total = d.volumeL + d.bp8.innerVolumeL + d.frontVolumeL;
+    cabinets.push(cabinet('8th-order band-pass box', total / 1000, disp, b, t, 2, [driverHole, ...ports.map(portCut)]));
+    const layoutText = lay === 'sealed' ? 'The rear chamber is sealed (airtight, no port).' : lay === 'chain' ? `The rear chamber's ${fl(rearLen, u)} port is a tube through the driver's divider into the inner front chamber; the outer chamber's port is the only one on the baffle.` : `The outer chamber's port and the rear chamber's ${fl(rearLen, u)} port (a tube running forward through the front chambers) both exit on the baffle.`;
+    warnings.push(`${name}: the ${lay === 'sealed' ? 'rear-sealed two-stage' : '8th-order'} box is one cabinet with two dividers. From the back: the rear chamber (${((d.volumeL / total) * 100).toFixed(0)} % of the interior depth), a divider the driver mounts on, the inner front chamber, a second divider carrying port 1 (${fl(innerLen, u)} long, ${fl(d.bp8.innerPortDiameterCm / 100, u)} across) between the front chambers, then the outer front chamber up to the baffle. ${layoutText}`);
+  } else if (d.type === 'tqwt') {
+    const geo = tlGeometryOf(d);
+    const col = P.tqwtColumn(geo, driverHole.diameterM, HOLE_MARGIN);
+    cabinets.push(columnCabinet(col, driverHole, t));
+    warnings.push(`${name}: the TQWT is a column ${fl(col.wI + 2 * t, u)} wide, ${fl(col.lengthM + t, u)} tall, ${fl(col.depthTopI + 2 * t, u)} deep at the closed top and ${fl(col.depthMouthI + 2 * t, u)} at the mouth. The front is flat with the driver ${fl(col.driverFromTop, u)} below the closed top (${Math.round(d.tl.offsetPct)} % of the line); the back is ${col.sections.length} straight sloping sections that follow the line's taper, so the air is ${(col.volumeM3 * 1000).toFixed(0)} L against the line's ${(tlLineVolumeM3(geo) * 1000).toFixed(0)} L.`);
+    warnings.push(`${name}: the mouth is open at the bottom: stand the column on feet at least ${fl(Math.max(col.depthMouthI, 0.05), u)} high so it can breathe, or close the bottom and cut a slot of the mouth area in the front or back near the floor. The line path runs straight down, so its length is the column height.`);
+    if (col.depthMouthI < 0.05) warnings.push(`${name}: the mouth is only ${fl(col.depthMouthI, u)} deep at ${fl(col.wI, u)} wide: a narrow slot. The column is as narrow as the driver allows; use a smaller mouth only with a wider box.`);
+    stuffing += P.densityKgM3(d.tl.densityLb) * tlLineVolumeM3(geo) * geo.stuffedShare;
+  } else if (d.type === 'bandpass6') {
+    // both ports exit on the baffle: the front chamber's own, then the rear chamber's (always round), which needs a duct through the divider
+    ports.push(...portsFor(d.frontVolumeL));
+    const rearLen = bp6RearPortLengthM(d);
+    if (rearLen > 0) ports.push(portBuilt({ ...d, portShape: 'round', portDiameterCm: d.bp6.rearPortDiameterCm }, rearLen));
+    else warnings.push(`${name}: the rear port does not fit (its length comes out negative), so the cut list has no rear port tube. Fix it on the box page.`);
+    const disp = dDisp + ports.reduce((a, x) => a + portDispOf(x, t), 0);
+    cabinets.push(cabinet('6th-order band-pass box', (d.volumeL + d.frontVolumeL) / 1000, disp, b, t, true, [driverHole, ...ports.map(portCut)]));
+    warnings.push(`${name}: the 6th-order box is one cabinet; the divider belongs ${((d.volumeL / (d.volumeL + d.frontVolumeL)) * 100).toFixed(0)} % of the interior depth from the back, the driver mounts on it, and the rear chamber's ${fl(rearLen, u)} port runs forward through the front chamber to the baffle (its own tube, counted in the port volume). Both ports vent to the room.`);
   } else {
     const rear = d.horn.loading === 'rear';
     if (rear) {
@@ -378,7 +464,7 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     }
   }
   const main = cabinets[0];
-  if (custom && main && shared || (custom && main && d.type === 'bandpass')) {
+  if (custom && main && shared || (custom && main && (d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8'))) {
     const g = main.geometry;
     const bh = down ? g.dO : g.hO;
     const split = side ? { front: n, back: 0 } : pushPullSplit(n, lay.pushPull);
@@ -401,11 +487,11 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   const dname = d.driverClass < P.ALL_DRIVER_CLASSES.length ? `${driver.name} driver` : 'Custom driver';
   const parts = rectPortParts(ports, t);
   for (const c of cabinets) {
-    if (c.fold || c.wedge) continue;
+    if (c.fold || c.wedge || c.column) continue;
     const pw = proportionWarning(name, c.geometry);
     if (pw) warnings.push(pw);
   }
-  return { name, summary: summary(d), count: b.count / n, driver: dname, drivers: [{ name: dname, qty: n }, ...extraDrivers], cabinets, horn, port: ports[0] ?? null, ports, warnings, ...(parts.length ? { parts } : {}), ...(stuffing > 0 ? { stuffingKg: stuffing } : {}) };
+  return { name, summary: summary(d), count: b.count / n, driver: dname, drivers: [{ name: dname, qty: n }, ...extraDrivers], cabinets, horn, port: ports[0] ?? null, ports, ...(innerPorts.length ? { innerPorts } : {}), warnings, ...(parts.length ? { parts } : {}), ...(stuffing > 0 ? { stuffingKg: stuffing } : {}) };
 }
 
 /**
@@ -424,6 +510,7 @@ export function speakerBuild(p: Project): BandBuild {
   const hI = Math.max(sp.baffleHeightCm / 100 - 2 * t, MIN_INTERIOR);
   const drivers: BandBuild['drivers'] = [];
   const ports: BandBuild['ports'] = [];
+  const prHoles: Cutout[] = [];
   const diameters: number[] = [];
   let air = 0;
   let disp = 0;
@@ -438,7 +525,19 @@ export function speakerBuild(p: Project): BandBuild {
     // an open-baffle driver has no chamber, and a tweeter has its sealed back built in: neither adds air or a partition
     if (s.open || spec.role === 'tweeter') return;
     air += d.volumeL / 1000;
-    if (d.type === 'bandpass' || d.type === 'horn') warnings.push(`${slotLabel(arr, k)}: a ${d.type} slot is built as a sealed chamber here; the cut list has no ${d.type === 'horn' ? 'horn' : 'divider'}. Use sealed or ported.`);
+    if (d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8' || d.type === 'horn' || d.type === 'tline' || d.type === 'tqwt') warnings.push(`${slotLabel(arr, k)}: a ${d.type} slot is built as a sealed chamber here; the cut list has no ${d.type === 'horn' ? 'horn' : d.type === 'tline' || d.type === 'tqwt' ? 'line' : 'divider'}. Use sealed, ported or passive radiator.`);
+    if (d.type === 'passive') {
+      // one radiator for each driver of the slot, each in its share of the air; its hole goes on the baffle with the others
+      const each: Design = { ...d, volumeL: d.volumeL / spec.count };
+      const pr = prOf(each);
+      const prDia = 2 * Math.sqrt(pr.radiator.sdp / Math.PI);
+      for (let i = 0; i < spec.count; i++) {
+        prHoles.push({ kind: 'driver', diameterM: prDia });
+        disp += P.driverDisplacementMount(pr.radiator.sdp, false);
+      }
+      drivers.push({ name: `Passive radiator, ${fmtCm(prDia * 100)} cm cone`, qty: spec.count });
+      warnings.push(pr.addedKg >= 0 ? `${slotLabel(arr, k)}: add ${Math.round(pr.addedKg * 1000)} g to each passive radiator (clay, lead or a metal weight stuck to the centre) to tune the box to ${Math.round(d.tuneHz)} Hz; check the tuning by measuring the impedance dip and adjust.` : `${slotLabel(arr, k)}: each passive radiator alone is heavier than ${Math.round(d.tuneHz)} Hz needs (it tunes to ${Math.round(pr.fbHz)} Hz). Use a lighter or more compliant radiator.`);
+    }
     if (d.type === 'ported') {
       for (let i = 0; i < spec.count; i++) {
         const lengthM = portLengthOf(d, d.volumeL / spec.count);
@@ -491,10 +590,10 @@ export function speakerBuild(p: Project): BandBuild {
   const lay0 = sp.slots[0]!.design.layout;
   const down = lay0.facing === 'down';
   const baffleH = down ? g.dO : g.hO;
-  const stack: Cutout[] = [...arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), ...ports.map(portCut)];
+  const stack: Cutout[] = [...arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), ...ports.map(portCut), ...prHoles];
   let holes: Hole[];
   if (lay0.cols > 1) {
-    holes = gridHoles(stack.filter((h) => h.kind === 'driver'), stack.filter((h) => h.kind === 'port'), lay0.cols, g.wO, baffleH);
+    holes = gridHoles(arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), [...ports.map(portCut), ...prHoles], lay0.cols, g.wO, baffleH);
     fitHoles(name, holes, g.wO, baffleH, u, warnings);
   } else {
     const total = stack.reduce((a, h) => a + h.diameterM, 0) + HOLE_GAP * Math.max(stack.length - 1, 0);
@@ -547,6 +646,22 @@ export function gridHoles(drivers: Cutout[], ports: Cutout[], cols: number, wO: 
   return out;
 }
 
+/** The front speakers of a car install: the checks they add, their drivers and the adapter ring parts. */
+function carFrontExtras(fr: CarSub['front']): { ring: FrontRing | null; warnings: string[]; drivers: { name: string; qty: number }[]; parts: NonNullable<BandBuild['parts']> } {
+  const ring = fr.enabled ? ringOf(fr) : null;
+  const warnings: string[] = [];
+  const drivers: { name: string; qty: number }[] = [];
+  const parts: NonNullable<BandBuild['parts']> = [];
+  if (fr.enabled) {
+    warnings.push(...checkFront(fr).warnings);
+    const wName = P.ALL_DRIVER_CLASSES[fr.wooferClass]!.name;
+    drivers.push({ name: `${wName} (front, one each side)`, qty: 2 });
+    if (fr.type === 'component') drivers.push({ name: `${P.ALL_DRIVER_CLASSES[fr.tweeterClass]!.name} tweeter (front, one each side)`, qty: 2 });
+    if (ring) parts.push({ part: ring.title, l: ring.outer.wCm / 100, w: ring.outer.hCm / 100, qty: 2, note: `${fmtCm(ring.thicknessCm)} cm thick; cut ${ring.outer.kind === 'round' ? 'a round' : 'an oval'} ring: the size listed is the outside's bounding rectangle, the cut-out is ${ring.inner.kind === 'round' ? `${fmtCm(ring.inner.wCm)} cm round` : `${fmtCm(ring.inner.wCm)} x ${fmtCm(ring.inner.hCm)} cm oval`}` });
+  }
+  return { ring, warnings, drivers, parts };
+}
+
 /**
  * The car subwoofer enclosure: sealed or ported, one box shared by all the subs (each sees its share of the air, each ported
  * sub has its own port), rectangular or a wedge, checked against the space it has to fit. A band-pass install is built the
@@ -560,9 +675,11 @@ export function carBuild(p: Project): BandBuild {
   const t = p.shop.thicknessMm / 1000;
   const driver = driverOf(d);
   const dname = d.driverClass < P.ALL_DRIVER_CLASSES.length ? `${driver.name} driver` : 'Custom driver';
-  if (d.type === 'bandpass') {
+  if (d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8') {
+    // one box per sub: every volume of the install's air is shared out (the 8th-order box's inner front chamber too)
+    const n = c.count;
     const band: Band = {
-      design: { ...d, volumeL: d.volumeL / c.count, frontVolumeL: d.frontVolumeL / c.count },
+      design: { ...d, volumeL: d.volumeL / n, frontVolumeL: d.frontVolumeL / n, bp8: { ...d.bp8, innerVolumeL: d.bp8.innerVolumeL / n } },
       count: c.count,
       series: c.series,
       perBox: 1,
@@ -577,11 +694,24 @@ export function carBuild(p: Project): BandBuild {
       mute: false,
     };
     const bb = bandBuild(band, name, p.shop, u);
-    if (c.shape === 'wedge') bb.warnings.push(`${name}: a band-pass box is built rectangular; the wedge shape is for sealed and ported boxes.`);
+    if (c.shape === 'wedge') bb.warnings.push(`${name}: a band-pass box is built rectangular; the wedge shape is for sealed, ported and passive-radiator boxes.`);
+    // the boxes side by side against the vehicle space
+    const g0 = bb.cabinets[0]!.geometry;
+    const outsideAll: [number, number, number] = [g0.wO * n, g0.hO, g0.dO];
+    const spc = c.space;
+    const spaceDims: [number, number, number] | null = spc.id !== 'none' ? [spc.wCm / 100, spc.hCm / 100, spc.dCm / 100] : null;
+    const fitsAll = !spaceDims || (outsideAll[0] <= spaceDims[0] + 1e-9 && outsideAll[1] <= spaceDims[1] + 1e-9 && outsideAll[2] <= spaceDims[2] + 1e-9);
+    if (spaceDims && !fitsAll) bb.warnings.push(`${name}: ${n > 1 ? `the ${n} boxes side by side are` : 'the box is'} ${formatLength(outsideAll[0] * 1000, u)} x ${formatLength(outsideAll[1] * 1000, u)} x ${fl(outsideAll[2], u)} outside and the space is ${formatLength(spaceDims[0] * 1000, u)} x ${formatLength(spaceDims[1] * 1000, u)} x ${fl(spaceDims[2], u)}. Use a smaller box or another space.`);
+    bb.fit = { fits: fitsAll, outside: outsideAll, space: spaceDims };
+    const fx = carFrontExtras(c.front);
+    bb.warnings.push(...fx.warnings);
+    bb.drivers.push(...fx.drivers);
+    if (fx.parts.length) bb.parts = [...(bb.parts ?? []), ...fx.parts];
+    if (fx.ring) bb.rings = [fx.ring];
     return bb;
   }
   const warnings: string[] = [];
-  if (d.type === 'horn') warnings.push(`${name}: a horn is built as a sealed box here. Use sealed, ported or band-pass.`);
+  if (d.type === 'horn' || d.type === 'tline' || d.type === 'tqwt') warnings.push(`${name}: ${d.type === 'horn' ? 'a horn' : d.type === 'tline' ? 'a transmission line' : 'a TQWT'} is built as a sealed box here (a car has no room for it). Use sealed, ported, passive radiator or band-pass.`);
   const ports: BandBuild['ports'] = [];
   const lay = d.layout;
   const side = lay.pushPull && lay.pushPullStyle === 'side' && c.count >= 2;
@@ -598,6 +728,19 @@ export function carBuild(p: Project): BandBuild {
       ports.push(built);
       disp += portDispOf(built, t);
     }
+  }
+  const prHoles: Cutout[] = [];
+  let prDriver: { name: string; qty: number } | null = null;
+  if (d.type === 'passive') {
+    // one radiator for each sub, each in its share of the air; the holes go on the baffle with the subs'
+    const pr = prOf({ ...d, volumeL: d.volumeL / c.count });
+    const prDia = 2 * Math.sqrt(pr.radiator.sdp / Math.PI);
+    for (let i = 0; i < c.count; i++) {
+      prHoles.push({ kind: 'driver', diameterM: prDia });
+      disp += P.driverDisplacementMount(pr.radiator.sdp, false);
+    }
+    prDriver = { name: `Passive radiator, ${fmtCm(prDia * 100)} cm cone`, qty: c.count };
+    warnings.push(pr.addedKg >= 0 ? `${name}: add ${Math.round(pr.addedKg * 1000)} g to each passive radiator (clay, lead or a metal weight stuck to the centre) to tune the box to ${Math.round(d.tuneHz)} Hz; check the tuning by measuring the impedance dip and adjust.` : `${name}: each passive radiator alone is heavier than ${Math.round(d.tuneHz)} Hz needs (it tunes to ${Math.round(pr.fbHz)} Hz). Use a lighter or more compliant radiator.`);
   }
   const vNet = d.volumeL / 1000;
   const o = c.build;
@@ -632,7 +775,7 @@ export function carBuild(p: Project): BandBuild {
     lining = ceilTenth(2 * (g.wI * g.hI + g.wI * g.dI + g.hI * g.dI) - g.wI * g.hI);
   }
   if (down) baffleH = g.dO;
-  const holes = gridHoles(frontDrivers0, ports.map(portCut), lay.cols, g.wO, baffleH);
+  const holes = gridHoles(frontDrivers0, [...ports.map(portCut), ...prHoles], lay.cols, g.wO, baffleH);
   const rearHoles = rearDrivers0.length ? gridHoles(rearDrivers0, [], lay.cols, g.wO, baffleH) : undefined;
   const cutouts: Cutout[] = holes.map((h) => ({ kind: h.kind, diameterM: h.diameterM, shape: h.shape, wM: h.wM, hM: h.hM }));
   // the holes must stay inside the baffle with a margin: the placement starts at the margin when a row is wider than the baffle
@@ -661,20 +804,14 @@ export function carBuild(p: Project): BandBuild {
   if (space && !fits) warnings.push(`${name}: the box is ${formatLength(outside[0] * 1000, u)} x ${formatLength(outside[1] * 1000, u)} x ${fl(outside[2], u)} outside and the space is ${formatLength(space[0] * 1000, u)} x ${formatLength(space[1] * 1000, u)} x ${fl(space[2], u)}. Use Fit to the space, a smaller box, or a wedge.`);
 
   // the front speakers: the adapter rings they sit on, and what the fit check says
-  const fr = c.front;
-  const ring = fr.enabled ? ringOf(fr) : null;
-  const frontDrivers: { name: string; qty: number }[] = [];
-  const parts: NonNullable<BandBuild['parts']> = rectPortParts(ports, t);
-  if (fr.enabled) {
-    warnings.push(...checkFront(fr).warnings);
-    const wName = P.ALL_DRIVER_CLASSES[fr.wooferClass]!.name;
-    frontDrivers.push({ name: `${wName} (front, one each side)`, qty: 2 });
-    if (fr.type === 'component') frontDrivers.push({ name: `${P.ALL_DRIVER_CLASSES[fr.tweeterClass]!.name} tweeter (front, one each side)`, qty: 2 });
-    if (ring) parts.push({ part: ring.title, l: ring.outer.wCm / 100, w: ring.outer.hCm / 100, qty: 2, note: `${fmtCm(ring.thicknessCm)} cm thick; cut ${ring.outer.kind === 'round' ? 'a round' : 'an oval'} ring: the size listed is the outside's bounding rectangle, the cut-out is ${ring.inner.kind === 'round' ? `${fmtCm(ring.inner.wCm)} cm round` : `${fmtCm(ring.inner.wCm)} x ${fmtCm(ring.inner.hCm)} cm oval`}` });
-  }
+  const fx = carFrontExtras(c.front);
+  warnings.push(...fx.warnings);
+  const frontDrivers = fx.drivers;
+  const ring = fx.ring;
+  const parts: NonNullable<BandBuild['parts']> = [...rectPortParts(ports, t), ...fx.parts];
   const cab: Cabinet = { title: wedge ? 'Wedge box' : 'Box', geometry: g, panels, cutouts, holes, ...(rearHoles ? { rearHoles } : {}), facing: down ? 'down' : 'front', magnetOut: lay.mount === 'out', clearanceM: down ? lay.clearanceCm / 100 : 0, wedge: cabWedge, outside, liningM2: lining };
   const sum = `${c.count > 1 ? `${c.count} x ` : ''}${driver.name}, ${fmtL(d.volumeL)} L ${d.type}${wedge ? ' wedge' : ''}`;
-  return { name, summary: sum, count: 1, driver: dname, drivers: [{ name: dname, qty: c.count }, ...frontDrivers], cabinets: [cab], horn: null, port: ports[0] ?? null, ports, warnings, fit: { fits, outside, space }, parts, rings: ring ? [ring] : [] };
+  return { name, summary: sum, count: 1, driver: dname, drivers: [{ name: dname, qty: c.count }, ...(prDriver ? [prDriver] : []), ...frontDrivers], cabinets: [cab], horn: null, port: ports[0] ?? null, ports, warnings, fit: { fits, outside, space }, parts, rings: ring ? [ring] : [] };
 }
 
 const fmtCm = (v: number): string => (Math.round(v * 10) / 10).toString();
@@ -718,7 +855,7 @@ export function computeBuild(p: Project): BuildView {
   for (const [name, qty] of byDriver) bom.push({ item: name, qty, unit: 'pcs', note: '' });
   for (const bb of bands) {
     const tubes = new Map<string, { qty: number; port: (typeof bb.ports)[number] }>();
-    for (const port of bb.ports) {
+    for (const port of [...bb.ports, ...(bb.innerPorts ?? [])]) {
       if (port.shape === 'rect') continue;
       const key = `${port.diameterM}/${port.lengthM}`;
       tubes.set(key, { qty: (tubes.get(key)?.qty ?? 0) + bb.count, port });

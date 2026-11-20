@@ -55,7 +55,8 @@ export interface BoxGeometry {
  * Interior dimensions of a rectangular box holding `vNet` m3 of air after `disp` m3 of fixed displacement, braces and
  * (band-pass) a divider panel. Interior proportions rw:rh:rd. Eight fixed-point passes, because braces depend on the size.
  */
-export function solveBox(vNet: number, disp: number, rw: number, rh: number, rd: number, t: number, brace: Brace, divider: boolean): BoxGeometry {
+export function solveBox(vNet: number, disp: number, rw: number, rh: number, rd: number, t: number, brace: Brace, divider: boolean | number): BoxGeometry {
+  const nDiv = typeof divider === 'number' ? divider : divider ? 1 : 0;
   let braces = 0;
   let n = 0;
   let w = 0;
@@ -67,7 +68,7 @@ export function solveBox(vNet: number, disp: number, rw: number, rh: number, rd:
     h = s * rh;
     d = s * rd;
     n = braceCount(brace, d);
-    braces = n * braceVolume(w, h, t) + (divider ? w * h * t : 0);
+    braces = n * braceVolume(w, h, t) + nDiv * w * h * t;
   }
   return { wI: w, hI: h, dI: d, wO: w + 2 * t, hO: h + 2 * t, dO: d + 2 * t, braces: n, netM3: w * h * d - disp - braces };
 }
@@ -81,7 +82,8 @@ export interface Panel {
 }
 
 /** Cut list of the box: front and back full size, top and bottom full width between them, sides between top and bottom. */
-export function boxPanels(g: BoxGeometry, t: number, divider: boolean): Panel[] {
+export function boxPanels(g: BoxGeometry, t: number, divider: boolean | number): Panel[] {
+  const nDiv = typeof divider === 'number' ? divider : divider ? 1 : 0;
   const p: Panel[] = [
     { name: 'Front baffle', l: g.wO, w: g.hO, qty: 1 },
     { name: 'Back', l: g.wO, w: g.hO, qty: 1 },
@@ -89,7 +91,7 @@ export function boxPanels(g: BoxGeometry, t: number, divider: boolean): Panel[] 
     { name: 'Sides', l: g.hO - 2 * t, w: g.dO - 2 * t, qty: 2 },
   ];
   if (g.braces > 0) p.push({ name: 'Brace frame', l: g.wI, w: g.hI, qty: g.braces });
-  if (divider) p.push({ name: 'Divider', l: g.wI, w: g.hI, qty: 1 });
+  if (nDiv > 0) p.push({ name: 'Divider', l: g.wI, w: g.hI, qty: nDiv });
   return p;
 }
 

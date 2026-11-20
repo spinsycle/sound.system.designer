@@ -733,6 +733,1306 @@
       }
     },
     {
+      "id": "bp6_mag_20hz",
+      "desc": "6th-order band-pass response at 20.0 Hz (rear 100 L tuned 60 Hz, front 200 L tuned 40 Hz, lossless, both ports radiate)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": -25.490960759854936
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_mag_40hz",
+      "desc": "6th-order band-pass response at 40.0 Hz (rear 100 L tuned 60 Hz, front 200 L tuned 40 Hz, lossless, both ports radiate)",
+      "inputs": {
+        "f": 40.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": 4.997549464332
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_mag_50hz",
+      "desc": "6th-order band-pass response at 50.0 Hz (rear 100 L tuned 60 Hz, front 200 L tuned 40 Hz, lossless, both ports radiate)",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": 7.95229077484093
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_mag_60hz",
+      "desc": "6th-order band-pass response at 60.0 Hz (rear 100 L tuned 60 Hz, front 200 L tuned 40 Hz, lossless, both ports radiate)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": 6.020599913279623
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_mag_100hz",
+      "desc": "6th-order band-pass response at 100.0 Hz (rear 100 L tuned 60 Hz, front 200 L tuned 40 Hz, lossless, both ports radiate)",
+      "inputs": {
+        "f": 100.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": -8.0660215215541
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_mag_200hz",
+      "desc": "6th-order band-pass response at 200.0 Hz (rear 100 L tuned 60 Hz, front 200 L tuned 40 Hz, lossless, both ports radiate)",
+      "inputs": {
+        "f": 200.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": -24.72334702931802
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_lossy_mag_30hz",
+      "desc": "6th-order band-pass response at 30.0 Hz with leakage QL 7 (rear) and 12 (front)",
+      "inputs": {
+        "f": 30.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0,
+        "qlr": 7.0,
+        "qlf": 12.0
+      },
+      "outputs": {
+        "db": -11.282911174869332
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_lossy_mag_45hz",
+      "desc": "6th-order band-pass response at 45.0 Hz with leakage QL 7 (rear) and 12 (front)",
+      "inputs": {
+        "f": 45.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0,
+        "qlr": 7.0,
+        "qlf": 12.0
+      },
+      "outputs": {
+        "db": 6.304135463742064
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_lossy_mag_60hz",
+      "desc": "6th-order band-pass response at 60.0 Hz with leakage QL 7 (rear) and 12 (front)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0,
+        "qlr": 7.0,
+        "qlf": 12.0
+      },
+      "outputs": {
+        "db": 3.1257251617030315
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp6_limit4_20hz",
+      "desc": "6th order with the rear port closed (rear tuning 0.0001 Hz) equals the 4th-order band-pass at 20.0 Hz (dB)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 0.0001,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": -13.56116304996366
+      },
+      "tol": {
+        "abs_db": 1e-06
+      }
+    },
+    {
+      "id": "bp6_limit4_40hz",
+      "desc": "6th order with the rear port closed (rear tuning 0.0001 Hz) equals the 4th-order band-pass at 40.0 Hz (dB)",
+      "inputs": {
+        "f": 40.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 0.0001,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": 4.997549464332
+      },
+      "tol": {
+        "abs_db": 1e-06
+      }
+    },
+    {
+      "id": "bp6_limit4_70hz",
+      "desc": "6th order with the rear port closed (rear tuning 0.0001 Hz) equals the 4th-order band-pass at 70.0 Hz (dB)",
+      "inputs": {
+        "f": 70.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 0.0001,
+        "ff": 40.0
+      },
+      "outputs": {
+        "db": -7.377808592704717
+      },
+      "tol": {
+        "abs_db": 1e-06
+      }
+    },
+    {
+      "id": "bp6_x_dc",
+      "desc": "6th-order band-pass displacement per volt near DC is the free-air Bl Cms / Re (both ports are open at DC) (m/V)",
+      "inputs": {
+        "f": 0.0001,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "x_per_v": 0.000727269524108853,
+        "free_air": 0.0007272695241197757
+      },
+      "tol": {
+        "rel": 1e-06
+      }
+    },
+    {
+      "id": "bp6_x_null_at_ff",
+      "desc": "6th-order band-pass displacement is zero at the front chamber / port resonance (lossless)",
+      "inputs": {
+        "f": 40.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "x_per_v": 0.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "bp6_x_null_at_fr",
+      "desc": "6th-order band-pass displacement is zero at the rear chamber / port resonance (lossless)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "x_per_v": 0.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "bp8_limit6_20hz",
+      "desc": "8th order with the outer chamber shrunk to nothing (Vas/V2 = 1e6, its port mass 1e-3 kept) equals the 6th-order box with the two front ports as one at 20.0 Hz (dB)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "a2": 1000000.0,
+        "m2": 0.001,
+        "fr": 60.0,
+        "f1": 70.0
+      },
+      "outputs": {
+        "db": -40.85733489664346
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8_limit6_45hz",
+      "desc": "8th order with the outer chamber shrunk to nothing (Vas/V2 = 1e6, its port mass 1e-3 kept) equals the 6th-order box with the two front ports as one at 45.0 Hz (dB)",
+      "inputs": {
+        "f": 45.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "a2": 1000000.0,
+        "m2": 0.001,
+        "fr": 60.0,
+        "f1": 70.0
+      },
+      "outputs": {
+        "db": -13.549143466484148
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8_limit6_80hz",
+      "desc": "8th order with the outer chamber shrunk to nothing (Vas/V2 = 1e6, its port mass 1e-3 kept) equals the 6th-order box with the two front ports as one at 80.0 Hz (dB)",
+      "inputs": {
+        "f": 80.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "a2": 1000000.0,
+        "m2": 0.001,
+        "fr": 60.0,
+        "f1": 70.0
+      },
+      "outputs": {
+        "db": 4.58760124638159
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8_mag_20hz",
+      "desc": "8th-order band-pass response at 20.0 Hz (rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, lossless)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -13.253234991703799
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_mag_40hz",
+      "desc": "8th-order band-pass response at 40.0 Hz (rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, lossless)",
+      "inputs": {
+        "f": 40.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": 3.7019877395829273
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_mag_50hz",
+      "desc": "8th-order band-pass response at 50.0 Hz (rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, lossless)",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": 3.9067455184295903
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_mag_60hz",
+      "desc": "8th-order band-pass response at 60.0 Hz (rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, lossless)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": 6.020599913279624
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_mag_70hz",
+      "desc": "8th-order band-pass response at 70.0 Hz (rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, lossless)",
+      "inputs": {
+        "f": 70.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": 5.3035407277032265
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_mag_100hz",
+      "desc": "8th-order band-pass response at 100.0 Hz (rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, lossless)",
+      "inputs": {
+        "f": 100.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": 6.855116816545398
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_mag_200hz",
+      "desc": "8th-order band-pass response at 200.0 Hz (rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, lossless)",
+      "inputs": {
+        "f": 200.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -19.32578078269365
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_lossy_mag_30hz",
+      "desc": "8th-order band-pass response at 30.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 30.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": -1.125677140849004
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_lossy_mag_45hz",
+      "desc": "8th-order band-pass response at 45.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 45.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": 1.8895958071642858
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_lossy_mag_60hz",
+      "desc": "8th-order band-pass response at 60.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": 3.121248324948183
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8_x_dc",
+      "desc": "8th-order band-pass displacement per volt near DC is the free-air Bl Cms / Re (every port is open at DC) (m/V)",
+      "inputs": {
+        "f": 0.0001,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "x_per_v": 0.0007272695241108319,
+        "free_air": 0.0007272695241197757
+      },
+      "tol": {
+        "rel": 1e-06
+      }
+    },
+    {
+      "id": "bp8_x_null_at_fr",
+      "desc": "8th-order band-pass displacement is zero at the rear chamber / port resonance (lossless)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "x_per_v": 0.0
+      },
+      "tol": {
+        "abs": 1e-12
+      }
+    },
+    {
+      "id": "bp8s_limit4_20hz",
+      "desc": "Sealed-rear layout with the outer chamber shrunk to nothing (Vas/V2 = 1e6, its port mass 1e-3 kept) equals the 4th-order band-pass with the two front ports as one at 20.0 Hz (dB)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "a2": 1000000.0,
+        "m2": 0.001,
+        "f1": 70.0
+      },
+      "outputs": {
+        "db": -15.829445868807364
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8c_limit_sealed_20hz",
+      "desc": "Rear-into-front layout with the rear port closed (rear tuning 0.0001 Hz) equals the sealed-rear layout at 20.0 Hz (dB)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 0.0001,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -9.25507775988592
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8s_limit4_45hz",
+      "desc": "Sealed-rear layout with the outer chamber shrunk to nothing (Vas/V2 = 1e6, its port mass 1e-3 kept) equals the 4th-order band-pass with the two front ports as one at 45.0 Hz (dB)",
+      "inputs": {
+        "f": 45.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "a2": 1000000.0,
+        "m2": 0.001,
+        "f1": 70.0
+      },
+      "outputs": {
+        "db": -0.1760103727470844
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8c_limit_sealed_45hz",
+      "desc": "Rear-into-front layout with the rear port closed (rear tuning 0.0001 Hz) equals the sealed-rear layout at 45.0 Hz (dB)",
+      "inputs": {
+        "f": 45.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 0.0001,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -6.489184469930144
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8s_limit4_80hz",
+      "desc": "Sealed-rear layout with the outer chamber shrunk to nothing (Vas/V2 = 1e6, its port mass 1e-3 kept) equals the 4th-order band-pass with the two front ports as one at 80.0 Hz (dB)",
+      "inputs": {
+        "f": 80.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "a2": 1000000.0,
+        "m2": 0.001,
+        "f1": 70.0
+      },
+      "outputs": {
+        "db": 10.110705853204278
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8c_limit_sealed_80hz",
+      "desc": "Rear-into-front layout with the rear port closed (rear tuning 0.0001 Hz) equals the sealed-rear layout at 80.0 Hz (dB)",
+      "inputs": {
+        "f": 80.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 0.0001,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -7.819935396170489
+      },
+      "tol": {
+        "abs_db": 1e-05
+      }
+    },
+    {
+      "id": "bp8s_mag_20hz",
+      "desc": "8th-order band-pass, sealed rear 100 L, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 20.0 Hz (lossless)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -9.25507775988592
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_mag_40hz",
+      "desc": "8th-order band-pass, sealed rear 100 L, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 40.0 Hz (lossless)",
+      "inputs": {
+        "f": 40.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -5.215186487015754
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_mag_50hz",
+      "desc": "8th-order band-pass, sealed rear 100 L, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 50.0 Hz (lossless)",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -7.3575786673576715
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_mag_60hz",
+      "desc": "8th-order band-pass, sealed rear 100 L, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 60.0 Hz (lossless)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -8.464239190983292
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_mag_100hz",
+      "desc": "8th-order band-pass, sealed rear 100 L, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 100.0 Hz (lossless)",
+      "inputs": {
+        "f": 100.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": 4.031739407999555
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_mag_200hz",
+      "desc": "8th-order band-pass, sealed rear 100 L, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 200.0 Hz (lossless)",
+      "inputs": {
+        "f": 200.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -43.52466047789261
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_lossy_mag_30hz",
+      "desc": "8th-order band-pass, sealed rear, at 30.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 30.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": -3.2387008362197944
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_lossy_mag_45hz",
+      "desc": "8th-order band-pass, sealed rear, at 45.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 45.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": -7.485285036468859
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_lossy_mag_60hz",
+      "desc": "8th-order band-pass, sealed rear, at 60.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": -8.949578242634267
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8s_x_dc",
+      "desc": "8th-order band-pass with a sealed rear: displacement per volt near DC equals the sealed rear box's (m/V)",
+      "inputs": {
+        "f": 0.0001,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "x_per_v": 0.0002424231747071929,
+        "sealed_rear": 0.0002424231747064679
+      },
+      "tol": {
+        "rel": 1e-06
+      }
+    },
+    {
+      "id": "bp8c_mag_20hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 20.0 Hz (lossless)",
+      "inputs": {
+        "f": 20.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -20.00363264235006
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_mag_40hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 40.0 Hz (lossless)",
+      "inputs": {
+        "f": 40.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -13.35835213182007
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_mag_50hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 50.0 Hz (lossless)",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -10.522337230212283
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_mag_60hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 60.0 Hz (lossless)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -5.014718081732518
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_mag_70hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 70.0 Hz (lossless)",
+      "inputs": {
+        "f": 70.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": 2.5632971503569912
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_mag_100hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 100.0 Hz (lossless)",
+      "inputs": {
+        "f": 100.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -5.485048297145312
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_mag_200hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, rear 100 L tuned 60 Hz, inner 150 L tuned 70 Hz, outer 200 L tuned 40 Hz, at 200.0 Hz (lossless)",
+      "inputs": {
+        "f": 200.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "db": -41.89291798290289
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_lossy_mag_30hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, at 30.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 30.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": -13.894887000076235
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_lossy_mag_45hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, at 45.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 45.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": -12.663064976632503
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_lossy_mag_60hz",
+      "desc": "8th-order band-pass, rear port into the inner front chamber, at 60.0 Hz with leakage QL 7 (rear), 7 (inner) and 12 (outer)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "qts": 0.3826834323650898,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0,
+        "qlr": 7.0,
+        "ql1": 7.0,
+        "ql2": 12.0
+      },
+      "outputs": {
+        "db": -6.493650144575717
+      },
+      "tol": {
+        "abs_db": 1e-09
+      }
+    },
+    {
+      "id": "bp8c_x_dc",
+      "desc": "8th-order band-pass with the rear port into the front chamber: displacement per volt near DC is the free-air Bl Cms / Re (m/V)",
+      "inputs": {
+        "f": 0.0001,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "x_per_v": 0.0007272695241043074,
+        "free_air": 0.0007272695241197757
+      },
+      "tol": {
+        "rel": 1e-06
+      }
+    },
+    {
+      "id": "port_length_internal",
+      "desc": "Port joining two chambers (both ends flanged inside enclosures, end correction 0.85 d in all): 10 cm round, 0.1 m3 chamber, 40 Hz (m)",
+      "inputs": {
+        "vb_m3": 0.1,
+        "fb": 40.0,
+        "d_m": 0.1
+      },
+      "outputs": {
+        "length_m": 0.06128453046733122,
+        "open_air_length_m": 0.07308453046733122
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "tqwt_design",
+      "desc": "TQWT starting line for the reference driver: length c/(4 Fs), mouth the cone area, closed end 4x, driver at a third, volume of the exponential taper",
+      "inputs": {
+        "fs": 30.0,
+        "sd_m2": 0.085
+      },
+      "outputs": {
+        "length_m": 2.8583333333333334,
+        "start_m2": 0.34,
+        "exit_m2": 0.085,
+        "offset": 0.3333333333333333,
+        "volume_m3": 0.5257721739639717
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "tqwt_column",
+      "desc": "TQWT column for the same line: inside width (the larger of driver hole + margins, 0.2 m and 0.8 sqrt(closed-end area)), depths at the closed end and the mouth, first and last back sections, air volume, driver distance from the top",
+      "inputs": {
+        "length_m": 2.8583333333333334,
+        "start_m2": 0.34,
+        "exit_m2": 0.085,
+        "offset": 0.3333333333333333,
+        "driver_d_m": 0.3,
+        "margin_m": 0.02
+      },
+      "outputs": {
+        "w_i": 0.4664761515876241,
+        "depth_top": 0.7288689868556625,
+        "depth_mouth": 0.18221724671391562,
+        "slant_1": 0.3756399491104828,
+        "slant_8": 0.3589512289670621,
+        "d2_4": 0.36443449342783124,
+        "volume_m3": 0.5270871869448002,
+        "driver_from_top": 0.9527777777777777
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
       "id": "horn_params",
       "desc": "Lumped horn bin: flare, cutoff, throat load, damping corner, passband gain",
       "inputs": {
@@ -1410,6 +2710,320 @@
       "outputs": {
         "z_ohm": 31.009367319300342,
         "phase_deg": -65.67588870045346
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp6_at_ff",
+      "desc": "6th-order band-pass (lossless): impedance at the front chamber / port resonance is exactly Re (ohm)",
+      "inputs": {
+        "f": 40.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "z_ohm": 5.0
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp6_at_fr",
+      "desc": "6th-order band-pass (lossless): impedance at the rear chamber / port resonance is exactly Re (ohm)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "z_ohm": 5.0
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp6_25hz",
+      "desc": "6th-order band-pass box: impedance magnitude and phase at 25.0 Hz",
+      "inputs": {
+        "f": 25.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "z_ohm": 15.134578762063764,
+        "phase_deg": -63.75166733646621
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp6_50hz",
+      "desc": "6th-order band-pass box: impedance magnitude and phase at 50.0 Hz",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "z_ohm": 7.908654969379067,
+        "phase_deg": -47.80787189759817
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp6_70hz",
+      "desc": "6th-order band-pass box: impedance magnitude and phase at 70.0 Hz",
+      "inputs": {
+        "f": 70.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "vf_l": 200.0,
+        "fr": 60.0,
+        "ff": 40.0
+      },
+      "outputs": {
+        "z_ohm": 8.31266731096615,
+        "phase_deg": 49.795353644106775
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8_at_fr",
+      "desc": "8th-order band-pass (lossless): impedance at the rear chamber / port resonance is exactly Re (ohm)",
+      "inputs": {
+        "f": 60.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 5.0
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8_25hz",
+      "desc": "8th-order band-pass box: impedance magnitude and phase at 25.0 Hz",
+      "inputs": {
+        "f": 25.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 7.051876896116648,
+        "phase_deg": -42.42734791872026
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8_50hz",
+      "desc": "8th-order band-pass box: impedance magnitude and phase at 50.0 Hz",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 6.37043426638074,
+        "phase_deg": -36.37277502309442
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8_80hz",
+      "desc": "8th-order band-pass box: impedance magnitude and phase at 80.0 Hz",
+      "inputs": {
+        "f": 80.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 16.950524470550743,
+        "phase_deg": -64.95002454129143
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8s_25hz",
+      "desc": "8th-order band-pass, sealed rear: impedance magnitude and phase at 25.0 Hz",
+      "inputs": {
+        "f": 25.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 43.290276428666104,
+        "phase_deg": 61.9674511183935
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8c_25hz",
+      "desc": "8th-order band-pass, rear into front: impedance magnitude and phase at 25.0 Hz",
+      "inputs": {
+        "f": 25.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 41.48490272374632,
+        "phase_deg": 62.62527534559868
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8s_50hz",
+      "desc": "8th-order band-pass, sealed rear: impedance magnitude and phase at 50.0 Hz",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 21.230854485951323,
+        "phase_deg": 66.30117564389631
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8c_50hz",
+      "desc": "8th-order band-pass, rear into front: impedance magnitude and phase at 50.0 Hz",
+      "inputs": {
+        "f": 50.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 6.937955047395614,
+        "phase_deg": -41.55258882943533
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8s_80hz",
+      "desc": "8th-order band-pass, sealed rear: impedance magnitude and phase at 80.0 Hz",
+      "inputs": {
+        "f": 80.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 8.924208220634783,
+        "phase_deg": -52.33183758893924
+      },
+      "tol": {
+        "rel": 1e-09
+      }
+    },
+    {
+      "id": "imp_bp8c_80hz",
+      "desc": "8th-order band-pass, rear into front: impedance magnitude and phase at 80.0 Hz",
+      "inputs": {
+        "f": 80.0,
+        "fs": 30.0,
+        "vas_l": 200.0,
+        "vr_l": 100.0,
+        "v1_l": 150.0,
+        "v2_l": 200.0,
+        "fr": 60.0,
+        "f1": 70.0,
+        "f2": 40.0
+      },
+      "outputs": {
+        "z_ohm": 10.47495098822072,
+        "phase_deg": -57.01263269274973
       },
       "tol": {
         "rel": 1e-09

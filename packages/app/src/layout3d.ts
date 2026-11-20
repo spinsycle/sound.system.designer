@@ -123,7 +123,46 @@ function wedgeBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
   return -db - t;
 }
 
-function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: number, dividerShare: number | null, out: Layout3): number {
+/**
+ * A TQWT column in 3D: flat front at z = 0, closed top, the sides and the staircase back as thin prisms, standing on y = 0 with the
+ * mouth open at the bottom. Returns the lowest z.
+ */
+function columnBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout3): number {
+  const col = c.column!;
+  const g = c.geometry;
+  const L = col.lengthM;
+  const xl = cx - g.wO / 2;
+  const xr = cx + g.wO / 2;
+  const origin: [number, number, number] = [cx, g.hO / 2, -g.dO / 2];
+  const box = (size: Box3['size'], y: number, z: number): void => {
+    out.boxes.push({ band, kind: 'panel', size, center: [cx, y, z], origin });
+  };
+  box([g.wO, g.hO, t], g.hO / 2, -t / 2); // front baffle, full height
+  box([g.wO, t, col.depthTopI + t], g.hO - t / 2, -t - (col.depthTopI + t) / 2); // closed top
+  for (const s of col.sections) {
+    const y1 = L - s.x1;
+    const y2 = L - s.x2;
+    // a side: the trapezoid between the flat front (z = -t) and the back at each end of the section
+    const side = (x0: number): void => {
+      const quad = (x: number): [number, number, number][] => [[x, y1, -t], [x, y1, -t - s.d1], [x, y2, -t - s.d2], [x, y2, -t]];
+      out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)] });
+    };
+    side(xl);
+    side(xr - t);
+    // the back: a sloping sheet t thick (along z) between the sides
+    const x0 = xl + t;
+    const x1 = xr - t;
+    const back = (y: number, d: number): [number, number, number][] => [[x0, y, -t - d], [x1, y, -t - d], [x1, y, -t - d - t], [x0, y, -t - d - t]];
+    out.prisms.push({ band, points: [...back(y1, s.d1), ...back(y2, s.d2)] });
+  }
+  for (const h of holePositions(c)) {
+    out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, g.hO - h.cy, LIFT], radius: h.r });
+    if (h.kind === 'driver') out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, g.hO - h.cy, 0], dir: [0, 0, -1], radius: h.r });
+  }
+  return -g.dO;
+}
+
+function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: number, dividerShares: readonly number[], out: Layout3): number {
   const g = c.geometry;
   const lift = c.facing === 'down' ? (c.clearanceM ?? 0) : 0;
   const cy = g.hO / 2 + lift;
@@ -139,7 +178,7 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   add('panel', [t, g.hO - 2 * t, g.dO - 2 * t], g.wO / 2 - t / 2, 0, 0); // sides
   add('panel', [t, g.hO - 2 * t, g.dO - 2 * t], -g.wO / 2 + t / 2, 0, 0);
   for (let k = 1; k <= g.braces; k++) add('brace', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + (g.dI * k) / (g.braces + 1));
-  if (dividerShare !== null) add('divider', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + g.dI * dividerShare);
+  for (const share of dividerShares) add('divider', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + g.dI * share);
   // a speaker's chamber shelves lie flat, wI x dI, at the depth the cut list's air shares put them
   for (const fromTop of c.shelves ?? []) add('divider', [g.wI, t, g.dI], 0, g.hO / 2 - t - fromTop, 0);
   // a folded horn's septa: fixed to the front wall (even index) or the back wall, stopping short of the other for the U-turn.
@@ -199,6 +238,14 @@ export function layout3d(v: BuildView, p: Project): Layout3 {
     b.cabinets.forEach((c, i) => {
       const g = c.geometry;
       const cx = x + g.wO / 2;
+      if (c.column) {
+        const zMin = columnBoxes(c, band, cx, t, out);
+        x += g.wO;
+        maxY = Math.max(maxY, g.hO);
+        minZ = Math.min(minZ, zMin);
+        maxZ = Math.max(maxZ, 0);
+        return;
+      }
       if (c.wedge) {
         const zMin = wedgeBoxes(c, band, cx, t, out);
         if (i === 0) {
@@ -217,8 +264,14 @@ export function layout3d(v: BuildView, p: Project): Layout3 {
         maxZ = Math.max(maxZ, 0);
         return;
       }
-      const share = p.kind === 'system' && b.cabinets.length === 1 && p.bands[band]!.design.type === 'bandpass' ? p.bands[band]!.design.volumeL / (p.bands[band]!.design.volumeL + p.bands[band]!.design.frontVolumeL) : null;
-      const cz = cabinetBoxes(c, band, cx, t, 0, share, out);
+      // depth shares, from the back, of the dividers of a band-pass box: the rear chamber's, and (8th order) the inner front chamber's too
+      // the PA band's box, or the car sub's (the volumes are only compared with each other, so their sharing out among the subs does not matter)
+      const des = p.kind === 'car' ? p.car.design : p.bands[band]!.design;
+      const boxed = (p.kind === 'system' || p.kind === 'car') && b.cabinets.length === 1;
+      const split = boxed && (des.type === 'bandpass' || des.type === 'bandpass6') ? [des.volumeL, des.frontVolumeL] : boxed && des.type === 'bandpass8' ? [des.volumeL, des.bp8.innerVolumeL, des.frontVolumeL] : [];
+      const total = split.reduce((a, v) => a + v, 0);
+      const shares = split.slice(0, -1).map((_, k) => split.slice(0, k + 1).reduce((a, v) => a + v, 0) / total);
+      const cz = cabinetBoxes(c, band, cx, t, 0, shares, out);
       if (i === 0) {
         const holes = holePositions(c).filter((h) => h.kind === 'port');
         const down = c.facing === 'down';

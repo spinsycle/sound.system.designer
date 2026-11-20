@@ -21,6 +21,7 @@ import {
   SPACES,
   SPACE_RANGES,
   computeCarElectric,
+  carBandpassDefaults,
   carPortedDefaults,
   computeCarSub,
   computeCarSystem,
@@ -40,13 +41,16 @@ import {
   MOUNT_DEFAULTS,
   applyFront,
 } from './carfront';
-import { BOX_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, type Design } from './model';
+import { BOX_KINDS, BOX_RANGES, BP6_RANGES, BP8_LAYOUTS, BP8_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, type Design, EXTRA_RANGES, PR_RANGES, type PassiveDesign, passiveDefaults } from './model';
 import { type Project, sanitizeProject } from './system';
 
 const CAUSES = { amp: 'the amp', heat: 'driver power', excursion: 'cone excursion' } as const;
 const divisors = (n: number): number[] => Array.from({ length: n }, (_, i) => i + 1).filter((s) => n % s === 0);
 const fmt = (v: number, digits = 1): string => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(digits));
 /** First class that is a car sub: the picker lists these before the others. */
+/** The box types a car sub can be (a horn, a transmission line and a TQWT are too big for a car). */
+const CAR_BOXES = ['sealed', 'ported', 'passive', 'bandpass', 'bandpass6', 'bandpass8'] as const;
+
 const FIRST_CAR_CLASS = P.ALL_DRIVER_CLASSES.findIndex((d) => d.name.includes('car sub'));
 
 export function CarView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
@@ -64,6 +68,8 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
   const setCar = (next: CarSub): void => onChange(sanitizeProject({ ...project, car: sanitizeCar(next) }));
   const set = (patch: Partial<CarSub>): void => setCar({ ...c, ...patch });
   const setDesign = (patch: Partial<Design>): void => set({ design: { ...d, ...patch } });
+  const isBandpass = d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8';
+  const tuneLabel = d.type === 'passive' ? 'Box tuning fB' : d.type === 'bandpass6' ? 'Front tuning' : d.type === 'bandpass8' ? 'Outer front tuning (port 2)' : BOX_RANGES.tuneHz.label;
   const setBuildOpts = (patch: Partial<CarSub['build']>): void => set({ build: { ...c.build, ...patch } });
   const driverName = P.ALL_DRIVER_CLASSES[d.driverClass]?.name ?? 'Custom';
   const dual = c.coils === 2;
@@ -203,25 +209,52 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
             ))}
           <p className="hint">Re is per voice coil. Xmax and power are for the whole driver.</p>
           <div className="segmented" role="radiogroup" aria-label="Box type">
-            {(['sealed', 'ported', 'bandpass'] as const).map((k) => (
+            {CAR_BOXES.map((k) => (
               <button
                 key={k}
                 type="button"
                 role="radio"
                 aria-checked={d.type === k}
                 className={d.type === k ? 'on' : ''}
-                onClick={() => setDesign(k === 'ported' ? { type: k, ...carPortedDefaults(d, c.count) } : { type: k })}
+                onClick={() => setDesign(k === 'ported' ? { type: k, ...carPortedDefaults(d, c.count) } : k === 'passive' ? { type: k, ...passiveDefaults(d, c.count) } : k === 'bandpass6' || k === 'bandpass8' ? carBandpassDefaults(d, k, c.count) : { type: k })}
               >
-                {{ sealed: 'Sealed', ported: 'Ported', bandpass: 'Band-pass' }[k]}
+                {BOX_KINDS.find((b) => b.id === k)!.label}
               </button>
             ))}
           </div>
-          <Field id="car-vol" slider range={{ ...BOX_RANGES.volumeL, label: c.count > 1 ? `Air for all ${c.count}` : d.type === 'bandpass' ? 'Rear air' : 'Air' }} value={d.volumeL} onChange={(x) => setDesign({ volumeL: x })} />
-          {d.type !== 'sealed' && <Field id="car-tune" slider range={BOX_RANGES.tuneHz} value={d.tuneHz} onChange={(x) => setDesign({ tuneHz: x })} />}
-          {d.type !== 'sealed' && <PortControls design={d} onChange={setDesign} idp="car" />}
-          {d.type === 'bandpass' && <Field id="car-front" range={BOX_RANGES.frontVolumeL} value={d.frontVolumeL} onChange={(x) => setDesign({ frontVolumeL: x })} />}
+          <Field id="car-vol" slider range={{ ...BOX_RANGES.volumeL, label: c.count > 1 ? `Air for all ${c.count}` : isBandpass ? 'Rear air' : 'Air' }} value={d.volumeL} onChange={(x) => setDesign({ volumeL: x })} />
+          {d.type !== 'sealed' && <Field id="car-tune" slider range={{ ...BOX_RANGES.tuneHz, label: tuneLabel }} value={d.tuneHz} onChange={(x) => setDesign({ tuneHz: x })} />}
+          {d.type !== 'sealed' && d.type !== 'passive' && <PortControls design={d} onChange={setDesign} idp="car" />}
+          {isBandpass && <Field id="car-front" range={{ ...BOX_RANGES.frontVolumeL, label: d.type === 'bandpass8' ? 'Outer front air' : 'Front air' }} value={d.frontVolumeL} onChange={(x) => setDesign({ frontVolumeL: x })} />}
+          {d.type === 'bandpass8' && (
+            <div className="segmented" role="radiogroup" aria-label="8th-order layout">
+              {BP8_LAYOUTS.map((l) => (
+                <button key={l.id} type="button" role="radio" aria-checked={d.bp8.layout === l.id} className={d.bp8.layout === l.id ? 'on' : ''} onClick={() => setDesign({ bp8: { ...d.bp8, layout: l.id } })}>
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {d.type === 'bandpass8' && (
+            <>
+              <Field id="car-bp8-inner" range={{ ...BP8_RANGES.innerVolumeL, label: 'Inner front air' }} value={d.bp8.innerVolumeL} onChange={(x) => setDesign({ bp8: { ...d.bp8, innerVolumeL: x } })} />
+              <Field id="car-bp8-tune" range={BP8_RANGES.innerTuneHz} value={d.bp8.innerTuneHz} onChange={(x) => setDesign({ bp8: { ...d.bp8, innerTuneHz: x } })} />
+              <Field id="car-bp8-port" range={BP8_RANGES.innerPortDiameterCm} value={d.bp8.innerPortDiameterCm} onChange={(x) => setDesign({ bp8: { ...d.bp8, innerPortDiameterCm: x } })} />
+            </>
+          )}
+          {(d.type === 'bandpass6' || (d.type === 'bandpass8' && d.bp8.layout !== 'sealed')) && (
+            <>
+              <Field id="car-bp6-tune" range={BP6_RANGES.rearTuneHz} value={d.bp6.rearTuneHz} onChange={(x) => setDesign({ bp6: { ...d.bp6, rearTuneHz: x } })} />
+              <Field id="car-bp6-port" range={BP6_RANGES.rearPortDiameterCm} value={d.bp6.rearPortDiameterCm} onChange={(x) => setDesign({ bp6: { ...d.bp6, rearPortDiameterCm: x } })} />
+            </>
+          )}
+          {(d.type === 'passive' || d.type === 'bandpass6' || d.type === 'bandpass8') && <Field id="car-ql" range={EXTRA_RANGES.qL} value={d.qL} onChange={(x) => setDesign({ qL: x })} />}
+          {d.type === 'passive' &&
+            (['sdpCm2', 'vapL', 'massG', 'xmaxMm'] as (keyof PassiveDesign)[]).map((k) => <Field key={k} id={`car-pr-${k}`} range={PR_RANGES[k]} value={d.pr[k]} onChange={(x) => setDesign({ pr: { ...d.pr, [k]: x } })} />)}
+          {d.type === 'passive' && <p className="hint">One radiator for each sub; leave a field at 0 and it copies the sub's cone. Add the mass the cut list gives to tune the box.</p>}
+          {(d.type === 'bandpass6' || d.type === 'bandpass8') && <p className="hint">A starting box for 30 to 60 Hz (an SPL-style passband); the box page's design helper (the PA page) finds others. Built one box per sub, side by side. Not from the Cookbook: see the box page's notes.</p>}
           <h3>Driver layout</h3>
-          <LayoutControls layout={d.layout} count={d.type === 'bandpass' ? 1 : c.count} onChange={(layout) => setDesign({ layout })} idp="car" />
+          <LayoutControls layout={d.layout} count={isBandpass ? 1 : c.count} onChange={(layout) => setDesign({ layout })} idp="car" />
         </section>
 
         <section>

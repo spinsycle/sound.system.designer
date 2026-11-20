@@ -306,7 +306,7 @@ const fmt = (v: number, digits = 1): string => (Math.abs(v) >= 100 ? v.toFixed(0
 export function summary(d: Design): string {
   const driver = driverOf(d).name;
   if (d.type === 'horn') return `${driver}, ${d.horn.loading === 'rear' ? 'scoop' : 'horn'}, ${fmt(d.horn.cutoffHz, 0)} Hz ${d.horn.flare}`;
-  const box = { sealed: 'sealed', ported: `ported at ${fmt(d.tuneHz, 0)} Hz`, bandpass: `band-pass at ${fmt(d.tuneHz, 0)} Hz`, passive: `passive radiator at ${fmt(d.tuneHz, 0)} Hz`, tline: `transmission line, ${fmt(d.tl.lengthCm, 0)} cm` }[d.type];
+  const box = { sealed: 'sealed', ported: `ported at ${fmt(d.tuneHz, 0)} Hz`, bandpass: `band-pass at ${fmt(d.tuneHz, 0)} Hz`, passive: `passive radiator at ${fmt(d.tuneHz, 0)} Hz`, tline: `transmission line, ${fmt(d.tl.lengthCm, 0)} cm`, tqwt: `TQWT, ${fmt(d.tl.lengthCm, 0)} cm`, bandpass6: `6th-order band-pass at ${fmt(d.bp6.rearTuneHz, 0)} and ${fmt(d.tuneHz, 0)} Hz`, bandpass8: d.bp8.layout === 'sealed' ? `rear-sealed two-stage band-pass at ${fmt(d.bp8.innerTuneHz, 0)} and ${fmt(d.tuneHz, 0)} Hz` : `8th-order band-pass${d.bp8.layout === 'chain' ? ' (rear into front)' : ''} at ${fmt(d.bp6.rearTuneHz, 0)}, ${fmt(d.bp8.innerTuneHz, 0)} and ${fmt(d.tuneHz, 0)} Hz` }[d.type];
   return `${driver}, ${fmt(d.volumeL, d.volumeL < 10 ? 1 : 0)} L ${box}`;
 }
 

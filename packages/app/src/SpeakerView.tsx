@@ -27,13 +27,14 @@ import {
   sanitizeLoudspeaker,
   slotLabel,
 } from './loudspeaker';
-import { BOX_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, type Design } from './model';
+import { BOX_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, type Design, PR_RANGES, type PassiveDesign, passiveDefaults } from './model';
 import { type Project, sanitizeProject } from './system';
 
 /** The box kinds a speaker slot is built as. */
 const SLOT_BOXES = [
   { id: 'sealed', label: 'Sealed' },
   { id: 'ported', label: 'Ported' },
+  { id: 'passive', label: 'Passive radiator' },
 ] as const;
 
 export function SpeakerView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
@@ -175,7 +176,7 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
                 <>
                   <div className="field">
                     <label htmlFor={`sp-box-${k}`}>Box</label>
-                    <select id={`sp-box-${k}`} value={d.type === 'ported' ? 'ported' : 'sealed'} onChange={(e) => setDesign(k, e.target.value === 'ported' ? { type: 'ported', ...portedDefaults(d, spec.count) } : { type: 'sealed' })}>
+                    <select id={`sp-box-${k}`} value={d.type === 'ported' || d.type === 'passive' ? d.type : 'sealed'} onChange={(e) => setDesign(k, e.target.value === 'ported' ? { type: 'ported', ...portedDefaults(d, spec.count) } : e.target.value === 'passive' ? { type: 'passive', ...passiveDefaults(d, spec.count) } : { type: 'sealed' })}>
                       {SLOT_BOXES.map((b) => (
                         <option key={b.id} value={b.id}>
                           {b.label}
@@ -186,6 +187,10 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
                   <Field id={`sp-vol-${k}`} slider range={{ ...BOX_RANGES.volumeL, label: spec.count > 1 ? `Air for all ${spec.count}` : 'Air' }} value={d.volumeL} onChange={(v) => setDesign(k, { volumeL: v })} />
                   {d.type === 'ported' && <Field id={`sp-tune-${k}`} slider range={BOX_RANGES.tuneHz} value={d.tuneHz} onChange={(v) => setDesign(k, { tuneHz: v })} />}
                   {d.type === 'ported' && <PortControls design={d} onChange={(patch) => setDesign(k, patch)} idp={`sp-${k}`} />}
+                  {d.type === 'passive' && <Field id={`sp-tune-${k}`} slider range={{ ...BOX_RANGES.tuneHz, label: 'Box tuning fB' }} value={d.tuneHz} onChange={(v) => setDesign(k, { tuneHz: v })} />}
+                  {d.type === 'passive' &&
+                    (['sdpCm2', 'vapL', 'massG', 'xmaxMm'] as (keyof PassiveDesign)[]).map((f) => <Field key={f} id={`sp-pr-${k}-${f}`} range={PR_RANGES[f]} value={d.pr[f]} onChange={(v) => setDesign(k, { pr: { ...d.pr, [f]: v } })} />)}
+                  {d.type === 'passive' && <p className="hint">One radiator for each driver of the slot; a field at 0 copies the driver's cone. Add the mass the cut list gives to tune the box.</p>}
                 </>
               )}
               <Field id={`sp-trim-${k}`} slider range={SLOT_RANGES.trimDb} value={s.trimDb} onChange={(v) => setSlot(k, { trimDb: v })} />

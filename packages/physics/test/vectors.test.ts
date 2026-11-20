@@ -153,6 +153,107 @@ describe('shared vectors', () => {
     expectVec('bp_x_dc', 'sealed_rear', P.abs(P.sealedX(dc.f!, spec, ref, dc.vr_l! / 1000)));
   });
 
+  it('8th-order band-pass', () => {
+    const al = (v: Record<string, number>) => [v.vas_l! / v.vr_l!, v.vas_l! / v.v1_l!, v.vas_l! / v.v2_l!] as const;
+    for (const id of [...ids('bp8_mag_'), ...ids('bp8_lossy_mag_')]) {
+      const v = vec(id).inputs;
+      const [ar, a1, a2] = al(v);
+      expectVec(id, 'db', magDb(P.bandpass8G(v.f!, v.fs!, v.qts!, ar, a1, a2, v.fr!, v.f1!, v.f2!, v.qlr, v.ql1, v.ql2)));
+    }
+    // the outer chamber shrunk to nothing, its port mass kept: the 6th-order box (the reference checks it against bp6_G)
+    for (const id of ids('bp8_limit6_')) {
+      const v = vec(id).inputs;
+      const ws = 2 * Math.PI * v.fs!;
+      const f2 = 1 / (2 * Math.PI * Math.sqrt((v.m2! * (1 / (ws * ws))) / v.a2!));
+      expectVec(id, 'db', magDb(P.bandpass8G(v.f!, v.fs!, v.qts!, v.vas_l! / v.vr_l!, v.vas_l! / v.v1_l!, v.a2!, v.fr!, v.f1!, f2)));
+    }
+    for (const id of ['bp8_x_null_at_fr']) {
+      const v = vec(id).inputs;
+      const [ar, a1, a2] = al(v);
+      expectVec(id, 'x_per_v', P.abs(P.bandpass8X(v.f!, spec, ref, ar, a1, a2, v.fr!, v.f1!, v.f2!)));
+    }
+    const dc = vec('bp8_x_dc').inputs;
+    const [ar, a1, a2] = al(dc);
+    expectVec('bp8_x_dc', 'x_per_v', P.abs(P.bandpass8X(dc.f!, spec, ref, ar, a1, a2, dc.fr!, dc.f1!, dc.f2!)));
+    expectVec('bp8_x_dc', 'free_air', (ref.bl * ref.cms) / spec.re);
+  });
+
+  it('8th-order band-pass layouts and the internal port', () => {
+    const al = (v: Record<string, number>) => [v.vas_l! / v.vr_l!, v.vas_l! / v.v1_l!, v.vas_l! / v.v2_l!] as const;
+    for (const id of [...ids('bp8s_mag_'), ...ids('bp8s_lossy_mag_')]) {
+      const v = vec(id).inputs;
+      const [ar, a1, a2] = al(v);
+      expectVec(id, 'db', magDb(P.bandpass8G(v.f!, v.fs!, v.qts!, ar, a1, a2, 50, v.f1!, v.f2!, v.qlr, v.ql1, v.ql2, 'sealed')));
+    }
+    for (const id of [...ids('bp8c_mag_'), ...ids('bp8c_lossy_mag_')]) {
+      const v = vec(id).inputs;
+      const [ar, a1, a2] = al(v);
+      expectVec(id, 'db', magDb(P.bandpass8G(v.f!, v.fs!, v.qts!, ar, a1, a2, v.fr!, v.f1!, v.f2!, v.qlr, v.ql1, v.ql2, 'chain')));
+    }
+    // sealed rear with the outer chamber shrunk to nothing, its port mass kept: the 4th-order box (the reference checks it against bp_G)
+    for (const id of ids('bp8s_limit4_')) {
+      const v = vec(id).inputs;
+      const ws = 2 * Math.PI * v.fs!;
+      const f2 = 1 / (2 * Math.PI * Math.sqrt((v.m2! * (1 / (ws * ws))) / v.a2!));
+      expectVec(id, 'db', magDb(P.bandpass8G(v.f!, v.fs!, v.qts!, v.vas_l! / v.vr_l!, v.vas_l! / v.v1_l!, v.a2!, 50, v.f1!, f2, undefined, undefined, undefined, 'sealed')));
+    }
+    // rear port into the front chamber with the rear port closed: the sealed layout
+    for (const id of ids('bp8c_limit_sealed_')) {
+      const v = vec(id).inputs;
+      const [ar, a1, a2] = al(v);
+      expectVec(id, 'db', magDb(P.bandpass8G(v.f!, v.fs!, v.qts!, ar, a1, a2, v.fr!, v.f1!, v.f2!, undefined, undefined, undefined, 'chain')));
+    }
+    const sdc = vec('bp8s_x_dc').inputs;
+    const [sar, sa1, sa2] = al(sdc);
+    expectVec('bp8s_x_dc', 'x_per_v', P.abs(P.bandpass8X(sdc.f!, spec, ref, sar, sa1, sa2, 50, sdc.f1!, sdc.f2!, undefined, undefined, undefined, 'sealed')));
+    expectVec('bp8s_x_dc', 'sealed_rear', P.abs(P.sealedX(sdc.f!, spec, ref, sdc.vr_l! / 1000)));
+    const cdc = vec('bp8c_x_dc').inputs;
+    const [car, ca1, ca2] = al(cdc);
+    expectVec('bp8c_x_dc', 'x_per_v', P.abs(P.bandpass8X(cdc.f!, spec, ref, car, ca1, ca2, cdc.fr!, cdc.f1!, cdc.f2!, undefined, undefined, undefined, 'chain')));
+    expectVec('bp8c_x_dc', 'free_air', (ref.bl * ref.cms) / spec.re);
+    const pl = vec('port_length_internal').inputs;
+    expectVec('port_length_internal', 'length_m', P.portLengthInternalM(pl.vb_m3!, pl.fb!, pl.d_m!));
+    expectVec('port_length_internal', 'open_air_length_m', P.portLengthM(pl.vb_m3!, pl.fb!, pl.d_m!));
+  });
+
+  it('TQWT design and column', () => {
+    const di = vec('tqwt_design').inputs;
+    const td = P.tqwtDesign({ ...spec, fs: di.fs!, sd: di.sd_m2! });
+    expectVec('tqwt_design', 'length_m', td.lengthM);
+    expectVec('tqwt_design', 'start_m2', td.startM2);
+    expectVec('tqwt_design', 'exit_m2', td.exitM2);
+    expectVec('tqwt_design', 'offset', td.offset);
+    expectVec('tqwt_design', 'volume_m3', td.volumeM3);
+    const ci = vec('tqwt_column').inputs;
+    const col = P.tqwtColumn({ lengthM: ci.length_m!, startM2: ci.start_m2!, exitM2: ci.exit_m2!, chamberM3: 0, offset: ci.offset!, stuffing: 'acousta', densityLb: 0.5, stuffedShare: 0.5 }, ci.driver_d_m!, ci.margin_m!);
+    expectVec('tqwt_column', 'w_i', col.wI);
+    expectVec('tqwt_column', 'depth_top', col.depthTopI);
+    expectVec('tqwt_column', 'depth_mouth', col.depthMouthI);
+    expectVec('tqwt_column', 'slant_1', col.sections[0]!.slant);
+    expectVec('tqwt_column', 'slant_8', col.sections[7]!.slant);
+    expectVec('tqwt_column', 'd2_4', col.sections[3]!.d2);
+    expectVec('tqwt_column', 'volume_m3', col.volumeM3);
+    expectVec('tqwt_column', 'driver_from_top', col.driverFromTop);
+  });
+
+  it('6th-order band-pass', () => {
+    const a = (v: Record<string, number>) => [v.vas_l! / v.vr_l!, v.vas_l! / v.vf_l!] as const;
+    for (const id of [...ids('bp6_mag_'), ...ids('bp6_lossy_mag_'), ...ids('bp6_limit4_')]) {
+      const v = vec(id).inputs;
+      const [ar, af] = a(v);
+      expectVec(id, 'db', magDb(P.bandpass6G(v.f!, v.fs!, v.qts!, ar, af, v.fr!, v.ff!, v.qlr, v.qlf)));
+    }
+    for (const id of ['bp6_x_null_at_ff', 'bp6_x_null_at_fr']) {
+      const v = vec(id).inputs;
+      const [ar, af] = a(v);
+      expectVec(id, 'x_per_v', P.abs(P.bandpass6X(v.f!, spec, ref, ar, af, v.fr!, v.ff!)));
+    }
+    const dc = vec('bp6_x_dc').inputs;
+    const [ar, af] = a(dc);
+    expectVec('bp6_x_dc', 'x_per_v', P.abs(P.bandpass6X(dc.f!, spec, ref, ar, af, dc.fr!, dc.ff!)));
+    expectVec('bp6_x_dc', 'free_air', (ref.bl * ref.cms) / spec.re);
+  });
+
   it('horn', () => {
     const model = (id: string): P.HornModel => {
       const v = vec(id).inputs;
@@ -227,6 +328,22 @@ describe('shared vectors', () => {
     for (const id of ids('imp_bp_')) {
       const v = vec(id).inputs;
       check(id, P.bandpassX(v.f!, spec, ref, v.vas_l! / v.vr_l!, v.vas_l! / v.vf_l!, v.fb!));
+    }
+    for (const id of ids('imp_bp8s_')) {
+      const v = vec(id).inputs;
+      check(id, P.bandpass8X(v.f!, spec, ref, v.vas_l! / v.vr_l!, v.vas_l! / v.v1_l!, v.vas_l! / v.v2_l!, 50, v.f1!, v.f2!, undefined, undefined, undefined, 'sealed'));
+    }
+    for (const id of ids('imp_bp8c_')) {
+      const v = vec(id).inputs;
+      check(id, P.bandpass8X(v.f!, spec, ref, v.vas_l! / v.vr_l!, v.vas_l! / v.v1_l!, v.vas_l! / v.v2_l!, v.fr!, v.f1!, v.f2!, undefined, undefined, undefined, 'chain'));
+    }
+    for (const id of ids('imp_bp8_')) {
+      const v = vec(id).inputs;
+      check(id, P.bandpass8X(v.f!, spec, ref, v.vas_l! / v.vr_l!, v.vas_l! / v.v1_l!, v.vas_l! / v.v2_l!, v.fr!, v.f1!, v.f2!));
+    }
+    for (const id of [...ids('imp_bp6_'), 'imp_bp6_at_ff', 'imp_bp6_at_fr']) {
+      const v = vec(id).inputs;
+      check(id, P.bandpass6X(v.f!, spec, ref, v.vas_l! / v.vr_l!, v.vas_l! / v.vf_l!, v.fr!, v.ff!));
     }
     for (const id of ids('imp_horn_')) {
       const v = vec(id).inputs;

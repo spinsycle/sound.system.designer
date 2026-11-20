@@ -5,7 +5,7 @@
 // calculators as the rest of the app judge the result. Pure functions; no network here.
 import * as P from '@soundsystemdesigner/physics';
 import { computeBuild } from './buildlist';
-import { BOX_KINDS, BOX_RANGES, BRIEF_KINDS, CUSTOM_CLASS, CUSTOM_RANGES, DEFAULT_DESIGN, type Design, FLARES, HORN_RANGES, type Range, compute, sanitize } from './model';
+import { BOX_KINDS, BOX_RANGES, BP6_RANGES, BP8_LAYOUTS, BRIEF_KINDS, CUSTOM_CLASS, CUSTOM_RANGES, DEFAULT_DESIGN, type Design, FLARES, HORN_RANGES, type Range, bandpassStart, compute, driverOf, sanitize, tlSettingsFor, tqwtSettingsFor } from './model';
 import { AMP_LOADS, BAND_RANGES, COUNT_RANGE, DEFAULT_PROJECT, DISTANCE_RANGE, LOWEST_RANGE, MAX_BANDS, type Project, XOVER_RANGE, computeSystem, levelTrims, sanitizeProject } from './system';
 
 export type BriefMode = 'system' | 'box' | 'speaker' | 'car';
@@ -99,12 +99,29 @@ export function validateDesign(raw: unknown, path: string, meta: boolean, opts: 
     const v = num(raw[key], BOX_RANGES[key], `${path}.${key}`, errors);
     if (v !== null) (patch as Record<string, unknown>)[field] = v;
   };
-  if (kind === 'sealed' || kind === 'ported' || kind === 'bandpass' || kind === 'horn') take('volumeL', 'volumeL');
+  if (kind === 'sealed' || kind === 'ported' || kind === 'passive' || kind === 'bandpass' || kind === 'horn') take('volumeL', 'volumeL');
+  if (kind === 'passive') take('tuneHz', 'tuneHz');
   if (kind === 'ported' || kind === 'bandpass') {
     take('tuneHz', 'tuneHz');
     take('portDiameterCm', 'portDiameterCm');
   }
   if (kind === 'bandpass') take('frontVolumeL', 'frontVolumeL');
+
+  // the 6th- and 8th-order band-pass: the model names the passband (and the 8th order's layout); the app sizes the chambers, tunings and ports
+  let passband: { loHz: number; hiHz: number } | null = null;
+  if (kind === 'bandpass6' || kind === 'bandpass8') {
+    const lo = num(raw.passbandLoHz, BP6_RANGES.loHz, `${path}.passbandLoHz`, errors);
+    const hi = num(raw.passbandHiHz, BP6_RANGES.hiHz, `${path}.passbandHiHz`, errors);
+    if (lo !== null && hi !== null) {
+      if (hi < lo * 1.2) errors.push(`${path}.passbandHiHz: ${fmtNum(hi)} must be at least 1.2 times passbandLoHz (${fmtNum(lo)})`);
+      else passband = { loHz: lo, hiHz: hi };
+    }
+    if (kind === 'bandpass8') {
+      const layout = BP8_LAYOUTS.find((l) => l.id === raw.layout)?.id;
+      if (!layout) errors.push(`${path}.layout: expected one of ${BP8_LAYOUTS.map((l) => `"${l.id}"`).join(', ')}`);
+      else patch.bp8 = { ...DEFAULT_DESIGN.bp8, layout };
+    }
+  }
 
   if (kind === 'horn') {
     const h = raw.horn;
@@ -131,7 +148,15 @@ export function validateDesign(raw: unknown, path: string, meta: boolean, opts: 
   }
 
   if (errors.length > 0) return { ok: false, value: null, errors };
-  return { ok: true, value: { ...sanitize({ ...DEFAULT_DESIGN, ...patch }), ...out }, errors };
+  let design = sanitize({ ...DEFAULT_DESIGN, ...patch });
+  if (passband && (kind === 'bandpass6' || kind === 'bandpass8')) {
+    const start = bandpassStart(design, kind, 1, passband);
+    design = sanitize({ ...design, ...start, bp6: { ...(start.bp6 ?? design.bp6), loHz: passband.loHz, hiHz: passband.hiHz }, plotRange: 'low' });
+  }
+  // a transmission line or a TQWT is sized by the app from the driver (the book's tables, or the TQWT rule)
+  if (kind === 'tline') design = sanitize({ ...design, tl: tlSettingsFor(driverOf(design), 'taper', 'extended', 'acousta'), plotRange: 'low' });
+  if (kind === 'tqwt') design = sanitize({ ...design, tl: tqwtSettingsFor(driverOf(design)), plotRange: 'low' });
+  return { ok: true, value: { ...design, ...out }, errors };
 }
 
 export interface SystemAnswer {
@@ -246,6 +271,17 @@ export function designSchema(meta: boolean, opts: DesignOpts = {}): Record<strin
     delete properties.frontVolumeL;
     required.splice(required.indexOf('frontVolumeL'), 1);
   }
+  // the passband (and layout) of a 6th- or 8th-order band-pass: always asked for when one is allowed, ignored for the other types
+  const allowed = (id: string): boolean => (opts.types ? opts.types.includes(id) : BRIEF_KINDS.includes(id as never));
+  if (allowed('bandpass6') || allowed('bandpass8')) {
+    properties.passbandLoHz = range(BP6_RANGES.loHz);
+    properties.passbandHiHz = range(BP6_RANGES.hiHz);
+    required.push('passbandLoHz', 'passbandHiHz');
+  }
+  if (allowed('bandpass8')) {
+    properties.layout = { type: 'string', enum: BP8_LAYOUTS.map((l) => l.id) };
+    required.push('layout');
+  }
   return { type: 'object', properties, required };
 }
 
@@ -290,13 +326,13 @@ const HORN_TABLE = '50 Hz: 37000 cm2, 100 Hz: 9400 cm2, 200 Hz: 2300 cm2, 500 Hz
 
 /** The instructions the model gets. It chooses parts and sizes only; it is told the app will do the acoustics. */
 export function systemPrompt(mode: 'system' | 'box'): string {
-  const design = `A box design object has: "driver" (one of the class names below), "type" ("sealed", "ported", "bandpass" or "horn"), "volumeL" (${unit(BOX_RANGES.volumeL)}; for a band-pass box the sealed rear chamber; for a front-loaded horn the sealed chamber behind the cone), "tuneHz" (${unit(BOX_RANGES.tuneHz)}), "portDiameterCm" (${unit(BOX_RANGES.portDiameterCm)}) and "frontVolumeL" (${unit(BOX_RANGES.frontVolumeL)}): ALWAYS include all three; they are the port tuning, the port width and the front chamber of a ported or band-pass box, and are ignored for sealed boxes and horns (there give tuneHz 40, portDiameterCm 10 and frontVolumeL 10), and for horns a "horn" object that ALWAYS has all of: "loading" ("front", or "rear" for a scoop), "flare" ("exponential", "hyperbolic", "tractrix" or "conical"), "cutoffHz" (${unit(HORN_RANGES.cutoffHz)}), "t" (0 to 1, use 0.6), "lengthM" (${unit(HORN_RANGES.lengthM)}, only used by conical), "throatCm2" (${unit(HORN_RANGES.throatCm2)}), "mouthCm2" (${unit(HORN_RANGES.mouthCm2)}, larger than the throat), "throatChamberL" (${unit(HORN_RANGES.throatChamberL)}) and "widthCm" (${unit(HORN_RANGES.widthCm)}).`;
+  const design = `A box design object has: "driver" (one of the class names below), "type" ("sealed", "ported", "passive", "bandpass", "bandpass6", "bandpass8", "tline", "tqwt" or "horn"), "volumeL" (${unit(BOX_RANGES.volumeL)}; for a band-pass box the sealed rear chamber; for a front-loaded horn the sealed chamber behind the cone; for a passive-radiator box the whole box), "tuneHz" (${unit(BOX_RANGES.tuneHz)}), "portDiameterCm" (${unit(BOX_RANGES.portDiameterCm)}) and "frontVolumeL" (${unit(BOX_RANGES.frontVolumeL)}): ALWAYS include all three; they are the port tuning, the port width and the front chamber of a ported or band-pass box, and are ignored for sealed boxes and horns (there give tuneHz 40, portDiameterCm 10 and frontVolumeL 10), and "passbandLoHz" (${unit(BP6_RANGES.loHz)}), "passbandHiHz" (${unit(BP6_RANGES.hiHz)}, at least 1.2 times the low edge) and "layout" ("vented", "chain" or "sealed"): ALWAYS include all three; they say where a "bandpass6" or "bandpass8" box plays and which rear-chamber layout a "bandpass8" box has (the program sizes its chambers, tunings and ports for that passband), and are ignored for every other type (there give 40, 80 and "vented"). A "passive" box is a sealed box with a passive radiator in place of a port: its volumeL is the box air and its tuneHz the box tuning (give 1.3 to 2 times Fs). A "tline" (transmission line) or "tqwt" (tapered quarter-wave tube) is sized by the program from the driver alone: its volumeL, tuneHz, portDiameterCm and the rest are ignored (give 100, 40 and 10). And for horns a "horn" object that ALWAYS has all of: "loading" ("front", or "rear" for a scoop), "flare" ("exponential", "hyperbolic", "tractrix" or "conical"), "cutoffHz" (${unit(HORN_RANGES.cutoffHz)}), "t" (0 to 1, use 0.6), "lengthM" (${unit(HORN_RANGES.lengthM)}, only used by conical), "throatCm2" (${unit(HORN_RANGES.throatCm2)}), "mouthCm2" (${unit(HORN_RANGES.mouthCm2)}, larger than the throat), "throatChamberL" (${unit(HORN_RANGES.throatChamberL)}) and "widthCm" (${unit(HORN_RANGES.widthCm)}).`;
   const common = `You design loudspeaker enclosures for a design program. You choose parts and sizes only: the program does all the acoustics, so never calculate or claim measured results. Reply with one JSON object and nothing else. Use only the numbers, units and options listed here, and keep every number inside its range. "label" is a name of at most 40 characters; "note" is one or two sentences saying why you chose this.`;
   const classes = `Driver classes (generic, invented values; use these names exactly):\n${classTable()}`;
-  const sizing = `Sizing rules: a sealed box wants about 0.5 to 1.5 times the driver's Vas. A ported box wants about 1 to 2 times Vas, tuned at or a little below Fs, with a port wide enough to stay short: 8 to 10 cm for under 60 L, 12 to 15 cm for 60 to 200 L, 15 to 25 cm above that; never a box over 300 L unless the brief asks for a bin. A band-pass box ALWAYS has volumeL, frontVolumeL, tuneHz and portDiameterCm: its sealed rear volume is about 0.5 to 1 times Vas, its front volume of about 1 to 2 times Vas, and a tuning of 40 to 80 Hz for a subwoofer. The "1 in HF" class is only for horns above about 800 Hz; "8 in" and "6.5 in" suit mids; "12 in" and "15 in" suit tops or mid-bass; "18 in" and "21 in" suit bass. Horn mouth area for a cutoff (use the nearest row): ${HORN_TABLE}; the throat is 3 to 10 percent of the mouth, never more than the driver's Sd, and always smaller than the mouth. Set a horn's cutoff at or just below the bottom of its band. A scoop or bass bin is a "horn" with loading "rear": its "throatChamberL" is the chamber behind the cone (20 to 80 L for an 18 in) and "volumeL" is 1.`;
-  const exampleBox = '{"label":"Example","note":"Format example only, not a recommendation.","driver":"12 in","type":"ported","volumeL":70,"tuneHz":42,"portDiameterCm":10}';
+  const sizing = `Sizing rules: a sealed box wants about 0.5 to 1.5 times the driver's Vas. A ported box wants about 1 to 2 times Vas, tuned at or a little below Fs, with a port wide enough to stay short: 8 to 10 cm for under 60 L, 12 to 15 cm for 60 to 200 L, 15 to 25 cm above that; never a box over 300 L unless the brief asks for a bin. A band-pass box ALWAYS has volumeL, frontVolumeL, tuneHz and portDiameterCm: its sealed rear volume is about 0.5 to 1 times Vas, its front volume of about 1 to 2 times Vas, and a tuning of 40 to 80 Hz for a subwoofer. A passive-radiator box wants about 1 to 2 times Vas, the radiator copying the driver's cone, tuned 1.3 to 2 times Fs (a bigger box tunes lower); it suits drivers with a low Qts (under about 0.45) in a smaller box than a ported one would need. A 6th- or 8th-order band-pass ("bandpass6", "bandpass8") is a loud box for a narrow band: give the passband it must cover, for example 35 to 70 Hz for a car or club sub, 40 to 90 Hz for a punchier one, and use "bandpass8" only when the brief asks for the steepest sides (layout "vented" unless the brief says the rear chamber is sealed or vents into the front chamber). A "tline" or "tqwt" is a very large tapered line (1.5 to 4 m long, 100 to 500 L): only for a driver in a tall hi-fi or full-range tower, and only when the brief asks for a line or a tower. The "1 in HF" class is only for horns above about 800 Hz; "8 in" and "6.5 in" suit mids; "12 in" and "15 in" suit tops or mid-bass; "18 in" and "21 in" suit bass. Horn mouth area for a cutoff (use the nearest row): ${HORN_TABLE}; the throat is 3 to 10 percent of the mouth, never more than the driver's Sd, and always smaller than the mouth. Set a horn's cutoff at or just below the bottom of its band. A scoop or bass bin is a "horn" with loading "rear": its "throatChamberL" is the chamber behind the cone (20 to 80 L for an 18 in) and "volumeL" is 1.`;
+  const exampleBox = '{"label":"Example","note":"Format example only, not a recommendation.","driver":"12 in","type":"ported","volumeL":70,"tuneHz":42,"portDiameterCm":10,"frontVolumeL":10,"passbandLoHz":40,"passbandHiHz":80,"layout":"vented"}';
   if (mode === 'box') return `${common}\n\nDesign ONE box. The object is a box design with "label" and "note" added.\n${design}\n\n${classes}\n\n${sizing}\n\nFormat example (a different brief needs different numbers): ${exampleBox}`;
-  const exampleSystem = '{"label":"Example","note":"Format example only, not a recommendation.","nBands":2,"xoverHz":[100],"lowestHz":45,"distanceM":8,"bands":[{"design":{"driver":"18 in","type":"ported","volumeL":160,"tuneHz":40,"portDiameterCm":12},"count":1,"series":1,"ampPowerW":900,"ampLoadOhm":4,"ampMinLoadOhm":2},{"design":{"driver":"12 in","type":"sealed","volumeL":50},"count":2,"series":1,"ampPowerW":400,"ampLoadOhm":4,"ampMinLoadOhm":2}]}';
+  const exampleSystem = '{"label":"Example","note":"Format example only, not a recommendation.","nBands":2,"xoverHz":[100],"lowestHz":45,"distanceM":8,"bands":[{"design":{"driver":"18 in","type":"ported","volumeL":160,"tuneHz":40,"portDiameterCm":12,"frontVolumeL":10,"passbandLoHz":40,"passbandHiHz":80,"layout":"vented"},"count":1,"series":1,"ampPowerW":900,"ampLoadOhm":4,"ampMinLoadOhm":2},{"design":{"driver":"12 in","type":"sealed","volumeL":50,"tuneHz":40,"portDiameterCm":10,"frontVolumeL":10,"passbandLoHz":40,"passbandHiHz":80,"layout":"vented"},"count":2,"series":1,"ampPowerW":400,"ampLoadOhm":4,"ampMinLoadOhm":2}]}';
   return `${common}\n\nDesign a whole system of 1 to ${MAX_BANDS} bands, lowest band first. The object has "label", "note", "nBands" (whole number, as many as the brief needs), "xoverHz" (a list of nBands - 1 rising crossover frequencies, each ${unit(XOVER_RANGE)}, at least 1.2 times apart, in rising order such as [100, 1200, 3500]; an empty list for one band), "lowestHz" (${unit(LOWEST_RANGE)}: the lowest frequency the system must play, near the bottom of the lowest band's drivers), "distanceM" (${unit(DISTANCE_RANGE)}: listening distance) and "bands": a list with one object per band, each with "design" (a box design), "count" (${unit(COUNT_RANGE)}: identical drivers, each in its own box), "series" (drivers per series string; must divide count; 1 means all in parallel), "ampPowerW" (${unit(BAND_RANGES.ampPowerW)}), "ampLoadOhm" (one of ${AMP_LOADS.join(', ')}: the load that power is rated into) and "ampMinLoadOhm" (${unit(BAND_RANGES.ampMinLoadOhm)}: the lowest load the amplifier accepts).\n${design}\n\n${classes}\n\n${sizing}\n\nSystem rules: pick an amplifier near the drivers' rated power per channel (never far above it); typical crossovers are 80 to 120 Hz below the mids, 500 to 1500 Hz for mids to highs and 2 to 4 kHz into a compression-driver horn; each band's drivers must be able to play across its crossover points.\n\nFormat example (a different brief needs different numbers): ${exampleSystem}`;
 }
 

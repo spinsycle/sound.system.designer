@@ -1,10 +1,17 @@
 # Sound System Designer
 
 Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
-Version 1.8.0.
+Version 1.9.0.
 
-- **Boxes and horns:** sealed, ported, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
-  exponential, hyperbolic, tractrix and conical flares), with response, excursion, impedance and group-delay plots.
+- **Boxes and horns:** sealed, ported, passive-radiator, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
+  exponential, hyperbolic, tractrix and conical flares), transmission lines, and, new in 1.9, the **6th-order band-pass** (a
+  vented rear and a vented front chamber), the **8th-order band-pass** (a rear chamber vented to the room, vented into the front
+  chamber, or sealed, with a front of two chambers in series) and the **TQWT** (a tapered quarter-wave tower), with response,
+  excursion, impedance and group-delay plots. Every box shows its level in the passband, the level at the amp power, the highest
+  steady level and the power at that limit. The 6th- and 8th-order boxes have a design helper that finds chambers, tunings and ports
+  for a passband you give it. The Cookbook has no equations for these two or for the TQWT: they are derived and checked against
+  numeric solves of their circuits, not against a book (the app says so where they appear). A transmission line is cut as a folded
+  box with a chamber for the driver, and a TQWT as a tapered column.
 - **Systems:** up to four bands behind Linkwitz-Riley crossovers; trim, delay and polarity per band; drivers and wiring; an
   amplifier per band with load, power and excursion limits and a max-level table; the summed response in dB SPL; eight
   generic starting points.
@@ -16,6 +23,8 @@ Version 1.8.0.
   shared box or a wedge, an amplifier (optionally bridged) with its load and limits, the cabin gain of the vehicle, a vehicle
   space with a fit check, the 12 V side (supply current, cable gauge and drop, fuse, alternator), front speakers (a component
   set or a coaxial in a door, kick panel or the dash, with adapter rings), the whole system in one plot, and nine starting points.
+  Sealed, ported, passive-radiator, band-pass and 6th- and 8th-order band-pass boxes are available for the sub (a TQWT, a line or a horn
+  is too big for a car); a home speaker's woofer slot can also be a passive radiator.
 - **Driver layouts and ports:** in any of the three modes, drivers can sit in columns and rows on the baffle, face down (with a
   floor clearance), be push-pull pairs on opposite walls, and have the magnet inside the box or sticking out through the baffle.
   A PA band can put several drivers in one box ("Drivers per box"). Ports are round or rectangular (horizontal or vertical); a
@@ -37,7 +46,7 @@ Version 1.8.0.
   materials (millimetres or inches), a 3D preview, SVG and DXF files of the sheet layouts and baffles, and a print layout for PDF.
 - **Brief:** describe a system, a box, a home speaker or a car install in words and a local [Ollama](https://ollama.com) model proposes three variants.
   The model only picks parts and sizes into a strictly checked schema; the same calculators as everywhere else judge the
-  result. Everything stays on your computer: only an Ollama server on `localhost` is ever contacted.
+  result. It can choose any box type: for a 6th- or 8th-order band-pass it names the passband (and layout) and the app sizes the box. Everything stays on your computer: only an Ollama server on `localhost` is ever contacted.
 - **Projects:** Save project and Open project write and read a `.ssd.json` file; the app also remembers your last
   project on its own.
 
@@ -59,7 +68,7 @@ build against real drivers and a real amplifier.
 
 ## Install
 
-Run `Sound System Designer_1.8.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.9.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 

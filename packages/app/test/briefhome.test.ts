@@ -216,7 +216,7 @@ describe('car rules, one at a time', () => {
     ['unknown cabin', (d) => (d.cabin = 'tank'), 'cabin: expected one of'],
     ['sub group missing', (d) => delete d.sub, 'sub: expected an object'],
     ['a PA driver is not a car sub', (d) => (d.sub.driver = '18 in'), 'sub.driver: expected one of'],
-    ['a horn sub', (d) => (d.sub.type = 'horn'), 'sub.type: expected one of "sealed", "ported", "bandpass"'],
+    ['a horn sub', (d) => (d.sub.type = 'horn'), 'sub.type: expected one of "sealed", "ported", "passive", "bandpass", "bandpass6", "bandpass8"'],
     ['sub volume too small', (d) => (d.sub.volumeL = 0.01), 'sub.volumeL: 0.01 is below'],
     ['ported without tuning', (d) => {
       d.sub.type = 'ported';
@@ -285,7 +285,7 @@ describe('schemas and prompts', () => {
     expect(s.properties.baffleWidthCm).toEqual({ type: 'number', minimum: L.SPEAKER_RANGES.baffleWidthCm.min, maximum: L.SPEAKER_RANGES.baffleWidthCm.max });
     const slot = s.properties.slots.items;
     expect(slot.properties.driver.enum).toEqual([...H.SPEAKER_DRIVERS, ...H.SPEAKER_TWEETERS]);
-    expect(slot.properties.type.enum).toEqual(['sealed', 'ported']);
+    expect(slot.properties.type.enum).toEqual(['sealed', 'ported', 'passive']);
     expect(slot.required).toEqual(expect.arrayContaining(['driver', 'type', 'volumeL', 'tuneHz', 'portDiameterCm', 'open']));
     expect(slot.properties.horn).toBeUndefined();
     expect(slot.properties.custom).toBeUndefined();
@@ -298,7 +298,7 @@ describe('schemas and prompts', () => {
     expect(s.required).toEqual(['label', 'note', 'cabin', 'sub', 'amp', 'supply', 'space', 'front']);
     expect(s.properties.cabin.enum).toEqual(P.CABIN_TYPES.map((c) => c.id));
     expect(s.properties.sub.properties.driver.enum).toEqual([...H.CAR_SUB_CLASSES]);
-    expect(s.properties.sub.properties.type.enum).toEqual(['sealed', 'ported', 'bandpass']);
+    expect(s.properties.sub.properties.type.enum).toEqual(['sealed', 'ported', 'passive', 'bandpass', 'bandpass6', 'bandpass8']);
     expect(s.properties.sub.required).toEqual(expect.arrayContaining(['frontVolumeL', 'count', 'series', 'coils', 'coilSeries']));
     expect(s.properties.amp.properties.loadOhm.enum).toEqual([...C.CAR_AMP_LOADS]);
     expect(s.properties.supply.properties.cableAwg.enum).toEqual([...C.CABLE_AWGS]);

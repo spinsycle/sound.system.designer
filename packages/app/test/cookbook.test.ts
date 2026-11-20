@@ -78,10 +78,13 @@ describe('transmission line', () => {
     expect(M.tlLineVolumeM3({ lengthM: 2, startM2: 0.2, exitM2: 0.05, chamberM3: 0, offset: 0, stuffing: 'acousta', densityLb: 1, stuffedShare: 0.8 })).toBeCloseTo((2 * 0.15) / Math.log(4), 12);
     expect(M.tlLineVolumeM3({ lengthM: 2, startM2: 0.1, exitM2: 0.1, chamberM3: 0, offset: 0, stuffing: 'acousta', densityLb: 1, stuffedShare: 0.8 })).toBeCloseTo(0.2, 12);
   });
-  it('the cut list is a box with a septum, an exit hole and stuffing in the bill', () => {
+  it('the cut list is a folded line (septa, a mouth) with a driver chamber, and stuffing in the bill', () => {
     const v = build(tl);
-    expect(v.cutList.some((r) => r.part === 'Divider')).toBe(true);
-    expect(v.bands[0]!.cabinets[0]!.cutouts.some((x) => x.kind === 'port')).toBe(true);
+    expect(v.cutList.some((r) => r.part.includes('Fold septum'))).toBe(true);
+    const line = v.bands[0]!.cabinets.find((c) => c.title === 'Transmission line')!;
+    expect(line.fold).toBeDefined();
+    expect(line.cutouts.some((x) => x.kind === 'port')).toBe(true);
+    expect(v.bands[0]!.cabinets.some((c) => c.title === 'Chamber behind the cone')).toBe(true);
     expect(v.bom.some((x) => x.item === 'Line stuffing (loose fibre)' && x.qty > 0)).toBe(true);
   });
   it('warns about a thin line and a missing taper', () => {
@@ -133,10 +136,11 @@ describe('build rules from chapter 5', () => {
   });
 });
 
-describe('the Ollama brief keeps to the original four box types', () => {
-  it('the schema does not offer the new Cookbook types', () => {
-    expect(M.BRIEF_KINDS).toEqual(['sealed', 'ported', 'bandpass', 'horn']);
-    expect(JSON.stringify(B.designSchema(false))).not.toContain('tline');
+describe('the Ollama brief offers every box type (v1.9)', () => {
+  it('the schema offers the Cookbook types too', () => {
+    expect(M.BRIEF_KINDS).toEqual(['sealed', 'ported', 'passive', 'bandpass', 'bandpass6', 'bandpass8', 'tline', 'tqwt', 'horn']);
+    expect(JSON.stringify(B.designSchema(false))).toContain('tline');
+    expect(M.BRIEF_KINDS).toEqual(M.BOX_KINDS.map((k) => k.id).sort((a, b) => M.BRIEF_KINDS.indexOf(a) - M.BRIEF_KINDS.indexOf(b)));
   });
 });
 

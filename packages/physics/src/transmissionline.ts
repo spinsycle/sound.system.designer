@@ -8,6 +8,7 @@
 import { C, RHO } from './constants';
 import { type Cx, add, cx, div, mul, scale } from './complex';
 import { type DriverSpec, deriveDriver } from './drivers';
+import { type FoldProfile } from './foldlayout';
 import { pistonImpedance, pistonRadiation } from './hornsim';
 
 const LB_PER_FT3 = 16.0185; // kg/m^3 per lb/ft^3
@@ -155,6 +156,12 @@ export interface TlGeometry {
   /** Share of the line length stuffed, from the closed end; the rest stays open (the book leaves about the last 20 % clear). */
   stuffedShare: number;
 }
+
+/**
+ * The line as a duct to fold into a box (app only): the simulation's own exponential taper from the driver end to the exit.
+ * A driver offset along the line is not part of this: the cut list builds the whole line from the driver end.
+ */
+export const tlProfile = (g: TlGeometry): FoldProfile => ({ length: g.lengthM, area: (x) => g.startM2 * (g.exitM2 / g.startM2) ** (x / g.lengthM) });
 
 /** Flow resistivity of the fibre, Pa s/m^2, from its density: sigma = SIGMA_REF (m * rho)^1.5 with m the material's effectiveness against Acousta-Stuf. */
 export const SIGMA_REF = 730;

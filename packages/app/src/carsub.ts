@@ -6,7 +6,7 @@
 import * as P from '@soundsystemdesigner/physics';
 import { type BuildOpts, DEFAULT_BUILD, sanitizeBuild } from './build';
 import { type CarFront, DEFAULT_FRONT, checkFront, frontPressures, sanitizeFront } from './carfront';
-import { BOX_RANGES, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
+import { BOX_RANGES, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, bandpassStart, driverOf, rawEvaluator, sanitize } from './model';
 
 export type CarBoxShape = 'box' | 'wedge';
 export type AmpClass = 'd' | 'ab';
@@ -203,6 +203,17 @@ export function carPortedDefaults(d: Design, count = 1, targetLengthM = 0.2): Pi
   return { tuneHz: tune, portDiameterCm: P.clamp(Math.round(dM * 1000) / 10, 4, 25) };
 }
 
+/** The passband a car sub's band-pass box is first designed for, Hz. */
+export const CAR_BANDPASS_PASSBAND = { loHz: 30, hiHz: 60 } as const;
+
+/**
+ * A starting 6th- or 8th-order band-pass for a car sub (milestone S): the design helper's chambers and tunings for 30 to 60 Hz for one
+ * sub, times `count` for the install's total air, with round ports wide enough to tune their chambers. The 8th order keeps the design's layout.
+ */
+export function carBandpassDefaults(d: Design, kind: 'bandpass6' | 'bandpass8', count = 1): Partial<Design> {
+  return bandpassStart(d, kind, count, CAR_BANDPASS_PASSBAND);
+}
+
 export const CAR_FREQS: readonly number[] = Array.from({ length: 240 }, (_, k) => 10 * 50 ** (k / 239));
 /** Top of the range averaged for a sub's level, Hz. */
 const TOP_HZ = 120;
@@ -217,7 +228,8 @@ const fmt = (v: number, digits = 1): string => (Math.abs(v) >= 100 ? v.toFixed(0
 export function carEvaluator(c: CarSub) {
   const d = c.design;
   const driver = driverOf(d);
-  const each: Design = { ...d, volumeL: P.groupVolumeM3(d.volumeL, c.count), frontVolumeL: P.groupVolumeM3(d.frontVolumeL, c.count) };
+  // every volume of the install's air is shared out: the 8th-order box's inner front chamber too
+  const each: Design = { ...d, volumeL: P.groupVolumeM3(d.volumeL, c.count), frontVolumeL: P.groupVolumeM3(d.frontVolumeL, c.count), bp8: { ...d.bp8, innerVolumeL: P.groupVolumeM3(d.bp8.innerVolumeL, c.count) } };
   const raw = rawEvaluator(each);
   const wiring = P.carWiring(c.count, c.series, c.coils, c.coilSeries);
   const dvc = P.dvcDriver(c.coils, c.coilSeries);

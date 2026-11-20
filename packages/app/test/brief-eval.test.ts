@@ -1,6 +1,7 @@
 // Prompt-tuning harness against a real local model. Skipped unless OLLAMA_EVAL=1:
 //   OLLAMA_EVAL=1 npx vitest run brief-eval            (set OLLAMA_MODEL to try another model)
-// Sixteen fixed briefs (eight PA and box, four home speaker, four car), every variant; it reports how often the validator accepted the first answer, the second, or neither.
+// Twenty-four fixed briefs (the sixteen of v1.4, then eight for the v1.9 box types), every variant; it reports how often the validator accepted the first answer, the second, or neither.
+// OLLAMA_EVAL_ONLY=new runs only the eight v1.9 briefs.
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FLAVOURS, type BriefMode, boxMetricsOf, metricsOf } from '../src/brief';
@@ -9,7 +10,7 @@ import { designVariant } from '../src/ollama';
 import type { SystemAnswer } from '../src/brief';
 import { type CarAnswer, type SpeakerAnswer, carMetricsOf, speakerMetricsOf } from '../src/briefhome';
 
-const ALL: { mode: BriefMode; text: string }[] = [
+const ALL: { mode: BriefMode; text: string; isNew?: boolean }[] = [
   { mode: 'system', text: 'A two-way PA for a 200-person room: an 18 in ported sub and 12 in tops.' },
   { mode: 'system', text: 'A compact three-way active system for a small club, about 60 people, with a horn-loaded high end.' },
   { mode: 'system', text: 'A Jamaican-style four-way sound system stack with scoop bass bins and horn mids for an outdoor dance, with plenty of bass.' },
@@ -26,16 +27,26 @@ const ALL: { mode: BriefMode; text: string }[] = [
   { mode: 'car', text: 'Two 10 in subs in a ported box for a hatchback, about 1000 W, loud.' },
   { mode: 'car', text: 'A shallow 10 in sub under the seat of a pickup truck, small and quiet, no fronts.' },
   { mode: 'car', text: 'A 12 in sub in a sedan trunk plus component door speakers, 6.5 in, a balanced daily system.' },
+  // v1.9: the new box types
+  { mode: 'box', isNew: true, text: 'A 6th-order band-pass subwoofer box for a 15 in driver, playing 35 to 70 Hz.' },
+  { mode: 'box', isNew: true, text: 'An 8th-order band-pass subwoofer with the steepest possible sides for an 18 in driver, 40 to 90 Hz.' },
+  { mode: 'box', isNew: true, text: 'A compact passive-radiator box for a 12 in woofer, no port.' },
+  { mode: 'box', isNew: true, text: 'A tall TQWT tower for a full-range 8 in driver in a living room.' },
+  { mode: 'system', isNew: true, text: 'A two-way system for a small hall: two 15 in 6th-order band-pass subs for 40 to 80 Hz and 12 in tops.' },
+  { mode: 'speaker', isNew: true, text: 'A compact bookshelf 2-way with a 5.25 in woofer on a passive radiator instead of a port.' },
+  { mode: 'car', isNew: true, text: 'Two 12 in subs in a 6th-order band-pass box in an SUV, about 1500 W, SPL, 30 to 60 Hz.' },
+  { mode: 'car', isNew: true, text: 'A 10 in sub in a passive-radiator box for a small hatchback trunk, about 400 W.' },
 ];
 
 // OLLAMA_EVAL_MODES=speaker,car runs only those modes
 const MODES = process.env.OLLAMA_EVAL_MODES?.split(',');
-const BRIEFS = MODES ? ALL.filter((b) => MODES.includes(b.mode)) : ALL;
+const ONLY_NEW = process.env.OLLAMA_EVAL_ONLY === 'new';
+const BRIEFS = ALL.filter((b) => (!MODES || MODES.includes(b.mode)) && (!ONLY_NEW || b.isNew));
 const MODEL = process.env.OLLAMA_MODEL ?? 'llama3.1:8b';
 const cfg = { baseUrl: 'http://localhost:11434', model: MODEL };
 
 describe.skipIf(!process.env.OLLAMA_EVAL)('real model', () => {
-  it('answers the sixteen briefs', async () => {
+  it('answers the fixed briefs', async () => {
     const rows: Record<string, unknown>[] = [];
     let first = 0;
     let second = 0;

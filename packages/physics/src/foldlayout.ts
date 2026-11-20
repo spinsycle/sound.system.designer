@@ -15,6 +15,14 @@ export const MIN_LEG_SHARE = 0.05;
  */
 export type FoldStyle = 'stepped' | 'tapered';
 
+/** What a fold needs of a duct: its centreline length and its cross-section area at a distance x from the start, m and m2. A horn flare is one; so is a transmission line's taper. */
+export interface FoldProfile {
+  length: number;
+  area: (x: number) => number;
+}
+
+export const flareProfile = (fl: Flare): FoldProfile => ({ length: flareLength(fl), area: (x) => flareArea(fl, x) });
+
 export interface FoldLayout {
   style: FoldStyle;
   /** Channel height of each leg at the front wall and at the back wall, m (both the leg's height when stepped). */
@@ -67,16 +75,21 @@ export interface FoldLayout {
  * default) or tapered. The first leg starts at the front.
  */
 export function foldHorn(fl: Flare, widthM: number, legs: number, depthOutM: number, t: number, style: FoldStyle = 'stepped'): FoldLayout {
-  return style === 'tapered' ? foldTapered(fl, widthM, legs, depthOutM, t) : foldStepped(fl, widthM, legs, depthOutM, t);
+  return foldProfile(flareProfile(fl), widthM, legs, depthOutM, t, style);
+}
+
+/** The same fold for any duct profile (a horn flare, a transmission line's taper). */
+export function foldProfile(pr: FoldProfile, widthM: number, legs: number, depthOutM: number, t: number, style: FoldStyle = 'stepped'): FoldLayout {
+  return style === 'tapered' ? foldTapered(pr, widthM, legs, depthOutM, t) : foldStepped(pr, widthM, legs, depthOutM, t);
 }
 
 /**
  * Stepped fold: leg k has the flare's height (area / width) at its middle; a turn adds (h_k + h_(k+1) + t) / 2 of path; the leg
  * length follows from the total. Septum k is `dI - gap_k` long.
  */
-function foldStepped(fl: Flare, widthM: number, legs: number, depthOutM: number, t: number): FoldLayout {
-  const length = flareLength(fl);
-  let heights = Array.from({ length: legs }, (_, k) => flareArea(fl, (length * (k + 0.5)) / legs) / widthM);
+function foldStepped(pr: FoldProfile, widthM: number, legs: number, depthOutM: number, t: number): FoldLayout {
+  const length = pr.length;
+  let heights = Array.from({ length: legs }, (_, k) => pr.area((length * (k + 0.5)) / legs) / widthM);
   let leg = length / legs;
   let feasible = true;
   const minLeg = (MIN_LEG_SHARE * length) / legs;
@@ -95,7 +108,7 @@ function foldStepped(fl: Flare, widthM: number, legs: number, depthOutM: number,
       ends.push(x + leg);
       x += leg + (k < legs - 1 ? turns[k]! : 0);
     }
-    heights = starts.map((s, k) => flareArea(fl, Math.min(Math.max((s + ends[k]!) / 2, 0), length)) / widthM);
+    heights = starts.map((s, k) => pr.area(Math.min(Math.max((s + ends[k]!) / 2, 0), length)) / widthM);
   }
   const gaps = Array.from({ length: legs - 1 }, (_, k) => Math.max(heights[k]!, heights[k + 1]!));
   let minDepthI = 0;
@@ -144,10 +157,10 @@ function foldStepped(fl: Flare, widthM: number, legs: number, depthOutM: number,
  * of path. Legs run front to back when k is even. The septa are sloped plates joining the heights at the two walls; the floor is
  * flat, so the last leg takes the height the floor leaves it at each wall (never less than the flare's).
  */
-function foldTapered(fl: Flare, widthM: number, legs: number, depthOutM: number, t: number): FoldLayout {
-  const length = flareLength(fl);
+function foldTapered(pr: FoldProfile, widthM: number, legs: number, depthOutM: number, t: number): FoldLayout {
+  const length = pr.length;
   const minLeg = (MIN_LEG_SHARE * length) / legs;
-  const at = (x: number): number => flareArea(fl, Math.min(Math.max(x, 0), length)) / widthM;
+  const at = (x: number): number => pr.area(Math.min(Math.max(x, 0), length)) / widthM;
   let a = Array.from({ length: legs }, (_, k) => at((length * k) / legs));
   let b = Array.from({ length: legs }, (_, k) => at((length * (k + 1)) / legs));
   let leg = length / legs;
@@ -241,17 +254,22 @@ export interface FoldSuggestion {
  * leg counts the smallest outside volume; if none is that shallow, the same search up to FOLD_MAX_DEPTH_M. Null when nothing folds.
  */
 export function suggestFold(fl: Flare, widthM: number, t: number, style: FoldStyle = 'stepped'): FoldSuggestion | null {
-  return suggestUnder(fl, widthM, t, FOLD_PRACTICAL_DEPTH_M, style) ?? suggestUnder(fl, widthM, t, FOLD_MAX_DEPTH_M, style);
+  return suggestFoldProfile(flareProfile(fl), widthM, t, style);
 }
 
-function suggestUnder(fl: Flare, widthM: number, t: number, maxDepthM: number, style: FoldStyle): FoldSuggestion | null {
+/** suggestFold for any duct profile. */
+export function suggestFoldProfile(pr: FoldProfile, widthM: number, t: number, style: FoldStyle = 'stepped'): FoldSuggestion | null {
+  return suggestUnder(pr, widthM, t, FOLD_PRACTICAL_DEPTH_M, style) ?? suggestUnder(pr, widthM, t, FOLD_MAX_DEPTH_M, style);
+}
+
+function suggestUnder(pr: FoldProfile, widthM: number, t: number, maxDepthM: number, style: FoldStyle): FoldSuggestion | null {
   // the given width, then 25 % wider each step up to the limit
   const widths = [widthM];
   while (widths[widths.length - 1]! < FOLD_MAX_WIDTH_M - 1e-12) widths.push(Math.min(widths[widths.length - 1]! * FOLD_WIDTH_STEP, FOLD_MAX_WIDTH_M));
   for (const w of widths) {
     let best: { legs: number; dO: number; volume: number } | null = null;
     for (const legs of [2, 4, 6, 8]) {
-      const f = foldHorn(fl, w, legs, 0, t, style);
+      const f = foldProfile(pr, w, legs, 0, t, style);
       if (!f.feasible || f.dO > maxDepthM) continue; // an even leg count always has its mouth on the front
       const volume = f.wO * f.hO * f.dO;
       if (best === null || volume < best.volume) best = { legs, dO: f.dO, volume };

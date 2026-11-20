@@ -219,7 +219,7 @@ describe('schema, prompt and metrics', () => {
     expect(d.properties.volumeL!.minimum).toBe(M.BOX_RANGES.volumeL.min);
     expect(d.properties.volumeL!.maximum).toBe(M.BOX_RANGES.volumeL.max);
     expect(d.properties.driver!.enum).toEqual(P.DRIVER_CLASSES.map((c) => c.name)); // the model may not invent a custom driver
-    expect(d.properties.type!.enum).toEqual(['sealed', 'ported', 'bandpass', 'horn']);
+    expect(d.properties.type!.enum).toEqual(['sealed', 'ported', 'passive', 'bandpass', 'bandpass6', 'bandpass8', 'tline', 'tqwt', 'horn']);
     expect(d.required).toEqual(expect.arrayContaining(['driver', 'type', 'volumeL', 'tuneHz', 'label', 'note']));
     for (const k of ['tuneHz', 'portDiameterCm', 'frontVolumeL']) expect(B.designSchema(false).required).toContain(k);
     expect((B.systemSchema() as { properties: { bands: { items: { properties: { design: { required: string[] } } } } } }).properties.bands.items.properties.design.required).toContain('tuneHz');
