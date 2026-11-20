@@ -48,7 +48,7 @@ function Baffle({ c, u, rear = false }: { c: Cabinet; u: Units; rear?: boolean }
   const h0 = baffleHeight(c);
   const holes = rear ? (c.rearHoles ?? []) : c.cutouts;
   const pad = 0.03;
-  const what = rear ? 'back wall (push-pull drivers)' : c.facing === 'down' ? 'bottom baffle (drivers fire down)' : 'front baffle';
+  const what = rear ? 'back wall (push-pull drivers or a rear port)' : c.facing === 'down' ? 'bottom baffle (drivers fire down)' : 'front baffle';
   return (
     <figure className="baffle">
       <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${h0 + 2 * pad}`} role="img" aria-label={`${c.title} ${what}, ${mm(g.wO, u)} by ${mm(h0, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>

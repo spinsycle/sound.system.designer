@@ -472,6 +472,15 @@ const mutations = [
   [bl, "d.type === 'horn' || d.type === 'tline' || d.type === 'tqwt') warnings.push(`${slotLabel(arr, k)}", "d.type === 'horn') warnings.push(`${slotLabel(arr, k)}"],
   [ly, "const des = p.kind === 'car' ? p.car.design : p.bands[band]!.design;", 'const des = p.bands[band]!.design;'],
   [ly, "const boxed = (p.kind === 'system' || p.kind === 'car') && b.cabinets.length === 1;", "const boxed = p.kind === 'system' && b.cabinets.length === 1;"],
+  // port position on the home speaker
+  [app('buildlist.ts'), "const below = pp.place === 'below';", "const below = pp.place !== 'below';"],
+  [app('buildlist.ts'), "const dir = pp.place.endsWith('right') ? 1 : -1;", "const dir = pp.place.endsWith('right') ? -1 : 1;"],
+  [app('buildlist.ts'), "holes[pp.place.startsWith('top') ? 0 : arr.layout.length - 1]!;", "holes[pp.place.startsWith('top') ? arr.layout.length - 1 : 0]!;"],
+  [app('buildlist.ts'), "holes.push({ ...h, cx: edge + (dir * w) / 2 + dx, cy: ref.cy + dy });", "holes.push({ ...h, cx: edge + (dir * w) / 2 + dy, cy: ref.cy + dx });"],
+  [app('buildlist.ts'), "edge += dir * HOLE_GAP;", "edge += 0;"],
+  [app('buildlist.ts'), "cy: baffleH / 3 + dy }));", "cy: baffleH / 3 }));"],
+  [app('loudspeaker.ts'), "place: PORT_PLACES.find((x) => x === obj(i.portPos).place) ?? 'below',", "place: 'below',"],
+  [app('layout3d.ts'), "if (h.kind === 'driver') out.drivers.push({ band, flange: [x, y, zb", "out.drivers.push({ band, flange: [x, y, zb"],
   // B: the brief offers the new box types
   [app('brief.ts'), "if (kind === 'passive') take('tuneHz', 'tuneHz');", "if (kind === 'passivex') take('tuneHz', 'tuneHz');"],
   [app('brief.ts'), "kind === 'ported' || kind === 'passive' || kind === 'bandpass' || kind === 'horn') take('volumeL', 'volumeL');", "kind === 'ported' || kind === 'bandpass' || kind === 'horn') take('volumeL', 'volumeL');"],

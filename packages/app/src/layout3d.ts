@@ -216,7 +216,7 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
     const y = c.facing === 'down' ? lift + g.hO - h.cy : g.hO - h.cy;
     const zb = z0 - g.dO;
     out.discs.push({ band, kind: h.kind, center: [x, y, zb - LIFT], radius: h.r, rotY: Math.PI });
-    out.drivers.push({ band, flange: [x, y, zb + (motorOut ? t : 0)], dir: motorOut ? [0, 0, -1] : [0, 0, 1], radius: h.r });
+    if (h.kind === 'driver') out.drivers.push({ band, flange: [x, y, zb + (motorOut ? t : 0)], dir: motorOut ? [0, 0, -1] : [0, 0, 1], radius: h.r });
   }
   return cz;
 }

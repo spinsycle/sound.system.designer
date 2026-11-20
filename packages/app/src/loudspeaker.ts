@@ -51,6 +51,17 @@ export interface Slot {
   invert: boolean;
 }
 
+/** Where a ported speaker's port sits: under the drivers (the default), beside the top or the bottom driver, or on the back wall. */
+export type PortPlace = 'below' | 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'rear';
+export const PORT_PLACES: readonly PortPlace[] = ['below', 'top-right', 'top-left', 'bottom-right', 'bottom-left', 'rear'];
+export interface PortPosition {
+  place: PortPlace;
+  /** Nudge from the preset spot, cm: right and down are positive (seen from the front; from behind for a rear port). */
+  dxCm: number;
+  dyCm: number;
+}
+export const PORT_OFFSET_RANGE = { dxCm: { label: 'Port: move right', unit: 'cm', min: -60, max: 60, linear: true }, dyCm: { label: 'Port: move down', unit: 'cm', min: -100, max: 100, linear: true } } as const satisfies Record<string, Range>;
+
 export interface Loudspeaker {
   arrangement: ArrangementId;
   /** Always three kept so a slot's design survives a change of arrangement; only the arrangement's slots are used. */
@@ -66,6 +77,8 @@ export interface Loudspeaker {
   quantity: number;
   /** Bracing across the cabinet, for the cut list. */
   brace: P.Brace;
+  /** Where the port holes of the ported slots go on the cabinet (cut list, drawing and 3D only; the response is unchanged). */
+  portPos: PortPosition;
 }
 
 export type SpeakerField = 'baffleWidthCm' | 'baffleHeightCm';
@@ -112,6 +125,7 @@ export function defaultSpeaker(id: ArrangementId = 'two-way'): Loudspeaker {
     baffleStep: true,
     quantity: 2,
     brace: 'none',
+    portPos: { place: 'below', dxCm: 0, dyCm: 0 },
   };
 }
 
@@ -144,6 +158,11 @@ export function sanitizeLoudspeaker(input: unknown): Loudspeaker {
     baffleStep: i.baffleStep !== false,
     quantity: Math.round(num(i.quantity, QUANTITY_RANGE, d.quantity)),
     brace: i.brace === 'single' || i.brace === 'window' ? i.brace : 'none',
+    portPos: {
+      place: PORT_PLACES.find((x) => x === obj(i.portPos).place) ?? 'below',
+      dxCm: num(obj(i.portPos).dxCm, PORT_OFFSET_RANGE.dxCm, 0),
+      dyCm: num(obj(i.portPos).dyCm, PORT_OFFSET_RANGE.dyCm, 0),
+    },
   };
 }
 
@@ -331,6 +350,7 @@ export const SPEAKER_TEMPLATES: readonly SpeakerTemplate[] = [
   { label: 'Desktop 2-way (4 in)', description: 'A small sealed speaker for a desk or shelf: 4 in woofer, 0.75 in dome, crossed at 3 kHz.', speaker: template('two-way', [14, 22], [3000], [{ cls: '4 in', volumeL: 3 }, { cls: '0.75 in dome', volumeL: 0.3 }]) },
   { label: 'Bookshelf 2-way, sealed (5.25 in)', description: 'The classic bookshelf: 5.25 in woofer in 8 L sealed, 1 in dome, 2.5 kHz.', speaker: template('two-way', [20, 32], [2500], [{ cls: '5.25 in', volumeL: 8 }, { cls: '1 in dome', volumeL: 0.5 }]) },
   { label: 'Bookshelf 2-way, ported (5.25 in)', description: 'The same drivers in a bigger ported box for more bass, 2.5 kHz.', speaker: template('two-way', [20, 36], [2500], [{ cls: '5.25 in', volumeL: 12, ported: true }, { cls: '1 in dome', volumeL: 0.5 }]) },
+  { label: 'Studio monitor, port beside the tweeter (5 in)', description: 'A near-field monitor: 5 in woofer in 10 L ported, 1 in dome, with the port on the front beside the tweeter. 2.5 kHz.', speaker: template('two-way', [24, 30], [2500], [{ cls: '5.25 in', volumeL: 10, ported: true }, { cls: '1 in dome', volumeL: 0.5 }], { portPos: { place: 'top-right', dxCm: 0, dyCm: 0 } }) },
   { label: 'Floorstander 2-way (8 in)', description: 'A tall ported speaker: 8 in woofer in 25 L, 1.25 in dome, crossed at 1.8 kHz.', speaker: template('two-way', [24, 95], [1800], [{ cls: '8 in', volumeL: 25, ported: true }, { cls: '1.25 in dome', volumeL: 0.6 }]) },
   { label: "D'Appolito bookshelf (2 x 4 in)", description: 'MTM: two 4 in drivers either side of a dome, sealed, crossed at 2.5 kHz. Narrow, with a tall, even sound field.', speaker: template('mtm', [16, 40], [2500], [{ cls: '4 in mid', volumeL: 5 }, { cls: '1 in dome', volumeL: 0.5 }]) },
   { label: 'MTM tower (2 x 5.25 in)', description: 'A ported tower: two 5.25 in drivers around a dome, 2.5 kHz.', speaker: template('mtm', [18, 100], [2500], [{ cls: '5.25 in', volumeL: 20, ported: true }, { cls: '1 in dome', volumeL: 0.6 }]) },

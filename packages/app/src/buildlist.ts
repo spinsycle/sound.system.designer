@@ -590,11 +590,14 @@ export function speakerBuild(p: Project): BandBuild {
   const lay0 = sp.slots[0]!.design.layout;
   const down = lay0.facing === 'down';
   const baffleH = down ? g.dO : g.hO;
-  const stack: Cutout[] = [...arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), ...ports.map(portCut), ...prHoles];
+  const pp = sp.portPos;
+  const portHoles = ports.map(portCut);
+  // a port under the drivers (the default) is part of the stack; one beside a driver or on the back is placed after it
+  const below = pp.place === 'below';
+  const stack: Cutout[] = [...arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), ...(below ? portHoles : []), ...prHoles];
   let holes: Hole[];
   if (lay0.cols > 1) {
-    holes = gridHoles(arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), [...ports.map(portCut), ...prHoles], lay0.cols, g.wO, baffleH);
-    fitHoles(name, holes, g.wO, baffleH, u, warnings);
+    holes = gridHoles(arr.layout.map((k) => ({ kind: 'driver' as const, diameterM: diameters[k]! })), [...(below ? portHoles : []), ...prHoles], lay0.cols, g.wO, baffleH);
   } else {
     const total = stack.reduce((a, h) => a + h.diameterM, 0) + HOLE_GAP * Math.max(stack.length - 1, 0);
     let y = Math.max(HOLE_MARGIN, (baffleH - total) / 3);
@@ -608,9 +611,31 @@ export function speakerBuild(p: Project): BandBuild {
     if (widest + 2 * HOLE_MARGIN > g.wO) warnings.push(`${name}: the ${fl(widest, u)} hole does not fit the ${formatLength(g.wO * 1000, u)} wide baffle. Make the baffle wider or choose a smaller driver.`);
     if (top + total + HOLE_MARGIN > baffleH + 1e-9) warnings.push(`${name}: the drivers and ports do not all fit the ${fl(baffleH, u)} high baffle. Make it taller.`);
   }
+  let rearHoles: Hole[] | undefined;
+  if (portHoles.length && !below) {
+    const dx = pp.dxCm / 100;
+    const dy = pp.dyCm / 100;
+    if (pp.place === 'rear') {
+      // on the back wall, seen from behind: a third of the way down, centred, then nudged
+      rearHoles = portHoles.map((h, i) => ({ ...h, cx: g.wO / 2 + dx + i * (sizeOf(h).w + HOLE_GAP), cy: baffleH / 3 + dy }));
+    } else {
+      // beside the first (top) or last (bottom) driver of the layout, on its right or left; further ports continue outwards
+      const ref = holes[pp.place.startsWith('top') ? 0 : arr.layout.length - 1]!;
+      const dir = pp.place.endsWith('right') ? 1 : -1;
+      let edge = ref.cx + (dir * sizeOf(ref).w) / 2;
+      portHoles.forEach((h) => {
+        const w = sizeOf(h).w;
+        edge += dir * HOLE_GAP;
+        holes.push({ ...h, cx: edge + (dir * w) / 2 + dx, cy: ref.cy + dy });
+        edge += dir * w;
+      });
+    }
+  }
+  if (lay0.cols > 1 || !below) fitHoles(name, holes, g.wO, baffleH, u, warnings);
+  if (rearHoles) fitHoles(`${name} (back wall)`, rearHoles, g.wO, baffleH, u, warnings);
   floorWarning(name, lay0, Math.max(...stack.map((h) => h.diameterM)), u, warnings);
   const parts = rectPortParts(ports, t);
-  const cab: Cabinet = { title: 'Cabinet', geometry: g, panels, cutouts: stack, holes, shelves, facing: down ? 'down' : 'front', clearanceM: down ? lay0.clearanceCm / 100 : 0, magnetOut: sp.slots.some((s) => s.design.layout.mount === 'out'), liningM2: ceilTenth(2 * (g.wI * g.hI + g.wI * g.dI + g.hI * g.dI) - g.wI * g.hI) };
+  const cab: Cabinet = { title: 'Cabinet', geometry: g, panels, cutouts: [...stack, ...(below ? [] : portHoles)], holes, ...(rearHoles ? { rearHoles } : {}), shelves, facing: down ? 'down' : 'front', clearanceM: down ? lay0.clearanceCm / 100 : 0, magnetOut: sp.slots.some((s) => s.design.layout.mount === 'out'), liningM2: ceilTenth(2 * (g.wI * g.hI + g.wI * g.dI + g.hI * g.dI) - g.wI * g.hI) };
   const sums = arr.slots.map((spec, k) => `${slotLabel(arr, k)}: ${driverOf(sp.slots[k]!.design).name}`);
   return { name, summary: `${arr.label}. ${sums.join(', ')}`, count: sp.quantity, driver: drivers[0]!.name, drivers, cabinets: [cab], horn: null, port: ports[0] ?? null, ports, warnings, ...(parts.length ? { parts } : {}) };
 }

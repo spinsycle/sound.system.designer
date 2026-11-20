@@ -254,3 +254,60 @@ describe('drawings, exports and 3D follow the cabinet', () => {
     expect(X.sheetSvg(v, p, 0)).toContain('<svg');
   });
 });
+
+describe('port position', () => {
+  const ported = (place: L.PortPlace, dxCm = 0, dyCm = 0): B.BandBuild => {
+    const s = speaker('two-way', (x) => {
+      portedSmall(x);
+      x.slots[0]!.design.volumeL = 8;
+      x.portPos = { place, dxCm, dyCm };
+    });
+    return B.computeBuild(project(s)).bands[0]!;
+  };
+  const holes = (b: B.BandBuild) => b.cabinets[0]!.holes!;
+  it('below keeps the port in the stack under the drivers', () => {
+    const h = holes(ported('below'));
+    const port = h.find((x) => x.kind === 'port')!;
+    expect(port.cy).toBeGreaterThan(Math.max(...h.filter((x) => x.kind === 'driver').map((x) => x.cy)));
+  });
+  it('beside the top driver sits in its row, clear of it, on the chosen side', () => {
+    const h = holes(ported('top-right'));
+    const port = h.find((x) => x.kind === 'port')!;
+    const top = h.find((x) => x.kind === 'driver')!;
+    expect(port.cy).toBeCloseTo(top.cy, 9);
+    expect(port.cx - port.diameterM / 2 - (top.cx + top.diameterM / 2)).toBeCloseTo(0.03, 6);
+    const left = holes(ported('top-left')).find((x) => x.kind === 'port')!;
+    expect(left.cx).toBeLessThan(top.cx);
+  });
+  it('offsets move the hole by exactly that much, right and down', () => {
+    const a = holes(ported('top-right')).find((x) => x.kind === 'port')!;
+    const b = holes(ported('top-right', 2, 3)).find((x) => x.kind === 'port')!;
+    expect(b.cx - a.cx).toBeCloseTo(0.02, 9);
+    expect(b.cy - a.cy).toBeCloseTo(0.03, 9);
+  });
+  it('a rear port is nudged by the offsets too, and more than one port keeps clear of the first', () => {
+    const a = ported('rear').cabinets[0]!.rearHoles![0]!;
+    const b = ported('rear', 4, -2).cabinets[0]!.rearHoles![0]!;
+    expect(b.cx - a.cx).toBeCloseTo(0.04, 9);
+    expect(b.cy - a.cy).toBeCloseTo(-0.02, 9);
+  });
+  it('rear puts the port on the back wall and out of the front baffle', () => {
+    const b = ported('rear');
+    expect(holes(b).some((x) => x.kind === 'port')).toBe(false);
+    expect(b.cabinets[0]!.rearHoles!.filter((x) => x.kind === 'port')).toHaveLength(1);
+  });
+  it('does not change the port tube, and the 3D view puts a port disc at the new spot with no extra driver', () => {
+    const base = ported('below');
+    const rear = ported('rear');
+    expect(rear.ports[0]!.lengthM).toBe(base.ports[0]!.lengthM);
+    const p = project(speaker('two-way', (x) => { portedSmall(x); x.portPos = { place: 'rear', dxCm: 0, dyCm: 0 }; }));
+    const l3 = layout3d(B.computeBuild(p), p);
+    expect(l3.discs.some((d) => d.kind === 'port')).toBe(true);
+    expect(l3.drivers).toHaveLength(2);
+  });
+  it('sanitize clamps and falls back', () => {
+    const s = L.sanitizeLoudspeaker({ portPos: { place: 'nonsense', dxCm: 9999, dyCm: -9999 } });
+    expect(s.portPos).toEqual({ place: 'below', dxCm: 60, dyCm: -100 });
+    expect(L.sanitizeLoudspeaker({}).portPos.place).toBe('below');
+  });
+});

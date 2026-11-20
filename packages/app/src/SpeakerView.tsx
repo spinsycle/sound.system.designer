@@ -24,6 +24,8 @@ import {
   applyArrangement,
   arrangementOf,
   computeLoudspeaker,
+  PORT_OFFSET_RANGE,
+  type PortPlace,
   sanitizeLoudspeaker,
   slotLabel,
 } from './loudspeaker';
@@ -115,6 +117,25 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
             </div>
           )}
           {multi && <p className="hint">Shared or separate, the response is the same: each driver sees its share of the air. Separate chambers add partitions to the cut list.</p>}
+          {arr.slots.some((_, k) => sp.slots[k]!.design.type === 'ported' && !sp.slots[k]!.open) && (
+            <>
+              <h3>Port position</h3>
+              <div className="field">
+                <label htmlFor="port-place">Port on the cabinet</label>
+                <select id="port-place" value={sp.portPos.place} onChange={(e) => set({ portPos: { ...sp.portPos, place: e.target.value as PortPlace } })}>
+                  <option value="below">Under the drivers</option>
+                  <option value="top-right">Beside the top driver, to its right</option>
+                  <option value="top-left">Beside the top driver, to its left</option>
+                  <option value="bottom-right">Beside the lowest driver, to its right</option>
+                  <option value="bottom-left">Beside the lowest driver, to its left</option>
+                  <option value="rear">On the back wall</option>
+                </select>
+              </div>
+              <Field id="port-dx" range={PORT_OFFSET_RANGE.dxCm} value={sp.portPos.dxCm} onChange={(v) => set({ portPos: { ...sp.portPos, dxCm: v } })} />
+              <Field id="port-dy" range={PORT_OFFSET_RANGE.dyCm} value={sp.portPos.dyCm} onChange={(v) => set({ portPos: { ...sp.portPos, dyCm: v } })} />
+              <p className="hint">Moves the hole in the cut list, the baffle drawing and the 3D view; the response and the port's length do not change. The offsets nudge the port from the chosen spot (a rear port is measured as seen from behind).</p>
+            </>
+          )}
           <h3>Driver layout</h3>
           <LayoutControls
             layout={sp.slots[0]!.design.layout}

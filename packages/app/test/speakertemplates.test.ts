@@ -10,9 +10,9 @@ const asProject = (sp: L.Loudspeaker): S.Project => S.sanitizeProject({ ...S.DEF
 const cls = (name: string): number => P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === name);
 
 describe('the starting points', () => {
-  it('there are eight, with distinct names, covering desktop to floorstanding and every arrangement but WTW and TMM', () => {
-    expect(L.SPEAKER_TEMPLATES).toHaveLength(8);
-    expect(new Set(L.SPEAKER_TEMPLATES.map((t) => t.label)).size).toBe(8);
+  it('there are nine, with distinct names, covering desktop to floorstanding and every arrangement but WTW and TMM', () => {
+    expect(L.SPEAKER_TEMPLATES).toHaveLength(9);
+    expect(new Set(L.SPEAKER_TEMPLATES.map((t) => t.label)).size).toBe(9);
     expect(new Set(L.SPEAKER_TEMPLATES.map((t) => t.speaker.arrangement))).toEqual(new Set(['two-way', 'mtm', 'three-way', 'two-and-half']));
     const heights = L.SPEAKER_TEMPLATES.map((t) => t.speaker.baffleHeightCm);
     expect(Math.min(...heights)).toBeLessThan(25);
@@ -72,14 +72,15 @@ describe('the starting points hold the numbers they say', () => {
       [3, '4 in', 14, 22, 3000],
       [8, '5.25 in', 20, 32, 2500],
       [12, '5.25 in', 20, 36, 2500],
+      [10, '5.25 in', 24, 30, 2500],
       [25, '8 in', 24, 95, 1800],
       [5, '4 in mid', 16, 40, 2500],
       [20, '5.25 in', 18, 100, 2500],
       [40, '10 in', 28, 110, 350],
       [8, '5.25 in', 20, 85, 300],
     ]);
-    expect(L.SPEAKER_TEMPLATES[6]!.speaker.xover).toEqual([350, 3000]);
-    expect(L.SPEAKER_TEMPLATES[7]!.speaker.xover).toEqual([300, 2500]);
+    expect(L.SPEAKER_TEMPLATES[7]!.speaker.xover).toEqual([350, 3000]);
+    expect(L.SPEAKER_TEMPLATES[8]!.speaker.xover).toEqual([300, 2500]);
   });
 });
 
