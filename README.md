@@ -1,7 +1,27 @@
 # Sound System Designer
 
-Design loudspeaker enclosures and whole sound systems from driver specs. Windows desktop app (also runs in a browser).
+Design Around Your Own Loudspeaker Drivers
+
+Sound System Designer gives you the flexibility to work with the drivers you choose: start from editable general-purpose
+driver presets, or enter the Thiele-Small specifications of your actual drivers (Fs, Qts, Vas, Re, Le, Sd, Xmax and the rest),
+or measure them with the Driver Probe rig, and use them throughout your enclosure and system designs.
+
+Windows desktop app (also runs in a browser).
 Version 1.9.1.
+
+> **Disclaimer:** every number here is a calculated estimate from a simplified model, not a measurement of a real
+> loudspeaker. Use it to explore and compare designs, then check anything you build, or rely on for safety, against real
+> drivers, a real amplifier and real measurements. It is provided as is, without warranty (see `LICENSE`).
+
+- PA System Design
+- Home Loudspeaker Design
+- Car Audio Design
+- Enclosure & Horn Simulation
+- Crossover & Amplifier Configuration
+- 3D Cabinet Design & Fabrication
+
+**[Download the Windows installer](https://github.com/spinsycle/sound.system.designer/releases/latest)** (unsigned: if
+SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](docs/User-Guide.pdf) covers every page of the app.
 
 - **Boxes and horns:** sealed, ported, passive-radiator, band-pass and horn-loaded boxes (front-loaded horns and rear-loaded scoops;
   exponential, hyperbolic, tractrix and conical flares), transmission lines, and, new in 1.9, the **6th-order band-pass** (a
@@ -61,6 +81,43 @@ Generic parts only: the driver classes are invented values, not products, and no
 sound-system claims are made. Levels and limits are small-signal calculations, not measurements: check anything you
 build against real drivers and a real amplifier.
 
+## The optional Brief panel (local AI)
+
+The Brief panel lets you describe a design in plain words, for example "a slim floorstanding MTM tower for a living room,
+ported, about 100 cm tall", and returns three variants to compare and load.
+
+- **It is optional.** Everything else in the app, including every calculator, plot, cut list and export, works without it.
+  If Ollama is not installed or not running, the panel just says so and the rest is unaffected.
+- **The model runs on your computer.** It is a local [Ollama](https://ollama.com) model (`llama3.1:8b` is the tested one).
+  Your brief and your design are never uploaded to an external AI service, and no account or API key is involved. The app
+  only contacts an Ollama server on `localhost`.
+- **The model does not do the engineering.** It only picks parts and sizes into a strictly checked schema; anything outside
+  the schema is rejected. The same deterministic calculators used everywhere else in the app then judge each variant, and
+  the warnings column shows what they found.
+- **Its output is a starting point.** A small local model is not deterministic and sometimes proposes a poor design or
+  refuses. Load a variant, then adjust it like any other design. Undo last load brings your previous design back.
+
+## Estimates versus measurements
+
+The app calculates; it does not measure.
+
+- **Calculated estimates** come from lumped and one-dimensional models of ideal, lossless parts: Thiele-Small small-signal
+  theory for the drivers and boxes, a one-dimensional horn model, Linkwitz-Riley crossovers, and simple rules for the room,
+  baffle step and car cabin. They are good for comparing options and seeing how a change moves the result, and they are
+  exact for the model, which is not the same as exact for a loudspeaker.
+- **Measured performance** is what a real driver does in a real box in a real room: manufacturing spread between drivers,
+  a voice coil that heats and changes its parameters, cone and surround behaviour at high excursion, leakage, box
+  resonances and panel flex, port turbulence, diffraction, directivity, reflections and room modes. None of these are in
+  the numbers, and any of them can move the result by several dB or shift a tuning frequency.
+- **Levels and limits are small-signal.** Maximum levels, power and excursion figures assume a steady sine and unchanged
+  parameters. There is no power compression, thermal model or protection limiter, so real systems will usually reach less
+  than the estimate. Treat them as an optimistic upper bound.
+- **Driver data decides the result.** Entered Thiele-Small values are used as given. Datasheet values are typical, not
+  guaranteed, and a driver that is not broken in or is measured differently will not match. Where it matters, measure
+  your own drivers.
+
+Check anything you build against real drivers, a real amplifier and a measurement microphone before relying on it.
+
 ## Screenshots
 
 | PA system | Box designer (ported) |
@@ -111,6 +168,32 @@ and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-si
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 
 To use the Brief panel, install Ollama and pull a model once: `ollama pull llama3.1:8b`.
+
+### Run it in a browser instead
+
+The same app runs in any current browser, with no installer and on any operating system. You need [Node.js](https://nodejs.org) (LTS) and git:
+
+```
+git clone https://github.com/spinsycle/sound.system.designer.git
+cd sound.system.designer
+npm install
+npm run dev
+```
+
+Open the address it prints (normally `http://localhost:5173`). Keep the terminal open; Ctrl+C stops it. To serve a
+production build instead, run `npm run build` and then `npx vite preview packages/app`.
+
+Limits compared with the desktop app:
+
+- **Files go through the browser.** Save project and every export are downloads to your Downloads folder (no Save As
+  dialog unless your browser is set to ask), and Open project is a file picker.
+- **Your last project is kept in the browser's own storage.** It is per browser and per address, and clearing site data
+  deletes it. Use Save project for anything you want to keep.
+- **The Brief panel talks to Ollama from the page.** Ollama must be running on the same computer, and it only accepts
+  pages served from `localhost` unless you set `OLLAMA_ORIGINS`. Serving the app from another machine or a public
+  address will not reach your Ollama without that change, and a model on another machine is not supported.
+- **No installer, Start menu entry or desktop shortcut.** You start the server each time.
+- **Printing to PDF** uses the browser's print dialog, so margins and page size depend on the browser.
 
 ## Use
 
@@ -174,8 +257,10 @@ Conventions: SI units inside the libraries; everything is evaluated in the frequ
 `parity.jsonl` are generated and never hand-edited (a formula change starts in the shared spec's `reference_vectors.py`).
 A real-model prompt check: `OLLAMA_EVAL=1 npx vitest run brief-eval`.
 
-Sibling of the [Sound System](https://github.com/spinsycle/soundsystem) VST3 plugin: two independent products that
-implement one shared physics spec and assert the same test vectors.
+Sibling of the Sound System VST3 plugin (not published): two independent products that implement one shared physics spec
+and assert the same test vectors. The `sync-vectors` and `parity-dump` tools in `tools/` regenerate test data from that
+spec and plugin, which are not part of this repository; the generated files they produce are committed, so
+`npm test` runs without either.
 
 ## Licence
 

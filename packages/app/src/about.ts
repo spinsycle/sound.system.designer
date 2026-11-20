@@ -4,4 +4,4 @@
 export const APP_VERSION = '1.9.1';
 export const APP_NAME = 'Sound System Designer';
 export const LICENCE = 'GNU Affero General Public License, version 3 only';
-export const SOURCE_URL = 'https://github.com/spinsycle/soundsystemdesigner';
+export const SOURCE_URL = 'https://github.com/spinsycle/sound.system.designer';
