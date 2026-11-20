@@ -31,6 +31,13 @@ Version 1.9.0.
   rectangular port is built from sheet and appears in the cut list. The Build page's 3D view has a **Show speakers** switch that
   draws the drivers installed. Rectangular-port length uses the equivalent diameter for its end correction (approximate for slots);
   push-pull changes the build, not the response (opposed walls, or side by side on the front with one magnet inside and one outside).
+- **Nine box types:** sealed, ported, passive radiator, band-pass, 6th-order band-pass, 8th-order band-pass, transmission line, TQWT and
+  horn. See [docs/box-types.md](docs/box-types.md) for each one with screenshots and what is and is not checked.
+- **Driver Probe and driver library:** measure a real driver with the Driver Probe rig (USB or WiFi) and keep it in a library, or
+  bulk-import datasheet drivers from a CSV; a saved driver becomes the Custom driver of a box. See
+  [docs/driver-probe.md](docs/driver-probe.md).
+- **Home speaker port position:** choose where the port goes (under the drivers, beside the top or lowest driver, or on the back
+  wall) with offsets; it moves the hole in the cut list, baffle drawing and 3D view.
 - **Folded horns:** tick **Fold the horn into the box** on a horn's box page and set the number of legs and the box depth. The
   horn path folds into stacked legs with U-turns inside one rectangular box (the horn width is its inside width, the height
   follows from the flare); the cut list gets the walls and one septum per fold, the Build page a side-view fold drawing (SVG) and
@@ -56,15 +63,46 @@ build against real drivers and a real amplifier.
 
 ## Screenshots
 
-| PA system | Box designer |
+| PA system | Box designer (ported) |
 | --- | --- |
-| ![PA system](docs/screenshots/system.png) | ![Box designer](docs/screenshots/box.png) |
+| ![PA system](docs/screenshots/system.png) | ![Box designer](docs/screenshots/box-ported.png) |
 
 | Build: cut list and drawings | Home speaker |
 | --- | --- |
 | ![Build page](docs/screenshots/build.png) | ![Home speaker](docs/screenshots/home-speaker.png) |
 
 ![Car subwoofer](docs/screenshots/car.png)
+
+More, by topic:
+
+| Build: 3D preview | Build: cut list |
+| --- | --- |
+| ![3D preview](docs/screenshots/build-3d.png) | ![Cut list](docs/screenshots/build-cutlist.png) |
+
+| Build: baffle drawings | Build: sheet layouts |
+| --- | --- |
+| ![Baffles](docs/screenshots/build-baffles.png) | ![Sheets](docs/screenshots/build-sheets.png) |
+
+| Home speaker build, exploded | Port position |
+| --- | --- |
+| ![Speaker build](docs/screenshots/speaker-build-3d.png) | ![Port position](docs/screenshots/speaker-port-position.png) |
+
+| Car wedge enclosure | Brief (Ollama) |
+| --- | --- |
+| ![Car wedge](docs/screenshots/car-wedge-3d.png) | ![Brief](docs/screenshots/brief.png) |
+
+| Driver Probe | Driver library |
+| --- | --- |
+| ![Driver Probe](docs/screenshots/driver-probe.png) | ![Driver library](docs/screenshots/driver-library.png) |
+
+Every box type has its own screenshots in [docs/box-types.md](docs/box-types.md).
+
+## Documentation
+
+- [User Guide (PDF)](docs/User-Guide.pdf), also as a single-file [HTML](docs/User-Guide.html): install to reference tables, every page with screenshots.
+- [Box types](docs/box-types.md)
+- [Driver Probe and the driver library](docs/driver-probe.md)
+- [Changelog](CHANGELOG.md)
 
 ## Install
 
@@ -143,4 +181,4 @@ implement one shared physics spec and assert the same test vectors.
 
 GNU Affero General Public License, version 3 only (`LICENSE`). Third-party components are listed in
 `THIRD-PARTY-NOTICES.md`. If you run a modified version as a network service, the AGPL requires you to offer its source;
-the source of this version is this repository (currently private).
+the source of this version is this repository.
