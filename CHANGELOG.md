@@ -2,7 +2,7 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
-## Unreleased
+## 1.10.1 (2026-11-21)
 
 - **Small and mini-system drivers:** nine generic classes (2 in and 2.5 in full-range, 5 in mid, 5 in and 6.5 in sub, 0.5 in dome, 0.75 in, 1.4 in and 2 in compression drivers), appended to the class list so saved projects are unchanged.
 - **Mini horns:** Mini bass horn, Mini mid horn and Mini HF horn starting points on the Box page.
