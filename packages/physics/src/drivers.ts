@@ -19,6 +19,11 @@ export interface DriverSpec {
   xmax: number;
   /** Thermal power, W. */
   pe: number;
+  /**
+   * Voice-coil inductance, H. Absent means none (the lossless-Re model the plugin has). Used only by the electrical impedance
+   * (the load a crossover sees); the acoustic response is unchanged by it.
+   */
+  le?: number;
 }
 
 /** Generic classes: invented values, not any real product. The order matches the plugin's frozen class list. */
@@ -88,6 +93,12 @@ export function deriveDriver(d: DriverSpec): DriverDerived {
   return { qts, cms, mms, bl: Math.sqrt((ws * mms * d.re) / d.qes), rms: (ws * mms) / d.qms };
 }
 
+/** Generic voice-coil inductance estimate, H: Re times a time constant of 6 ms per m^2 of cone, never below 10 us. Only an estimate; edit it. */
+export const estimateLeH = (d: Pick<DriverSpec, 're' | 'sd'>): number => d.re * Math.max(0.006 * d.sd, 1e-5);
+
+/** The same driver with its estimated inductance filled in. */
+export const withEstimatedLe = (d: DriverSpec): DriverSpec => ({ ...d, le: estimateLeH(d) });
+
 /** A user-entered driver in datasheet units (the plugin's eight Custom fields). */
 export interface CustomDriverFields {
   fsHz: number;
@@ -114,9 +125,10 @@ export const CUSTOM_DRIVER_DEFAULTS: CustomDriverFields = {
 
 /**
  * User-entered fields to a DriverSpec, with the plugin's engine clamps. Qes follows from Qts and Qms
- * (1/Qts = 1/Qes + 1/Qms); Qms is kept at least 1.05 Qts so Qes stays positive.
+ * (1/Qts = 1/Qes + 1/Qms); Qms is kept at least 1.05 Qts so Qes stays positive. The optional inductance `leMh` (mH, 0 to 100) is
+ * kept apart from the eight fields; leave it out for none.
  */
-export function customDriver(c: CustomDriverFields): DriverSpec {
+export function customDriver(c: CustomDriverFields, leMh?: number): DriverSpec {
   const qts = clamp(c.qts, 0.05, 3.0);
   const qms = Math.max(clamp(c.qms, 0.5, 50.0), qts * 1.05);
   return {
@@ -129,5 +141,6 @@ export function customDriver(c: CustomDriverFields): DriverSpec {
     re: clamp(c.reOhm, 0.5, 64.0),
     xmax: clamp(c.xmaxMm, 0.1, 60.0) * 1e-3,
     pe: clamp(c.powerW, 1.0, 10000.0),
+    ...(leMh === undefined ? {} : { le: clamp(leMh, 0, 100) * 1e-3 }),
   };
 }

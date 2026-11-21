@@ -31,6 +31,7 @@ import {
 } from './carsub';
 import { CAR_TEMPLATES, applyCarTemplate } from './cartemplates';
 import { Chart } from './Chart';
+import { ShapeControls } from './ShapeControls';
 import {
   FRONT_COAX_CLASSES,
   FRONT_COMPONENT_CLASSES,
@@ -401,6 +402,7 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
               <Field id="front-air" slider range={FRONT_RANGES.airL} value={fr.airL} onChange={(x) => setFront({ airL: x })} />
               <Field id="front-xsub" slider range={FRONT_RANGES.xoverSubHz} value={fr.xoverSubHz} onChange={(x) => setFront({ xoverSubHz: x })} />
               {fr.type === 'component' && <Field id="front-xtw" slider range={FRONT_RANGES.xoverTweeterHz} value={fr.xoverTweeterHz} onChange={(x) => setFront({ xoverTweeterHz: x })} />}
+              <ShapeControls idp="front" shape={fr.shape} onChange={(shape) => setFront({ shape })} />
               <Field id="front-trim" slider range={FRONT_RANGES.trimDb} value={fr.trimDb} onChange={(x) => setFront({ trimDb: x })} />
               {fr.type === 'component' && <Field id="front-twtrim" slider range={FRONT_RANGES.tweeterTrimDb} value={fr.tweeterTrimDb} onChange={(x) => setFront({ tweeterTrimDb: x })} />}
               <button type="button" onClick={() => setCar(levelFront(c))}>
@@ -532,7 +534,7 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
             </ul>
           )}
           <ul className="notes">
-            {v.notes.map((n) => (
+            {[...v.notes, ...(fr.enabled ? sys.notes : [])].map((n) => (
               <li key={n}>{n}</li>
             ))}
           </ul>

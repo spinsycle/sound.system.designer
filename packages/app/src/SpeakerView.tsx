@@ -8,6 +8,7 @@ import { Field } from './BoxDesigner';
 import { LayoutControls, PortControls } from './LayoutControls';
 import { BRACES } from './build';
 import { Chart } from './Chart';
+import { ShapeControls } from './ShapeControls';
 import {
   ARRANGEMENTS,
   SPEAKER_TEMPLATES,
@@ -107,6 +108,7 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
               onChange={(v) => set({ xover: sp.xover.map((x, i) => (i === k ? v : x)) })}
             />
           ))}
+          <ShapeControls idp="sp" shape={sp.shape} onChange={(shape) => set({ shape })} />
           {multi && (
             <div className="field">
               <label htmlFor="chambers">Woofer chambers</label>

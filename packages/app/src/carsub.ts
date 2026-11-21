@@ -6,6 +6,7 @@
 import * as P from '@soundsystemdesigner/physics';
 import { type BuildOpts, DEFAULT_BUILD, sanitizeBuild } from './build';
 import { type CarFront, DEFAULT_FRONT, checkFront, frontPressures, sanitizeFront } from './carfront';
+import { shapeBands, shapeNotes } from './crossover';
 import { BOX_RANGES, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, bandpassStart, driverOf, rawEvaluator, sanitize } from './model';
 
 export type CarBoxShape = 'box' | 'wedge';
@@ -333,6 +334,8 @@ export interface CarSystemView {
   /** The crossover points in use (sub / front, then woofer / tweeter), Hz. */
   xover: number[];
   warnings: string[];
+  /** Notes about the crossover shape (polarity, a sum that is not flat); empty for Linkwitz-Riley 4. */
+  notes: string[];
 }
 
 /**
@@ -348,7 +351,7 @@ export function computeCarSystem(c: CarSub): CarSystemView {
   const xs = P.effectiveCrossovers(points, points.length + 1);
   const gain = (db: number): number => 10 ** (db / 20);
   const floor = (pa: number): number => P.splDb(Math.max(pa, 1e-12));
-  const legs = (fr: number): P.Cx[] => P.crossoverBands(fr, xs);
+  const legs = (fr: number): P.Cx[] => shapeBands(f.shape, fr, xs);
   const subP = (fr: number): P.Cx => P.mul(legs(fr)[0]!, sub.free(fr));
   const wooferP = (fr: number): P.Cx => P.scale(P.mul(legs(fr)[1]!, fp.woofer(fr)), gain(f.trimDb));
   const tweeterP = (fr: number): P.Cx => (fp.tweeter ? P.scale(P.mul(legs(fr)[2]!, fp.tweeter(fr)), gain(f.trimDb + f.tweeterTrimDb)) : P.cx(0));
@@ -357,7 +360,8 @@ export function computeCarSystem(c: CarSub): CarSystemView {
   const inCar = (p: (fr: number) => P.Cx): number[] => freqs.map((fr) => floor(P.abs(P.mul(p(fr), cab(fr)))));
   const totalDb = freqs.map((fr) => floor(P.abs(P.mul(P.systemPressure(fr, [{ pressure: subP(fr), delayS: 0 }, { pressure: wooferP(fr), delayS: 0 }, { pressure: tweeterP(fr), delayS: 0 }]), cab(fr)))));
   const warnings = f.enabled ? checkFront(f).warnings : [];
-  return { freqs, totalDb, subDb: inCar(subP), wooferDb: inCar(wooferP), tweeterDb: fp.tweeter ? inCar(tweeterP) : null, xover: xs, warnings };
+  const notes = f.enabled ? shapeNotes(f.shape, ['Sub', 'Front woofer', 'Tweeter']) : [];
+  return { freqs, totalDb, subDb: inCar(subP), wooferDb: inCar(wooferP), tweeterDb: fp.tweeter ? inCar(tweeterP) : null, xover: xs, warnings, notes };
 }
 
 /** The wide frequency axis of the system plot, Hz: the sub's bass to the top of the tweeter. */

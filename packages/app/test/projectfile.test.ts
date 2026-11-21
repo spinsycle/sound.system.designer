@@ -21,7 +21,7 @@ describe('saving and opening', () => {
     const text = F.serializeProject(roots);
     const j = JSON.parse(text) as { kind: string; version: number; project: S.Project };
     expect(j.kind).toBe('sound-system-designer-project');
-    expect(j.version).toBe(2);
+    expect(j.version).toBe(3);
     expect(j.project.name).toBe('My Rig');
     expect(text.endsWith('\n')).toBe(true);
     expect(text).toContain('\n  "kind"');
@@ -80,10 +80,10 @@ describe('files that are refused', () => {
     expect(refused(wrap({ version: '1' }))).toContain('no valid version');
   });
   it('a newer version says to update the app', () => {
-    const e = refused(wrap({ version: 3 }));
+    const e = refused(wrap({ version: 4 }));
     expect(e).toContain('newer version');
-    expect(e).toContain('file version 3');
-    expect(e).toContain('up to 2');
+    expect(e).toContain('file version 4');
+    expect(e).toContain('up to 3');
   });
   it('no project inside', () => {
     expect(refused(wrap({ project: undefined }))).toContain('no project');

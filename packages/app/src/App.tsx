@@ -9,6 +9,7 @@ import { openText, saveText } from './desktop';
 import { FILE_EXTENSION, parseProjectFile, serializeProject, suggestedName } from './projectfile';
 import { BuildView } from './BuildView';
 import { CarView } from './CarView';
+import { CrossoverView } from './CrossoverView';
 import { SpeakerView } from './SpeakerView';
 import { SystemView } from './SystemView';
 import { ProbeView } from './probe/ProbeView';
@@ -87,8 +88,9 @@ export function App() {
   };
   const speaker = project.kind === 'speaker';
   const car = project.kind === 'car';
-  const box = !speaker && !car && project.view === 'box';
-  const build = project.view === 'build';
+  const xover = project.kind === 'crossover';
+  const box = !speaker && !car && !xover && project.view === 'box';
+  const build = !xover && project.view === 'build';
 
   return (
     <div className="app">
@@ -96,7 +98,7 @@ export function App() {
         <h1>Sound System Designer</h1>
         <p>Boxes, horns and whole systems. Box losses default to the Cookbook's QL 7; generic driver classes are invented values, not products.</p>
         <div className="segmented" role="radiogroup" aria-label="What to design">
-          <button type="button" role="radio" aria-checked={!speaker && !car} className={speaker || car ? '' : 'on'} onClick={() => set({ kind: 'system', view: 'system' })}>
+          <button type="button" role="radio" aria-checked={!speaker && !car && !xover} className={speaker || car || xover ? '' : 'on'} onClick={() => set({ kind: 'system', view: 'system' })}>
             PA system
           </button>
           <button type="button" role="radio" aria-checked={speaker} className={speaker ? 'on' : ''} onClick={() => set({ kind: 'speaker', view: 'system' })}>
@@ -105,7 +107,11 @@ export function App() {
           <button type="button" role="radio" aria-checked={car} className={car ? 'on' : ''} onClick={() => set({ kind: 'car', view: 'system' })}>
             Car subwoofer
           </button>
+          <button type="button" role="radio" aria-checked={xover} className={xover ? 'on' : ''} onClick={() => set({ kind: 'crossover', view: 'system' })}>
+            Crossover
+          </button>
         </div>
+        {!xover && (
         <nav aria-label="View">
           <button type="button" className={box || build ? '' : 'on'} aria-current={box || build ? undefined : 'page'} onClick={() => set({ view: 'system' })}>
             {speaker ? 'Speaker' : car ? 'Subwoofer' : 'System'}
@@ -119,6 +125,7 @@ export function App() {
             Build
           </button>
         </nav>
+        )}
         <div className="actions">
           <button type="button" onClick={saveProject}>
             Save project
@@ -140,7 +147,7 @@ export function App() {
       {probeOpen ? (
         <ProbeView
           onClose={() => setProbeOpen(false)}
-          canUse={!speaker && !car}
+          canUse={!speaker && !car && !xover}
           onUse={(custom, name) => {
             set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design: { ...b.design, driverClass: CUSTOM_CLASS, custom } } : b)), view: 'box' });
             setFileMsg(`${name} is now the driver of the selected box.`);
@@ -149,9 +156,11 @@ export function App() {
         />
       ) : (
         <>
-      {!build && <BriefPanel key={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} mode={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} onLoadSpeaker={loadSpeaker} onLoadCar={loadCar} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
+      {!build && !xover && <BriefPanel key={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} mode={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} onLoadSpeaker={loadSpeaker} onLoadCar={loadCar} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
 
-      {build ? (
+      {xover ? (
+        <CrossoverView project={project} onChange={setProject} onApply={(p) => { setUndo(project); setProject(p); }} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />
+      ) : build ? (
         <BuildView project={project} onChange={setProject} />
       ) : box ? (
         <BoxDesigner wallM={project.shop.thicknessMm / 1000} design={project.bands[project.selected]!.design} count={project.bands[project.selected]!.count} perBox={project.bands[project.selected]!.perBox} onPerBox={(perBox) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, perBox } : b)) })} onChange={(design) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) })} />

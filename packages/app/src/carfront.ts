@@ -4,6 +4,7 @@
 // air behind them, the crossovers to the sub and between the two drivers, a fit check against the opening and depth, and the
 // adapter ring they sit on. Pure functions; carsub.ts sums them with the sub.
 import * as P from '@soundsystemdesigner/physics';
+import { DEFAULT_SHAPE, type XoShape, sanitizeShape } from './crossover';
 import { coneDiameterM, kaOf, BEAMING_KA, MIN_XOVER_OVER_FS } from './loudspeaker';
 import { DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
@@ -55,6 +56,8 @@ export interface CarFront {
   /** Where the sub hands over to the fronts, and the woofer to the tweeter, Hz; the fronts' trim and the tweeter's trim against the woofer, dB. */
   xoverSubHz: number;
   xoverTweeterHz: number;
+  /** The alignment and order of both crossover points (Linkwitz-Riley 4 unless changed). */
+  shape: XoShape;
   trimDb: number;
   tweeterTrimDb: number;
 }
@@ -85,6 +88,7 @@ export const DEFAULT_FRONT: CarFront = {
   ringCm: 1,
   xoverSubHz: 100,
   xoverTweeterHz: 2400,
+  shape: DEFAULT_SHAPE,
   trimDb: 0,
   tweeterTrimDb: 0,
 };
@@ -113,6 +117,7 @@ export function sanitizeFront(input: unknown): CarFront {
     ringCm: num(i.ringCm, FRONT_RANGES.ringCm, d.ringCm),
     xoverSubHz: num(i.xoverSubHz, FRONT_RANGES.xoverSubHz, d.xoverSubHz),
     xoverTweeterHz: num(i.xoverTweeterHz, FRONT_RANGES.xoverTweeterHz, d.xoverTweeterHz),
+    shape: sanitizeShape(i.shape),
     trimDb: num(i.trimDb, FRONT_RANGES.trimDb, d.trimDb),
     tweeterTrimDb: num(i.tweeterTrimDb, FRONT_RANGES.tweeterTrimDb, d.tweeterTrimDb),
   };

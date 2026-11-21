@@ -2,6 +2,15 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.10.0 (2026-11-21)
+
+- **Crossover:** a fourth mode beside PA system, Home speaker and Car subwoofer. 2, 3 and 4 ways and a subwoofer split; Butterworth, Linkwitz-Riley, Bessel and Chebyshev, orders 1 to 8 (passive up to 4); polarity advice and time alignment.
+- **Active circuits:** Sallen-Key (equal-component and unity-gain), multiple-feedback and state-variable stages, with every part value, E24 or E96 snapping and the error it causes.
+- **Passive networks:** ladders designed against the driver's real impedance (voice-coil inductance and a resonance, or an imported ZMA file; an FRD file for the response), Zobel, L-pad, a deterministic optimiser that keeps the amplifier above its minimum load, and the volts, amps, heat and capacitor rating of every part.
+- **Outputs:** schematic (SVG, or print to PDF), bill of materials and parts list (CSV).
+- **Apply to the design:** the alignment, order and frequencies go back into the PA system, the home speaker and the car fronts, with Undo. Those three pages now take any alignment; Linkwitz-Riley 4, the default, gives the same numbers as before.
+- Project file version 3 (older files open as before; a 1.10 file is refused by older versions). Shared spec v0.24 (378 vectors).
+
 ## 1.9.1 (2026-11-19)
 
 - **Datasheet import:** bulk-import drivers from a CSV, with derived Q values and consistency checks, and a downloadable template.

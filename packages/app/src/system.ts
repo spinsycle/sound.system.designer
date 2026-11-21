@@ -9,6 +9,7 @@ import { type BuildOpts, DEFAULT_BUILD, DEFAULT_SHOP, type Shop, sanitizeBuild, 
 import { DEFAULT_DESIGN, type Design, type HornDesign, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 import { type Loudspeaker, defaultSpeaker, sanitizeLoudspeaker } from './loudspeaker';
 import { type CarSub, DEFAULT_CAR, sanitizeCar } from './carsub';
+import { DEFAULT_SHAPE, DEFAULT_XO, type XoShape, type XoState, sanitizeShape, sanitizeXo, shapeBands, shapeNotes } from './crossover';
 
 export const MAX_BANDS = 4;
 export { REF_VOLTS };
@@ -40,6 +41,8 @@ export interface Project {
   nBands: number;
   /** Requested crossover points, Hz; the first nBands - 1 are used. */
   xover: number[];
+  /** The alignment and order of every crossover point (Linkwitz-Riley 4 unless changed). */
+  xoShape: XoShape;
   bands: Band[];
   /** Lowest frequency the system is asked to play: the bottom of the lowest band's passband. */
   lowestHz: number;
@@ -55,11 +58,13 @@ export interface Project {
   selected: number;
   view: 'system' | 'box' | 'build';
   /** What is being designed: a PA system of boxes, or one loudspeaker with several drivers in a cabinet. */
-  kind: 'system' | 'speaker' | 'car';
+  kind: 'system' | 'speaker' | 'car' | 'crossover';
   /** The loudspeaker, kept while the kind is 'system' so it survives switching. */
   speaker: Loudspeaker;
   /** The car subwoofer install, likewise kept. */
   car: CarSub;
+  /** The crossover workbench, likewise kept. */
+  xo: XoState;
 }
 
 export type BandField = 'trimDb' | 'delayMs' | 'ampPowerW' | 'ampMinLoadOhm';
@@ -126,10 +131,10 @@ const bin = (driverClass: number, volumeL: number, throat: number, mouth: number
 });
 
 const DEFAULT_BANDS = (): Band[] => [band(SUB_18), band(MID_12), band(MID_65), band(HF_HORN)];
-
 export const DEFAULT_PROJECT: Project = {
   nBands: 1,
   xover: [100, 800, 3500],
+  xoShape: DEFAULT_SHAPE,
   bands: DEFAULT_BANDS(),
   lowestHz: 40,
   distanceM: 1,
@@ -141,6 +146,7 @@ export const DEFAULT_PROJECT: Project = {
   kind: 'system',
   speaker: defaultSpeaker(),
   car: DEFAULT_CAR,
+  xo: DEFAULT_XO,
 };
 
 interface Template {
@@ -210,6 +216,7 @@ export function sanitizeProject(input: unknown): Project {
   return {
     nBands,
     xover: d.xover.map((x, k) => num(xs[k], XOVER_RANGE, x)),
+    xoShape: sanitizeShape(i.xoShape),
     bands: d.bands.map((def, k) => {
       const b = obj(inBands[k]);
       return {
@@ -234,9 +241,10 @@ export function sanitizeProject(input: unknown): Project {
     units: i.units === 'in' ? 'in' : 'mm',
     selected: typeof i.selected === 'number' && Number.isInteger(i.selected) ? P.clamp(i.selected, 0, nBands - 1) : 0,
     view: i.view === 'box' || i.view === 'build' ? i.view : 'system',
-    kind: i.kind === 'speaker' || i.kind === 'car' ? i.kind : 'system',
+    kind: i.kind === 'speaker' || i.kind === 'car' || i.kind === 'crossover' ? i.kind : 'system',
     speaker: sanitizeLoudspeaker(i.speaker),
     car: sanitizeCar(i.car),
+    xo: sanitizeXo(i.xo),
   };
 }
 
@@ -332,9 +340,9 @@ export function systemEvaluator(p: Project) {
     /** The boxes alone at 0 dB trim, 1 m: no crossover leg. */
     const box = (f: number): P.Cx => P.scale(raw(f).g, pRef);
     /** The band as it plays: crossover leg, trim, polarity, distance. Everything but its delay. */
-    const played = (f: number): P.Cx => P.scale(P.mul(P.crossoverBands(f, xover)[k]!, box(f)), gain * P.abs(P.roomDirectResponse(room, f)));
+    const played = (f: number): P.Cx => P.scale(P.mul(shapeBands(p.xoShape, f, xover)[k]!, box(f)), gain * P.abs(P.roomDirectResponse(room, f)));
     /** The band's crossover leg. */
-    const leg = (f: number): P.Cx => P.crossoverBands(f, xover)[k]!;
+    const leg = (f: number): P.Cx => shapeBands(p.xoShape, f, xover)[k]!;
     return { b, raw, leg, box, played, audible: !b.mute && (!anySolo || b.solo), loHz: k === 0 ? p.lowestHz : xover[k - 1]!, hiHz: k === n - 1 ? TOP_HZ : xover[k]! };
   });
   const total = (f: number): P.Cx => P.systemPressure(f, bands.filter((x) => x.audible).map((x) => ({ pressure: x.played(f), delayS: x.b.delayMs / 1000 })));
@@ -388,6 +396,7 @@ export function computeSystem(p: Project): SystemView {
     if (short > 6) warnings.push(`${bands[k]!.name} and ${bands[k + 1]!.name} cancel at the ${fmt(fx, 0)} Hz crossover: the sum is ${fmt(short)} dB under what two bands in step would give. Try inverting ${bands[k + 1]!.name}, or delay.`);
     if (Math.abs(fx - p.xover[k]!) > 1e-9) notes.push(`Crossover ${k + 1} is used at ${fmt(fx, 0)} Hz, not ${fmt(p.xover[k]!, 0)} Hz: points must rise by at least 1.2x.`);
   });
+  notes.push(...shapeNotes(p.xoShape, bands.map((v) => v.name)));
   if (anySolo) notes.push('A band is soloed: the sum shows the soloed bands only.');
   notes.push(`Levels are for ${REF_VOLTS} V into a band at 0 dB trim, in half space, at ${fmt(p.distanceM)} m outdoors. Horn bands are radiated power, not on-axis level.`);
 

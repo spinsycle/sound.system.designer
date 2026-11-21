@@ -581,6 +581,275 @@ describe('shared vectors', () => {
     }
   });
 
+  it('crossover filters (v0.20)', () => {
+    const spec = (v: Record<string, number>): P.FilterSpec => ({ alignment: P.ALIGNMENTS[v.alignment!]!, order: v.order!, rippleDb: v.ripple_db });
+    const bp = vec('xo_bessel_poles').inputs;
+    const p2 = P.besselPolesDelay(bp.n2!).sort((a, b) => a.im - b.im)[1]!;
+    expectVec('xo_bessel_poles', 'p2_re', p2.re);
+    expectVec('xo_bessel_poles', 'p2_im', p2.im);
+    const p3 = P.besselPolesDelay(bp.n3!);
+    const real3 = p3.reduce((a, b) => (Math.abs(b.im) < Math.abs(a.im) ? b : a));
+    const pair3 = p3.reduce((a, b) => (b.im > a.im ? b : a));
+    expectVec('xo_bessel_poles', 'p3_real', real3.re);
+    expectVec('xo_bessel_poles', 'p3_re', pair3.re);
+    expectVec('xo_bessel_poles', 'p3_im', pair3.im);
+    for (const n of [2, 3, 4, 8]) expectVec('xo_bessel_poles', `w3_n${n}`, P.besselW3(n));
+
+    for (const id of ids('xo_resp_')) {
+      const v = vec(id).inputs;
+      const f = P.xoFilter(spec(v));
+      for (const [r, tag] of [[0.5, '050'], [1, '100'], [2, '200']] as const) {
+        const lp = f.lp(r * v.fc!, v.fc!);
+        const hp = f.hp(r * v.fc!, v.fc!);
+        expectVec(id, `lp_re_${tag}`, lp.re);
+        expectVec(id, `lp_im_${tag}`, lp.im);
+        expectVec(id, `hp_re_${tag}`, hp.re);
+        expectVec(id, `hp_im_${tag}`, hp.im);
+      }
+      expectVec(id, 'lp_db_100', magDb(f.lp(v.fc!, v.fc!)));
+      expectVec(id, 'hp_db_100', magDb(f.hp(v.fc!, v.fc!)));
+    }
+    const cd = vec('xo_cheb_dc').inputs;
+    expectVec('xo_cheb_dc', 'db_n4', magDb(P.xoFilter({ alignment: 'chebyshev', order: cd.order_a!, rippleDb: cd.ripple_db }).lp(1e-9, 1000)));
+    expectVec('xo_cheb_dc', 'db_n3', magDb(P.xoFilter({ alignment: 'chebyshev', order: cd.order_b!, rippleDb: cd.ripple_db }).lp(1e-9, 1000)));
+
+    // group delay at DC by central difference at 1 Hz on a 1 kHz crossover
+    const g = vec('xo_gd0').inputs;
+    const gd = (a: P.Alignment, n: number): number => {
+      const f = P.xoFilter({ alignment: a, order: n, rippleDb: g.ripple_db });
+      return P.groupDelayS((x) => f.lp(x, g.fc!), 1);
+    };
+    expectVec('xo_gd0', 'bw3', gd('butterworth', 3));
+    expectVec('xo_gd0', 'lr4', gd('linkwitz-riley', 4));
+    expectVec('xo_gd0', 'bs4', gd('bessel', 4));
+    expectVec('xo_gd0', 'bs8', gd('bessel', 8));
+    expectVec('xo_gd0', 'ch3', gd('chebyshev', 3));
+
+    const short = { bw: 'butterworth', lr: 'linkwitz-riley', bs: 'bessel', ch: 'chebyshev' } as const;
+    for (const key of Object.keys(vec('xo_polarity').outputs)) {
+      const f = P.xoFilter({ alignment: short[key.slice(0, 2) as keyof typeof short], order: Number(key.slice(2)), rippleDb: 0.5 });
+      expectVec('xo_polarity', key, f.polarity);
+    }
+    for (const key of ['lr2', 'lr4', 'lr6', 'bw2', 'bw3', 'bw4', 'bs4', 'ch3']) {
+      const f = P.xoFilter({ alignment: short[key.slice(0, 2) as keyof typeof short], order: Number(key.slice(2)), rippleDb: 0.5 });
+      for (const [r, tag] of [[0.5, '050'], [1, '100'], [2, '200']] as const)
+        expectVec('xo_sum', `${key}_${tag}`, magDb(P.add(f.lp(r * 1000, 1000), f.polarity < 0 ? P.scale(f.hp(r * 1000, 1000), -1) : f.hp(r * 1000, 1000))));
+    }
+
+    const a1 = vec('xo_allpass1').inputs;
+    const h1 = P.allPass1(a1.f0!, a1.f0!);
+    expectVec('xo_allpass1', 're', h1.re);
+    expectVec('xo_allpass1', 'im', h1.im);
+    expectVec('xo_allpass1', 'db_300', magDb(P.allPass1(300, a1.f0!)));
+    expectVec('xo_allpass1', 'db_5000', magDb(P.allPass1(5000, a1.f0!)));
+    expectVec('xo_allpass1', 'gd0_s', P.groupDelayS((f) => P.allPass1(f, a1.f0!), 1));
+    const a2 = vec('xo_allpass2').inputs;
+    const h2 = P.allPass2(a2.f0!, a2.f0!, a2.q!);
+    expectVec('xo_allpass2', 're', h2.re);
+    expectVec('xo_allpass2', 'im', h2.im);
+    expectVec('xo_allpass2', 'db_300', magDb(P.allPass2(300, a2.f0!, a2.q!)));
+    expectVec('xo_allpass2', 'gd0_s', P.groupDelayS((f) => P.allPass2(f, a2.f0!, a2.q!), 1));
+    const dl = vec('xo_delay').inputs;
+    const tau = P.delayForOffsetS(dl.offset_m!);
+    const hd = P.delayResponse(dl.f!, tau);
+    expectVec('xo_delay', 'tau_s', tau);
+    expectVec('xo_delay', 're', hd.re);
+    expectVec('xo_delay', 'im', hd.im);
+
+    for (const id of ids('xo_3way_').concat(ids('xo_4way_'))) {
+      const v = vec(id).inputs;
+      const xs = [v.x0!, v.x1!, ...(v.bands! > 3 ? [v.x2!] : [])];
+      const f = P.xoFilter(spec(v));
+      for (const hz of [200, 1000, 8000]) {
+        const tot = P.xoBands(hz, xs, f).reduce((a, b) => P.add(a, b), P.cx(0));
+        expectVec(id, `sum_db_${hz}`, magDb(tot));
+      }
+      P.xoBands(1000, xs, f).forEach((b, k) => expectVec(id, `band${k}_db_1000`, magDb(b)));
+    }
+  });
+
+  it('active crossover circuits (v0.21)', () => {
+    const probe = [1.0, 4.35, 2.65, 9.6, 9.99, 0.0476, 1234.0, 5.0e-9, 0.7];
+    probe.forEach((x, k) => {
+      expectVec('xo_snap', `e24_${k}`, P.snapToSeries(x, 'E24'));
+      expectVec('xo_snap', `e96_${k}`, P.snapToSeries(x, 'E96'));
+    });
+    const keys = ids('xo_ckt_').map((id) => id.slice('xo_ckt_'.length));
+    expect(keys.length).toBe(15);
+    for (const key of keys) {
+      const v = vec(`xo_ckt_${key}`).inputs;
+      let d = P.designActive({ alignment: P.ALIGNMENTS[v.alignment!]!, order: v.order!, rippleDb: v.ripple_db }, v.fc!, v.band === 0 ? 'lp' : 'hp', P.TOPOLOGIES[v.topology!]!, v.cap_f!, v.r0!);
+      if (v.series) d = P.snapDesign(d, v.series === 24 ? 'E24' : 'E96');
+      const id = `xo_ckt_${key}`;
+      expectVec(id, 'nsec', d.sections.length);
+      expectVec(id, 'trim', d.trim);
+      expectVec(id, 'inverts', d.inverts ? 1 : 0);
+      d.sections.forEach((sec, k) => {
+        expectVec(id, `s${k}_f0`, sec.f0);
+        expectVec(id, `s${k}_q`, sec.q);
+        for (const [name, val] of Object.entries({ ...sec.caps, ...sec.res })) expectVec(id, `s${k}_${name}`, val);
+      });
+      // the reference's response comes from a node-by-node solution of the circuit; the app's from closed forms
+      const rid = `xo_ckr_${key}`;
+      for (const [r, tag] of [[0.5, '050'], [1, '100'], [2, '200']] as const) {
+        const h = P.activeResponse(d, r * v.fc!);
+        expectVec(rid, `re_${tag}`, h.re);
+        expectVec(rid, `im_${tag}`, h.im);
+      }
+      if (v.series) {
+        const e = P.designError(d);
+        expectVec(rid, 'max_db', e.maxDb);
+        expectVec(rid, 'off_db', e.offsetDb);
+        expectVec(rid, 'max_db_trim', e.maxDbTrimmed);
+      }
+    }
+  });
+
+  it('driver load model (v0.22)', () => {
+    const e = vec('xo_le_estimate').inputs;
+    expectVec('xo_le_estimate', '12in', P.estimateLeH({ re: e.re_12in!, sd: e.sd_12in! }));
+    expectVec('xo_le_estimate', '18in', P.estimateLeH({ re: e.re_18in!, sd: e.sd_18in! }));
+    expectVec('xo_le_estimate', '5in', P.estimateLeH({ re: e.re_5in!, sd: e.sd_5in! }));
+    expectVec('xo_le_estimate', 'dome', P.estimateLeH({ re: e.re_dome!, sd: e.sd_dome! }));
+    expectVec('xo_le_estimate', 'hf', P.estimateLeH({ re: e.re_hf!, sd: e.sd_hf! }));
+
+    // infinite baffle: the cone's displacement per volt of the lossless-Le model (Re only), then the app's impedance form plus s Le
+    const a = vec('xo_le_free_air').inputs;
+    const d = P.deriveDriver({ name: 'ref', fs: a.fs!, qes: a.qes!, qms: a.qms!, vasM3: a.vas_m3!, sd: a.sd_m2!, re: a.re!, xmax: 0.01, pe: 100 });
+    for (const f of [5, 30, 300, 5000]) {
+      const s = P.jw(f);
+      const zm = P.add(P.add(P.cx(d.rms), P.scale(s, d.mms)), P.div(P.cx(1), P.scale(s, d.cms)));
+      const x = P.div(P.cx(d.bl), P.mul(s, P.add(P.scale(zm, a.re!), P.cx(d.bl * d.bl))));
+      const z = P.impedanceFromDisplacement(f, x, d.bl, a.re!, a.le_h);
+      expectVec('xo_le_free_air', `re_${f}`, z.re);
+      expectVec('xo_le_free_air', `im_${f}`, z.im);
+    }
+
+    const raw = [10, 170, -170, -10];
+    const un = P.unwrapDeg(raw);
+    expectVec('xo_curve', 'unwrapped_3', un[2]!);
+    expectVec('xo_curve', 'unwrapped_4', un[3]!);
+    const zma: P.MeasuredCurve = { kind: 'zma', freqHz: [20, 100, 1000, 10000], mag: [3.5, 12, 4.5, 9], phaseDeg: un };
+    const frd: P.MeasuredCurve = { kind: 'frd', freqHz: [100, 1000, 10000], mag: [-6, 0, -3], phaseDeg: [0, -90, -200] };
+    for (const [tag, f] of [['20', 20], ['300', 300], ['2000', 2000], ['50k', 50000], ['5', 5]] as const) {
+      const z = P.curveValue(zma, f);
+      expectVec('xo_curve', `zma_re_${tag}`, z.re);
+      expectVec('xo_curve', `zma_im_${tag}`, z.im);
+    }
+    for (const [tag, f] of [['50', 50], ['316', 316.22776601683796], ['5000', 5000], ['20k', 20000]] as const) {
+      const h = P.curveValue(frd, f);
+      expectVec('xo_curve', `frd_re_${tag}`, h.re);
+      expectVec('xo_curve', `frd_im_${tag}`, h.im);
+    }
+    const np = P.curveValue({ ...frd, phaseDeg: null }, 316.22776601683796);
+    expectVec('xo_curve', 'frd_nophase_re', np.re);
+    expectVec('xo_curve', 'frd_nophase_im', np.im);
+  });
+
+  it('passive crossover networks (v0.23)', () => {
+    const drvLoad = (): P.LoadFn => P.seriesLoad(5, 0.0008, (f) => {
+      const s = P.jw(f);
+      const zm = P.add(P.add(P.cx(ref.rms), P.scale(s, ref.mms)), P.div(P.cx(1), P.scale(s, ref.cms)));
+      return P.div(P.cx(ref.bl * ref.bl), zm);
+    });
+    const reactive = (net: P.Network): number[] => net.map((b) => b.groups.flat().find((p) => p.type !== 'R')!.value);
+    const specOf = (v: Record<string, number>): P.FilterSpec => ({ alignment: P.ALIGNMENTS[v.alignment!]!, order: v.order!, rippleDb: v.ripple_db });
+    const keys = ids('xo_pas_').filter((id) => id !== 'xo_pas_aux' && id !== 'xo_pas_stress').map((id) => id.slice('xo_pas_'.length));
+    expect(keys.length).toBe(17);
+    for (const key of keys) {
+      const v = vec(`xo_pas_${key}`).inputs;
+      const net = P.designPassive(specOf(v), v.band === 0 ? 'lp' : 'hp', v.fc!, v.r!, { dcr: v.dcr === 1 });
+      expectVec(`xo_pas_${key}`, 'n', net.length);
+      reactive(net).forEach((val, k) => expectVec(`xo_pas_${key}`, `e${k}`, val));
+      const load = v.load === 0 ? P.resistiveLoad(v.r!) : drvLoad();
+      for (const [r, tag] of [[0.5, '050'], [1, '100'], [2, '200']] as const) {
+        const h = P.networkGain(net, r * v.fc!, load);
+        const z = P.networkInputZ(net, r * v.fc!, load);
+        const id = `xo_par_${key}`;
+        expectVec(id, `h_re_${tag}`, h.re);
+        expectVec(id, `h_im_${tag}`, h.im);
+        expectVec(id, `z_re_${tag}`, z.re);
+        expectVec(id, `z_im_${tag}`, z.im);
+      }
+    }
+
+    const bp = P.designPassiveBand({ alignment: 'butterworth', order: 2 }, 500, 3000, 8);
+    for (const f of [100, 500, 1000, 3000, 8000]) {
+      const h = P.networkGain(bp, f, P.resistiveLoad(8));
+      const z = P.networkInputZ(bp, f, P.resistiveLoad(8));
+      expectVec('xo_par_bp_bw2', `h_re_${f}`, h.re);
+      expectVec('xo_par_bp_bw2', `h_im_${f}`, h.im);
+      expectVec('xo_par_bp_bw2', `z_re_${f}`, z.re);
+      expectVec('xo_par_bp_bw2', `z_im_${f}`, z.im);
+    }
+
+    const a = vec('xo_pas_aux').inputs;
+    const pad = P.lPad(a.att_db!, a.r!);
+    expectVec('xo_pas_aux', 'lpad_rs', pad[0]!.groups[0]![0]!.value);
+    expectVec('xo_pas_aux', 'lpad_rp', pad[1]!.groups[0]![0]!.value);
+    const zb = P.zobel(a.re!, a.le_h!);
+    expectVec('xo_pas_aux', 'zobel_rz', zb.groups[0]![0]!.value);
+    expectVec('xo_pas_aux', 'zobel_cz', zb.groups[1]![0]!.value);
+    for (const f of [100, 1000, 5000, 20000]) {
+      const drv = P.cx(a.re!, 2 * Math.PI * f * a.le_h!);
+      expectVec('xo_pas_aux', `zobel_z_${f}`, P.abs(P.parallelZ([drv, P.branchZ(zb, f)])));
+    }
+    const nt = P.notchTrap(a.f0!, a.q!, a.notch_r!);
+    expectVec('xo_pas_aux', 'notch_l', nt.groups[1]![0]!.value);
+    expectVec('xo_pas_aux', 'notch_c', nt.groups[2]![0]!.value);
+    for (const f of [500, 1000, 2000]) {
+      const z = P.branchZ(nt, f);
+      expectVec('xo_pas_aux', `notch_z_re_${f}`, z.re);
+      expectVec('xo_pas_aux', `notch_z_im_${f}`, z.im);
+    }
+    const bs = P.baffleStep(a.depth_db!, a.f_bs!, a.rd!);
+    expectVec('xo_pas_aux', 'bsc_l', bs.groups[0]![0]!.value);
+    expectVec('xo_pas_aux', 'bsc_rp', bs.groups[0]![1]!.value);
+    for (const [tag, f] of [['lf', 1], ['mid', a.f_bs!], ['hf', 1e6]] as const) expectVec('xo_pas_aux', `db_${tag}`, magDb(P.networkGain([bs], f, P.resistiveLoad(a.rd!))));
+    expectVec('xo_pas_aux', 'dcr_01mh', P.estimateDcrOhm(1e-4));
+    expectVec('xo_pas_aux', 'dcr_1mh', P.estimateDcrOhm(1e-3));
+    expectVec('xo_pas_aux', 'dcr_10mh', P.estimateDcrOhm(1e-2));
+
+    const sv = vec('xo_pas_stress').inputs;
+    const net2 = P.designPassive({ alignment: 'butterworth', order: 2 }, 'lp', sv.fc!, sv.r!);
+    for (const f of [200, 1000, 2500]) {
+      const [l, c] = P.networkStress(net2, f, P.resistiveLoad(sv.r!), sv.vin_rms!);
+      expectVec('xo_pas_stress', `vl_${f}`, l!.vRms);
+      expectVec('xo_pas_stress', `il_${f}`, l!.iRms);
+      expectVec('xo_pas_stress', `vc_${f}`, c!.vRms);
+      expectVec('xo_pas_stress', `ic_${f}`, c!.iRms);
+    }
+  });
+
+  it('crossover optimiser objective (v0.24)', () => {
+    const st = vec('xo_series_step').outputs;
+    for (const [tag, val, ser] of [['e24_4p7', 4.7, 'E24'], ['e24_9p1', 9.1, 'E24'], ['e24_1p0', 1.0, 'E24'], ['e24_4p8', 4.8, 'E24'], ['e24_47u', 4.7e-6, 'E24'], ['e96_3p16', 3.16, 'E96'], ['e96_9p76', 9.76, 'E96']] as const) {
+      expectVec('xo_series_step', `${tag}_up`, P.seriesStep(val, ser, 1));
+      expectVec('xo_series_step', `${tag}_down`, P.seriesStep(val, ser, -1));
+    }
+    expect(Object.keys(st)).toHaveLength(14);
+
+    const a = vec('xo_opt_eval').inputs;
+    const scaled = (net: P.Network, fac: number[]): P.Network =>
+      net.map((b, i) => ({ ...b, groups: b.groups.map((g) => g.map((p) => ({ ...p, value: p.value * fac[i]! }))) }));
+    const spec: P.FilterSpec = { alignment: 'butterworth', order: 2 };
+    const lp = scaled(P.designPassive(spec, 'lp', a.fc!, a.r!), [a.lp_f1!, a.lp_f2!]);
+    const hp = scaled(P.designPassive(spec, 'hp', a.fc!, a.r!), [a.hp_f1!, a.hp_f2!]);
+    const ways: P.Way[] = [
+      { network: lp, load: P.resistiveLoad(a.r!), response: () => P.cx(1) },
+      { network: hp, load: P.resistiveLoad(a.r!), response: () => P.cx(10 ** (a.tweeter_db! / 20)), polarity: -1, delayS: a.delay_s! },
+    ];
+    const grid = P.logGrid(a.f_lo!, a.f_hi!, a.n!);
+    const e0 = P.evaluate(ways, grid);
+    expectVec('xo_opt_eval', 'mean_db', e0.meanDb);
+    expectVec('xo_opt_eval', 'rms_db', e0.rmsDb);
+    expectVec('xo_opt_eval', 'rms_flat_db', e0.rmsFlatDb);
+    expectVec('xo_opt_eval', 'zmin_ohm', e0.zMinOhm);
+    const e2 = P.evaluate(ways, grid, () => 2);
+    expectVec('xo_opt_eval', 'mean_db_t2', e2.meanDb);
+    expectVec('xo_opt_eval', 'rms_db_t2', e2.rmsDb);
+  });
+
   afterAll(() => {
     const missing = file.vectors.flatMap((v) => Object.keys(v.outputs).map((k) => `${v.id}.${k}`)).filter((k) => !asserted.has(k));
     expect(missing, 'vector outputs never asserted').toEqual([]);

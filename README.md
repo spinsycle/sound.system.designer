@@ -7,7 +7,7 @@ driver presets, or enter the Thiele-Small specifications of your actual drivers 
 or measure them with the Driver Probe rig, and use them throughout your enclosure and system designs.
 
 Windows desktop app (also runs in a browser).
-Version 1.9.1.
+Version 1.10.0.
 
 > **Disclaimer:** every number here is a calculated estimate from a simplified model, not a measurement of a real
 > loudspeaker. Use it to explore and compare designs, then check anything you build, or rely on for safety, against real
@@ -32,7 +32,7 @@ SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](do
   for a passband you give it. The Cookbook has no equations for these two or for the TQWT: they are derived and checked against
   numeric solves of their circuits, not against a book (the app says so where they appear). A transmission line is cut as a folded
   box with a chamber for the driver, and a TQWT as a tapered column.
-- **Systems:** up to four bands behind Linkwitz-Riley crossovers; trim, delay and polarity per band; drivers and wiring; an
+- **Systems:** up to four bands behind crossovers (Linkwitz-Riley 4 unless you choose another alignment); trim, delay and polarity per band; drivers and wiring; an
   amplifier per band with load, power and excursion limits and a max-level table; the summed response in dB SPL; eight
   generic starting points.
 - **Home speakers:** a second mode for one cabinet with several drivers, desktop to floorstanding: 2-way, MTM (D'Appolito),
@@ -53,6 +53,14 @@ SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](do
   push-pull changes the build, not the response (opposed walls, or side by side on the front with one magnet inside and one outside).
 - **Nine box types:** sealed, ported, passive radiator, band-pass, 6th-order band-pass, 8th-order band-pass, transmission line, TQWT and
   horn. See [docs/box-types.md](docs/box-types.md) for each one with screenshots and what is and is not checked.
+- **Crossovers (new in 1.10):** a fourth mode, **Crossover**, designs the crossover itself for 2, 3 or 4 ways or a subwoofer split.
+  Butterworth, Linkwitz-Riley, Bessel and Chebyshev (orders 1 to 8; passive networks up to 4), with polarity advice and time
+  alignment. **Active**: parts for every stage of Sallen-Key, multiple-feedback or state-variable circuits, snapped to E24 or
+  E96 with the error shown. **Passive**: LC networks designed against the driver's real impedance (voice-coil inductance, a
+  resonance, or an imported ZMA file; an imported FRD file for its response), with Zobel and L-pad, an optimiser that keeps the
+  amplifier above its minimum load, and the volts, amps, heat and capacitor rating of every part. Outputs: a schematic (SVG
+  or print to PDF), a bill of materials and a parts list (CSV). The alignment and frequencies can be applied back to the PA
+  system, the home speaker and the car's front speakers, which now take any alignment (default unchanged).
 - **Driver Probe and driver library (CSV import new in 1.9.1):** measure a real driver with the Driver Probe rig (USB or WiFi) and keep it in a library, or
   bulk-import datasheet drivers from a CSV; a saved driver becomes the Custom driver of a box. See
   [docs/driver-probe.md](docs/driver-probe.md).
@@ -152,6 +160,10 @@ More, by topic:
 | --- | --- |
 | ![Driver Probe](docs/screenshots/driver-probe.png) | ![Driver library](docs/screenshots/driver-library.png) |
 
+| Crossover: plots | Crossover: passive schematic |
+| --- | --- |
+| ![Crossover plots](docs/screenshots/crossover.png) | ![Crossover schematic](docs/screenshots/crossover-schematic.png) |
+
 Every box type has its own screenshots in [docs/box-types.md](docs/box-types.md).
 
 ## Documentation
@@ -163,7 +175,7 @@ Every box type has its own screenshots in [docs/box-types.md](docs/box-types.md)
 
 ## Install
 
-Run `Sound System Designer_1.9.1_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.10.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 
@@ -209,14 +221,20 @@ Limits compared with the desktop app:
 
 - The horn simulation is one-dimensional and lossless, half space only: no bends, directivity or losses. The response is
   radiated power.
-- Systems use active crossovers, identical drivers per band summed as one source (optimistic for wide arrays), and
-  small-signal limits (no power compression or limiter).
+- Systems use ideal active crossovers (the Crossover page designs real circuits and networks, the other pages assume the
+  ideal), identical drivers per band summed as one source (optimistic for wide arrays), and small-signal limits (no power
+  compression or limiter).
+- The Crossover page models each driver as a level, a low corner, a roll-off, Re, Le and a resonance, or from an imported
+  response and impedance file; it does not use the full box models of the other pages. A passive network assumes an ideal
+  amplifier (no output impedance or cable), designs every way on its own (a band-pass is a high-pass then a low-pass, left to
+  the optimiser), stops at order 4 and cannot build an even-order Chebyshev; inductor resistance is an estimate; the
+  state-variable stage is drawn as blocks. A project saved by 1.10 has file version 3 and is refused by older versions.
 - Cut lists use butt joints and rectangular boxes; horn side panels are cut as bounding rectangles; hole sizes and the
   driver's displacement are estimates.
 - The sheet layout is a simple heuristic, not an optimal nesting.
 - The Brief model is not deterministic and sometimes gives a poor or refused design; the warnings column is the
   calculators judging it.
-- Home speakers use an active crossover (no passive parts list), on-axis response only (no vertical lobing between the
+- Home speakers use an ideal crossover (the Crossover page has the parts), on-axis response only (no vertical lobing between the
   drivers of an MTM, no tweeter beaming or edge diffraction), and build a ported slot with front ports. A project saved by
   1.2 does not open in 1.1 (the file version is 2); 1.1 files open in 1.2.
 - Car audio: the cabin gain is a generic rule of thumb per vehicle type, not a measurement of any car; the sub's limits

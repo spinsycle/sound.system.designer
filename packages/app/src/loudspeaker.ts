@@ -5,6 +5,7 @@
 // sum as complex pressure and the baffle step multiplies the sum. Pure functions; the page draws what computeLoudspeaker
 // returns. Spec: "Loudspeaker cabinets" (v0.11).
 import * as P from '@soundsystemdesigner/physics';
+import { DEFAULT_SHAPE, type XoShape, sanitizeShape, shapeBands, shapeLow, shapeNotes } from './crossover';
 import { BOX_RANGES, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
 export type Role = 'woofer' | 'mid' | 'tweeter';
@@ -68,6 +69,8 @@ export interface Loudspeaker {
   slots: Slot[];
   /** Crossover points, Hz: between slots 0-1 and 1-2 (the 'assist' kind uses both; 'partition' with two slots uses the first). */
   xover: number[];
+  /** The alignment and order of the crossover points (Linkwitz-Riley 4 unless changed). */
+  shape: XoShape;
   baffleWidthCm: number;
   baffleHeightCm: number;
   /** One chamber for a slot's drivers, or one each. The response is the same; the cut list differs. */
@@ -119,6 +122,7 @@ export function defaultSpeaker(id: ArrangementId = 'two-way'): Loudspeaker {
     arrangement: id,
     slots: [0, 1, 2].map((k) => defaultSlot(id, k)),
     xover: [...arr.xover, ...[400, 3000].slice(arr.xover.length)],
+    shape: DEFAULT_SHAPE,
     baffleWidthCm: arr.baffleCm[0],
     baffleHeightCm: arr.baffleCm[1],
     chambers: 'shared',
@@ -152,6 +156,7 @@ export function sanitizeLoudspeaker(input: unknown): Loudspeaker {
       };
     }),
     xover: d.xover.map((x, k) => num(xs[k], SPEAKER_XOVER_RANGE, x)),
+    shape: sanitizeShape(i.shape),
     baffleWidthCm: num(i.baffleWidthCm, SPEAKER_RANGES.baffleWidthCm, d.baffleWidthCm),
     baffleHeightCm: num(i.baffleHeightCm, SPEAKER_RANGES.baffleHeightCm, d.baffleHeightCm),
     chambers: i.chambers === 'separate' ? 'separate' : 'shared',
@@ -210,8 +215,8 @@ export function loudspeakerEvaluator(sp: Loudspeaker) {
     const gain = 10 ** (s.trimDb / 20) * (s.invert ? -1 : 1);
     const g = (f: number): P.Cx => (s.open ? P.openBaffleG(f, driver.fs, P.deriveDriver(driver).qts) : raw(f).g);
     const leg = (f: number): P.Cx => {
-      if (arr.kind === 'partition') return P.crossoverBands(f, xs)[k]!;
-      return k === 0 ? P.lr4Lp(f, xs[0]!) : P.crossoverBands(f, [xs[1]!])[k - 1]!;
+      if (arr.kind === 'partition') return shapeBands(sp.shape, f, xs)[k]!;
+      return k === 0 ? shapeLow(sp.shape, f, xs[0]!) : shapeBands(sp.shape, f, [xs[1]!])[k - 1]!;
     };
     const delayS = s.backCm / 100 / P.C;
     const played = (f: number): P.Cx => P.scale(P.mul(leg(f), g(f)), pRef * gain);
@@ -282,6 +287,7 @@ export function computeLoudspeaker(sp: Loudspeaker): LoudspeakerView {
   ev.xover.forEach((fx, k) => {
     if (Math.abs(fx - sp.xover[k]!) > 1e-9) notes.push(`Crossover ${k + 1} is used at ${fmt(fx, 0)} Hz, not ${fmt(sp.xover[k]!, 0)} Hz: points must rise by at least 1.2x.`);
   });
+  notes.push(...shapeNotes(sp.shape, slots.map((x) => x.name)));
   const stepHz = sp.baffleStep ? P.baffleStepCornerHz(widthM) : 0;
   if (sp.baffleStep) notes.push(`Baffle step: the bass falls 6 dB below about ${fmt(stepHz, 0)} Hz for a free-standing box on a ${fmt(sp.baffleWidthCm, 0)} cm baffle. Against a wall the step is smaller; turn it off for an in-wall speaker.`);
   notes.push(`Levels are for ${REF_VOLTS} V at each driver, on axis at 1 m in half space. Drivers are taken as wired in parallel behind an active crossover; vertical lobing between drivers, the tweeter's beaming and edge diffraction are not modelled.`);

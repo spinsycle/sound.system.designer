@@ -360,6 +360,7 @@ h3 {
   --band: #f08a6c;
 }
 
+.swatch,
 .band .swatch {
   display: inline-block;
   width: 10px;
@@ -726,4 +727,31 @@ button:disabled {
   width: 100%;
   height: auto;
   max-height: 480px;
+}
+
+.schematic {
+  max-width: 100%;
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.schematic svg {
+  display: block;
+  max-width: none;
+}
+
+@media print {
+  .schematic {
+    overflow: visible;
+  }
+
+  .schematic svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+td.left.note-cell {
+  padding-left: 20px;
 }

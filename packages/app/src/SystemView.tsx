@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
 import { Chart } from './Chart';
+import { ShapeControls } from './ShapeControls';
 import { AMP_LOADS, BAND_RANGES, type Band, COUNT_RANGE, DISTANCE_RANGE, LOWEST_RANGE, MAX_BANDS, type Project, TEMPLATES, XOVER_RANGE, applyTemplate, bandName, computeSystem, levelTrims, sanitizeProject } from './system';
 
 const divisors = (n: number): number[] => Array.from({ length: n }, (_, i) => i + 1).filter((s) => n % s === 0);
@@ -64,6 +65,7 @@ export function SystemView({ project, onChange }: { project: Project; onChange: 
               onChange={(v) => set({ xover: project.xover.map((x, i) => (i === k ? v : x)) })}
             />
           ))}
+          {project.nBands > 1 && <ShapeControls idp="pa" shape={project.xoShape} onChange={(xoShape) => set({ xoShape })} />}
           <Field id="lowest" range={LOWEST_RANGE} value={project.lowestHz} onChange={(v) => set({ lowestHz: v })} />
           <Field id="distance" range={DISTANCE_RANGE} value={project.distanceM} onChange={(v) => set({ distanceM: v })} />
           {project.nBands > 1 && (

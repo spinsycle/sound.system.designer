@@ -570,7 +570,7 @@ function passiveRaw(d: Design): (f: number) => Raw {
   const ql = d.qL > 0 ? d.qL : undefined;
   return (f) => {
     const x = P.passiveX(f, driver, r, pr.alpha, pr.delta, pr.fpHz, ql);
-    return { g: P.passiveG(f, driver.fs, r.qts, pr.alpha, pr.delta, pr.fpHz, ql), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+    return { g: P.passiveG(f, driver.fs, r.qts, pr.alpha, pr.delta, pr.fpHz, ql), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re, driver.le) };
   };
 }
 
@@ -605,7 +605,7 @@ function sealedFilledRaw(d: Design): (f: number) => Raw {
   const vEff = vb * P.fillEffect(fill).volumeGain;
   return (f) => {
     const x = P.sealedX(f, driver, r, vEff);
-    return { g: P.sealedHP(f, s.fc, s.qtc), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+    return { g: P.sealedHP(f, s.fc, s.qtc), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re, driver.le) };
   };
 }
 
@@ -618,7 +618,7 @@ function bandpass6Raw(d: Design): (f: number) => Raw {
   const ql = d.qL > 0 ? d.qL : undefined;
   return (f) => {
     const x = P.bandpass6X(f, driver, r, ar, af, d.bp6.rearTuneHz, d.tuneHz, ql, ql);
-    return { g: P.bandpass6G(f, driver.fs, r.qts, ar, af, d.bp6.rearTuneHz, d.tuneHz, ql, ql), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+    return { g: P.bandpass6G(f, driver.fs, r.qts, ar, af, d.bp6.rearTuneHz, d.tuneHz, ql, ql), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re, driver.le) };
   };
 }
 
@@ -655,7 +655,7 @@ function bandpass8Raw(d: Design): (f: number) => Raw {
   const ql = d.qL > 0 ? d.qL : undefined;
   return (f) => {
     const x = P.bandpass8X(f, driver, r, ar, a1, a2, d.bp6.rearTuneHz, d.bp8.innerTuneHz, d.tuneHz, ql, ql, ql, d.bp8.layout);
-    return { g: P.bandpass8G(f, driver.fs, r.qts, ar, a1, a2, d.bp6.rearTuneHz, d.bp8.innerTuneHz, d.tuneHz, ql, ql, ql, d.bp8.layout), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re) };
+    return { g: P.bandpass8G(f, driver.fs, r.qts, ar, a1, a2, d.bp6.rearTuneHz, d.bp8.innerTuneHz, d.tuneHz, ql, ql, ql, d.bp8.layout), x, z: P.impedanceFromDisplacement(f, x, r.bl, driver.re, driver.le) };
   };
 }
 
