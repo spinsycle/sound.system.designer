@@ -64,9 +64,11 @@ ${holes}
  * A folded horn's side view to scale (front on the right): the box, each septum, the leg numbers, the throat at the top front and
  * the mouth at the bottom front. Dimensions are the layout's, in millimetres in the file.
  */
-export function foldSvg(f: P.FoldLayout, t: number, title: string, u: Units = 'mm'): string {
+export function foldSvg(f: P.FoldLayout, t: number, title: string, u: Units = 'mm', chamber?: { heightM: number; depthM: number }): string {
   const W = mm(f.dO);
-  const H = mm(f.hO);
+  // the driver's chamber sits above the legs, on a shelf: everything of the legs moves down by its height and the shelf
+  const dy = chamber ? mm(chamber.heightM + t) : 0;
+  const H = mm(f.hO) + dy;
   const font = Math.max(14, Math.round(Math.min(W, H) / 28));
   const tapered = f.style === 'tapered';
   const X = (d: number): number => mm(f.dO - t - d); // front on the right
@@ -99,8 +101,14 @@ export function foldSvg(f: P.FoldLayout, t: number, title: string, u: Units = 'm
       return `<text x="${mm(f.dO / 2)}" y="${mm(y) + Math.round(font / 3)}" font-size="${font}" text-anchor="middle" font-family="sans-serif">leg ${k + 1} (${size})</text>`;
     })
     .join('\n');
-  const ends = `<text x="${W - font / 2}" y="${mm(t) + font}" font-size="${font}" text-anchor="end" font-family="sans-serif">throat, front</text>` + (f.mouthAtFront ? `\n<text x="${W - font / 2}" y="${H - mm(t) - Math.round(font / 2)}" font-size="${font}" text-anchor="end" font-family="sans-serif">mouth</text>` : '');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">\n<title>${esc(title)}</title>\n<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>\n${septa}\n${labels}\n${ends}\n</svg>\n`;
+  const ends = `<text x="${W - font / 2}" y="${dy + mm(t) + font}" font-size="${font}" text-anchor="end" font-family="sans-serif">${chamber ? 'opening from the chamber' : 'throat, front'}</text>` + (f.mouthAtFront ? `\n<text x="${W - font / 2}" y="${H - mm(t) - Math.round(font / 2)}" font-size="${font}" text-anchor="end" font-family="sans-serif">mouth</text>` : '');
+  // the shelf under the chamber, and its back wall when the chamber is shallower than the box (front on the right)
+  const chamberSvg = chamber
+    ? `<rect x="${mm(t)}" y="${dy - mm(t)}" width="${W - 2 * mm(t)}" height="${Math.max(mm(t), 2)}" ${STYLE}/>\n` +
+      (chamber.depthM < f.dI - 1e-9 ? `<rect x="${mm(f.dO - t - chamber.depthM - t)}" y="${mm(t)}" width="${Math.max(mm(t), 2)}" height="${mm(chamber.heightM)}" ${STYLE}/>\n` : '') +
+      `<text x="${mm(f.dO - t - chamber.depthM / 2)}" y="${mm(t + chamber.heightM / 2) + Math.round(font / 3)}" font-size="${font}" text-anchor="middle" font-family="sans-serif">driver chamber</text>\n`
+    : '';
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">\n<title>${esc(title)}</title>\n<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>\n${chamberSvg}<g transform="translate(0 ${dy})">\n${septa}\n${labels}\n</g>\n${ends}\n</svg>\n`;
 }
 
 /** An adapter ring to scale, millimetres: the outside, the cut-out for the driver and four screw holes. Round, or oval for a 6x9. */

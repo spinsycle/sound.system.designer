@@ -47,16 +47,16 @@ describe('transmission line cut as a folded duct (U2)', () => {
     });
   });
 
-  it('a driver chamber joins the line start: the model chamber when it has one, else a coupling box with a warning', () => {
+  it('the driver chamber is inside the line box: the model chamber when it has one, else a minimal one', () => {
     const none = build(tl('taper'));
     const withCh = build(tl('chamber'));
-    const chamber = (v: ReturnType<typeof build>) => v.bands[0]!.cabinets.find((c) => c.title === 'Chamber behind the cone')!;
-    expect(chamber(none)).toBeDefined();
-    expect(none.bands[0]!.warnings.some((w) => w.includes('the cut list adds'))).toBe(true);
-    expect(withCh.bands[0]!.warnings.some((w) => w.includes('the cut list adds') && w.includes('simulation has'))).toBe(false);
-    // the chamber cabinet holds the driver hole; the folded box does not
-    expect(chamber(withCh).cutouts.some((x) => x.kind === 'driver')).toBe(true);
-    expect(withCh.bands[0]!.cabinets.find((c) => c.title === 'Transmission line')!.cutouts.some((x) => x.kind === 'driver')).toBe(false);
+    const line = (v: ReturnType<typeof build>) => v.bands[0]!.cabinets.find((c) => c.title === 'Transmission line')!;
+    expect(none.bands[0]!.cabinets).toHaveLength(1);
+    expect(line(none).chamber).toBeDefined();
+    expect(line(withCh).chamber!.airM3).toBeGreaterThanOrEqual(M.tlGeometryOf(tl('chamber')).chamberM3);
+    // the driver hole is on the line box's own baffle
+    expect(line(withCh).cutouts.some((x) => x.kind === 'driver')).toBe(true);
+    expect(line(withCh).panels.some((x) => x.name === 'Chamber shelf')).toBe(true);
   });
 
   it('3D draws a divider box for every septum of the folded line', () => {
@@ -64,7 +64,9 @@ describe('transmission line cut as a folded duct (U2)', () => {
     const v = L.computeBuild(p);
     const f = v.bands[0]!.cabinets.find((c) => c.title === 'Transmission line')!.fold!;
     const lay = layoutOf(v, p);
-    expect(lay.boxes.filter((b) => b.kind === 'divider').length).toBe(f.heights.length - 1);
+    // a divider per septum, and the shelf under the driver's chamber (and its back wall when the chamber is shallower than the box)
+    const ch = v.bands[0]!.cabinets[0]!.chamber!;
+    expect(lay.boxes.filter((b) => b.kind === 'divider').length).toBe(f.heights.length - 1 + 1 + (ch.depthM < f.dI - 1e-9 ? 1 : 0));
   });
 
   it('the line box is as wide as the start area asks, and holds no more depth than the folds need', () => {
@@ -76,14 +78,14 @@ describe('transmission line cut as a folded duct (U2)', () => {
     expect(f.dI - f.minDepthI).toBeLessThan(0.011);
   });
 
-  it("the driver's box holds the baffle (hole plus margins) and is at least 10 cm deep", () => {
+  it("the driver's chamber is as wide as the line box, holds the baffle (hole plus margins) and is at least 10 cm deep", () => {
     const d = tl();
     const driverM = 2 * Math.sqrt(P.ALL_DRIVER_CLASSES[2]!.sd / Math.PI);
-    const g = build(d).bands[0]!.cabinets.find((c) => c.title === 'Chamber behind the cone')!.geometry;
-    expect(g.wI).toBeGreaterThanOrEqual(driverM + 2 * L.HOLE_MARGIN - 1e-9);
-    expect(g.dI).toBeGreaterThanOrEqual(0.1 - 1e-9);
-    expect(g.dI).toBeLessThan(0.16);
-    expect(g.hI / g.wI).toBeCloseTo(1.15, 1);
+    const c = build(d).bands[0]!.cabinets.find((x) => x.title === 'Transmission line')!;
+    const ch = c.chamber!;
+    expect(ch.heightM).toBeGreaterThanOrEqual(driverM + 2 * L.HOLE_MARGIN - 1e-9);
+    expect(ch.depthM).toBeGreaterThanOrEqual(0.1 - 1e-9);
+    expect(ch.airM3).toBeCloseTo(c.fold!.wI * ch.heightM * ch.depthM, 12);
   });
 
   it('a line that cannot fold at any width falls back to one box with a septum and says so', () => {

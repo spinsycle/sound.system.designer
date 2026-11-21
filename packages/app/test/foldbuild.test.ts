@@ -71,14 +71,19 @@ describe('build', () => {
     });
     expect(cab.panels.find((x) => x.name === 'Front baffle')!.l).toBeCloseTo(f.wO, 12);
   });
-  it('the throat opens at the top front and the mouth at the bottom front', () => {
+  it('a front-loaded horn has only the mouth on the front, at the bottom; a rear-loaded one also has the driver at the top', () => {
     const holes = L.holePositions(cab);
-    expect(holes).toHaveLength(2);
-    expect(holes[0]!.cy).toBeLessThan(holes[1]!.cy);
-    expect(holes[1]!.cy).toBeGreaterThan(cab.geometry.hO / 2);
-    expect(holes.every((h) => h.shape === 'rect')).toBe(true);
+    expect(holes).toHaveLength(1);
+    expect(holes[0]!.shape).toBe('rect');
+    expect(holes[0]!.cy).toBeGreaterThan(cab.geometry.hO / 2);
+    const rear = foldCab(project(folded(4, 120, { loading: 'rear', throatChamberL: 30 })));
+    const rh = L.holePositions(rear);
+    expect(rh).toHaveLength(2);
+    expect(rh[0]!.kind).toBe('driver');
+    expect(rh[0]!.cy).toBeLessThan(rh[1]!.cy);
+    expect(rh[1]!.cy).toBeGreaterThan(rear.geometry.hO / 2);
     const oddProject = project(folded(3));
-    expect(L.holePositions(foldCab(oddProject))).toHaveLength(1);
+    expect(L.holePositions(foldCab(oddProject))).toHaveLength(0);
     expect(L.computeBuild(oddProject).warnings.some((w) => w.includes('odd number'))).toBe(true);
   });
   it('a depth that is too small is built at the minimum and says so', () => {
@@ -86,15 +91,20 @@ describe('build', () => {
     expect(L.computeBuild(shallow).warnings.some((x) => x.includes('asked for'))).toBe(true);
     expect(foldCab(shallow).geometry.dO).toBeGreaterThan(0.3);
   });
-  it('the chambers are still built and the unfolded horn is unchanged', () => {
-    expect(b.cabinets.map((c) => c.title)).toEqual(['Rear chamber', 'Throat chamber', 'Folded horn']);
+  it('the driver chamber is inside the folded box, above a shelf, and the unfolded horn is unchanged', () => {
+    expect(b.cabinets.map((c) => c.title)).toEqual(['Folded horn']);
+    expect(cab.chamber).toBeDefined();
+    expect(cab.chamber!.driverOn).toBe('shelf');
+    expect(cab.panels.some((x) => x.name === 'Chamber shelf')).toBe(true);
+    expect(L.computeBuild(project(horn())).bands[0]!.cabinets.map((c) => c.title)).toEqual(['Rear chamber', 'Throat chamber']);
     const straight = L.computeBuild(project(horn())).bands[0]!;
     expect(straight.horn).not.toBeNull();
     expect(straight.cabinets.some((c) => c.fold)).toBe(false);
   });
   it('the rear-loaded scoop folds too', () => {
     const bb = L.computeBuild(project(folded(4, 140, { loading: 'rear', throatChamberL: 30 }))).bands[0]!;
-    expect(bb.cabinets.map((c) => c.title)).toEqual(['Chamber behind the cone', 'Folded horn']);
+    expect(bb.cabinets.map((c) => c.title)).toEqual(['Folded horn']);
+    expect(bb.cabinets[0]!.chamber!.driverOn).toBe('front');
   });
 });
 
@@ -103,8 +113,10 @@ describe('3D and drawing', () => {
   const v = L.computeBuild(p);
   const l = layout3d(v, p);
   const f = foldCab(p).fold!;
-  const walls = (): ReturnType<typeof layout3d>['boxes'] => l.boxes.filter((x) => x.kind === 'panel' && Math.abs(x.size[0] - f.wO) < 1e-9 && Math.abs(x.size[1] - f.hO) < 1e-9);
-  const septa = (): ReturnType<typeof layout3d>['boxes'] => l.boxes.filter((x) => x.kind === 'divider' && x.size[0] === f.wI);
+  const hO = foldCab(p).geometry.hO;
+  const drop = foldCab(p).chamber!.heightM + T; // the chamber and its shelf sit above the legs
+  const walls = (): ReturnType<typeof layout3d>['boxes'] => l.boxes.filter((x) => x.kind === 'panel' && Math.abs(x.size[0] - f.wO) < 1e-9 && Math.abs(x.size[1] - hO) < 1e-9);
+  const septa = (): ReturnType<typeof layout3d>['boxes'] => l.boxes.filter((x) => x.kind === 'divider' && x.size[0] === f.wI && x.size[1] === T && !x.holes);
   it('no straight horn prisms; the septa are dividers inside the box', () => {
     expect(l.prisms).toHaveLength(0);
     expect(septa()).toHaveLength(3);
@@ -124,7 +136,7 @@ describe('3D and drawing', () => {
   });
   it('the first septum lies below the first leg, inside the box', () => {
     const wall = walls()[0]!;
-    const top = wall.center[1] + f.hO / 2 - T;
+    const top = wall.center[1] + hO / 2 - T - drop;
     expect(top - (septa()[0]!.center[1] + T / 2)).toBeCloseTo(f.septaTop[0]!, 9);
   });
   it('the side view draws one rectangle for the box, one per septum, a label per leg and the mouth', () => {
@@ -146,14 +158,15 @@ describe('details the first pass left uncovered', () => {
   it('the air of the box is its inside less the septa; the lining covers the walls and both sides of every septum', () => {
     expect(cab.geometry.netM3).toBeCloseTo(f.wI * f.hI * f.dI - f.septaLength.reduce((a, l) => a + f.wI * l * T, 0), 12);
     const septaArea = f.septaLength.reduce((a, l) => a + 2 * f.wI * l, 0);
-    expect(cab.liningM2).toBe(Math.ceil((2 * (f.wI * f.hI + f.wI * f.dI + f.hI * f.dI) - f.wI * f.hI + septaArea) * 10 - 1e-9) / 10);
+    const gh = cab.geometry.hI;
+    expect(cab.liningM2).toBe(Math.ceil((2 * (f.wI * gh + f.wI * f.dI + gh * f.dI) - f.wI * gh + septaArea) * 10 - 1e-9) / 10);
   });
-  it('the throat opening is the flare throat across the width; the mouth is the last leg', () => {
+  it('the mouth is the last leg; a rear-loaded chamber opens into the first leg through the flare throat across the width', () => {
     const holes = L.holePositions(cab);
-    expect(holes[0]!.w).toBeCloseTo(0.6, 12);
-    expect(holes[0]!.h).toBeCloseTo(0.06 / 0.6, 12);
-    expect(holes[1]!.h).toBeCloseTo(f.heights[3]!, 12);
-    expect(holes[1]!.cy).toBeCloseTo(f.hO - T - f.heights[3]! / 2, 12);
+    expect(holes[0]!.h).toBeCloseTo(f.heights[3]!, 12);
+    expect(holes[0]!.cy).toBeCloseTo(cab.geometry.hO - T - f.heights[3]! / 2, 12);
+    const rear = foldCab(project(folded(4, 120, { loading: 'rear', throatChamberL: 30 })));
+    expect(rear.chamber!.throatDepthM).toBeCloseTo(Math.min(0.06 / rear.fold!.wI, rear.chamber!.depthM), 12);
   });
   it('a wide horn does not trip the driver-and-port hole check', () => {
     const w = L.computeBuild(project(folded(4, 120, { widthCm: 150 })));
@@ -282,13 +295,14 @@ describe('tapered legs (the scoop)', () => {
     const p4 = project(tap(4, 120));
     const l4 = layout3d(L.computeBuild(p4), p4);
     const f4 = foldCab(p4).fold!;
-    const sep = l4.boxes.filter((x) => x.kind === 'divider' && x.size[0] === f4.wI);
+    const sep = l4.boxes.filter((x) => x.kind === 'divider' && x.size[0] === f4.wI && x.size[1] === T && !x.holes);
     expect(sep).toHaveLength(3);
+    const c4 = foldCab(p4);
     sep.forEach((b, k) => {
       const front = f4.septaAnchor[k] === 'front';
       const dMid = front ? f4.septaLength[k]! / 2 : f4.dI - f4.septaLength[k]! / 2;
       const top = f4.septaFrontTop[k]! + ((f4.septaBackTop[k]! - f4.septaFrontTop[k]!) * dMid) / f4.dI;
-      expect(b.center[1]).toBeCloseTo(f4.hO - T - top - T / 2, 9);
+      expect(b.center[1]).toBeCloseTo(c4.geometry.hO - T - (c4.chamber!.heightM + T) - top - T / 2, 9);
       expect(b.center[2]).toBeCloseTo(-T - dMid, 9);
     });
   });
@@ -311,7 +325,7 @@ describe('tapered legs (the scoop)', () => {
   });
   it('the throat and the mouth are the first and last legs at the front wall', () => {
     const holes = L.holePositions(cab);
-    expect(holes[0]!.h).toBeCloseTo(Math.min(0.06 / 0.9, f.heightsFront[0]!), 12);
+    expect(cab.chamber!.throatDepthM).toBeCloseTo(Math.min(0.06 / 0.9, cab.chamber!.depthM), 12);
     expect(holes[1]!.h).toBeCloseTo(f.heightsFront[1]!, 12);
   });
   it('the 3D septum is tilted by its angle and lies inside the box', () => {
@@ -368,5 +382,44 @@ describe('tapered legs (the scoop)', () => {
     expect(sug).not.toBeNull();
     const fixed = M.sanitize({ ...bad, horn: { ...bad.horn, legs: sug!.legs, widthCm: Math.round(sug!.widthM * 1000) / 10, depthCm: Math.round(sug!.depthOutM * 1000) / 10 } });
     expect(M.compute(fixed).warnings.filter((x) => ['cannot fit', 'odd number', 'asked for', 'fewer legs or less depth', 'Recommended fold'].some((k) => x.includes(k)))).toEqual([]);
+  });
+});
+
+describe('the driver is in the box: one cabinet, chamber at the top', () => {
+  for (const loading of ['front', 'rear'] as const) {
+    const p = project(folded(4, 120, { loading, throatChamberL: 30 }));
+    const v = L.computeBuild(p);
+    const cab = v.bands[0]!.cabinets[0]!;
+    const lay = layout3d(v, p);
+    it(`${loading}-loaded: the 3D view is only the folded box, with the wood of the cut list`, () => {
+      expect(v.bands[0]!.cabinets).toHaveLength(1);
+      expect(lay.extent[0]).toBeCloseTo(cab.geometry.wO, 9);
+      expect(lay.extent[1]).toBeCloseTo(cab.geometry.hO, 9);
+      expect(lay.extent[2]).toBeCloseTo(cab.geometry.dO, 9);
+      const wood = lay.boxes.reduce((a, x) => a + x.size[0] * x.size[1] * x.size[2], 0);
+      const cut = v.cutList.reduce((a, r) => a + r.l * r.w * r.qty, 0);
+      expect(wood).toBeCloseTo(cut * 1e-6 * T, 3);
+    });
+    it(`${loading}-loaded: the driver sits inside the box's outline and its hole is cut where it is mounted`, () => {
+      expect(lay.drivers).toHaveLength(1);
+      const d = lay.drivers[0]!;
+      expect(d.flange[0]).toBeGreaterThan(0);
+      expect(d.flange[0]).toBeLessThan(cab.geometry.wO);
+      expect(d.flange[1]).toBeGreaterThan(cab.geometry.hO - cab.chamber!.heightM - 3 * T - 1e-9);
+      expect(d.flange[1]).toBeLessThan(cab.geometry.hO);
+      const shelf = lay.boxes.find((x) => x.holes && x.holeAxis === 'y')!;
+      expect(shelf).toBeDefined();
+      if (loading === 'rear') {
+        const front = lay.boxes.find((x) => x.kind === 'panel' && x.holes && x.holes.some((h) => h.radius > 0 && !h.shape))!;
+        expect(front).toBeDefined();
+      } else expect(shelf.holes!.some((h) => !h.shape)).toBe(true);
+    });
+  }
+  it('the side view shows the chamber and shelf above the legs', () => {
+    const c = foldCab(project(folded()));
+    const svg = foldSvg(c.fold!, T, 'x', 'mm', c.chamber);
+    expect(svg).toContain('driver chamber');
+    const h = Number(/viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg)![2]);
+    expect(h).toBeCloseTo(c.geometry.hO * 1000, 0);
   });
 });

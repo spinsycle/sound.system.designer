@@ -64,6 +64,12 @@ export interface Cabinet {
   clearanceM?: number;
   /** A folded horn's layout: the legs, the septa (also in `panels`) and the box. */
   fold?: P.FoldLayout;
+  /**
+   * A folded horn's driver chamber, built into the top of its box: above a shelf, the full inside width, `depthM` deep from the front
+   * and `heightM` tall inside (its own back wall when shallower than the box). The driver is on the front baffle, or, `shelf`, on the shelf
+   * facing down into the horn. `throatDepthM` is the shelf opening to the first leg, from the front.
+   */
+  chamber?: { heightM: number; depthM: number; airM3: number; driverOn: 'front' | 'shelf'; throatDepthM: number; driverM: number };
   /** A TQWT's column: flat front, closed top, mouth open at the bottom, the back a staircase of straight sloping sections. */
   column?: P.Column;
   /** A wedge enclosure's geometry (the baffle drawing uses `geometry` with the sloping baffle as its height). */
@@ -241,32 +247,81 @@ function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: num
   };
 }
 
+/** What the driver's chamber inside a folded box needs. */
+interface ChamberSpec {
+  /** Inside air, driver displacement included, m3. */
+  airM3: number;
+  driver: Cutout;
+  /** Rear-loaded: the driver is on the front baffle. Front-loaded: it hangs from the shelf and faces down into the horn. */
+  driverOn: 'front' | 'shelf';
+}
+/** Least depth of the driver's chamber, m (an assumption: the driver's frame and magnet). */
+const CHAMBER_MIN_DEPTH_M = 0.1;
+
 /**
- * The box of a folded horn (spec v0.14): six walls, one septum panel per fold, a rectangular mouth on the front when the leg
- * count is even, and the throat opening at the top front where the throat chamber joins.
+ * The box of a folded horn (spec v0.14), with the driver's chamber built into its top: six walls, a shelf over the first leg
+ * (the chamber sits on it, the full width and as deep as its air needs, with a back wall of its own when shallower than the box),
+ * one septum panel per fold, a rectangular mouth on the front when the leg count is even, and the opening in the shelf where the
+ * chamber meets the first leg.
  */
-function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number, title = 'Folded horn'): Cabinet {
-  const g: P.BoxGeometry = { wI: f.wI, hI: f.hI, dI: f.dI, wO: f.wO, hO: f.hO, dO: f.dO, braces: 0, netM3: 0 };
+function foldedCabinet(f: P.FoldLayout, throatM2: number, t: number, title = 'Folded horn', ch?: ChamberSpec): Cabinet {
+  const wI = f.wI;
+  let hcI = 0;
+  let dc = 0;
+  let throatD = 0;
+  if (ch) {
+    const dia = ch.driver.diameterM + 2 * HOLE_MARGIN;
+    if (ch.driverOn === 'front') {
+      hcI = Math.max(dia, ch.airM3 / (wI * f.dI));
+      dc = Math.min(f.dI, Math.max(ch.airM3 / (wI * hcI), CHAMBER_MIN_DEPTH_M));
+    } else {
+      const h0 = Math.max(CHAMBER_MIN_DEPTH_M, ch.airM3 / (wI * f.dI));
+      dc = Math.min(f.dI, Math.max(ch.airM3 / (wI * h0), dia));
+      hcI = Math.max(CHAMBER_MIN_DEPTH_M, ch.airM3 / (wI * dc));
+    }
+    throatD = ch.driverOn === 'shelf' ? ch.driver.diameterM : Math.min(throatM2 / wI, dc);
+  }
+  const extra = ch ? hcI + t : 0; // the chamber and its roof sit above the legs; the old top wall is the shelf
+  const g: P.BoxGeometry = { wI, hI: f.hI + extra, dI: f.dI, wO: f.wO, hO: f.hO + extra, dO: f.dO, braces: 0, netM3: 0 };
   const panels = P.boxPanels(g, t, false);
+  if (ch) {
+    panels.push({ name: 'Chamber shelf', l: wI, w: f.dI, qty: 1 });
+    if (dc < f.dI - 1e-9) panels.push({ name: 'Chamber back wall', l: wI, w: hcI, qty: 1 });
+  }
   // a sloped septum is cut to its length along the slope; the angle is in the name (positive: lower at the back)
   f.septaSlant.forEach((len, k) => panels.push({ name: f.style === 'tapered' ? `Fold septum ${k + 1} (sloped ${(Math.abs(f.septaAngle[k]!) * 180 / Math.PI).toFixed(1)} deg ${f.septaAngle[k]! >= 0 ? 'down to the back' : 'up to the back'})` : `Fold septum ${k + 1}`, l: len, w: f.wI, qty: 1 }));
   g.netM3 = f.wI * f.hI * f.dI - f.septaSlant.reduce((a, l) => a + f.wI * l * t, 0);
   const rect = (w: number, h: number): Cutout => ({ kind: 'port', shape: 'rect', wM: w, hM: h, diameterM: Math.max(w, h) });
-  const throat = rect(f.wI, Math.min(throatM2 / f.wI, f.heightsFront[0]!));
-  const holes: Hole[] = [{ ...throat, cx: f.wO / 2, cy: t + f.heightsFront[0]! / 2 }];
-  const cutouts: Cutout[] = [throat];
+  const holes: Hole[] = [];
+  const cutouts: Cutout[] = [];
+  if (ch?.driverOn === 'front') {
+    holes.push({ ...ch.driver, cx: f.wO / 2, cy: t + hcI / 2 });
+    cutouts.push(ch.driver);
+  } else if (ch) cutouts.push(ch.driver); // on the shelf: not a baffle hole, but still a driver hole to gasket
+  if (!ch) {
+    const throat = rect(f.wI, Math.min(throatM2 / f.wI, f.heightsFront[0]!));
+    holes.push({ ...throat, cx: f.wO / 2, cy: t + f.heightsFront[0]! / 2 });
+    cutouts.push(throat);
+  }
   if (f.mouthAtFront) {
     const last = f.heightsFront[f.heightsFront.length - 1]!;
     const mouth = rect(f.wI, last);
-    holes.push({ ...mouth, cx: f.wO / 2, cy: f.hO - t - last / 2 });
+    holes.push({ ...mouth, cx: f.wO / 2, cy: g.hO - t - last / 2 });
     cutouts.push(mouth);
   }
   const septaArea = f.septaSlant.reduce((a, l) => a + 2 * f.wI * l, 0);
-  return { title, geometry: g, panels, cutouts, holes, fold: f, liningM2: ceilTenth(2 * (f.wI * f.hI + f.wI * f.dI + f.hI * f.dI) - f.wI * f.hI + septaArea) };
+  const chamberAir = wI * hcI * dc;
+  return { title, geometry: g, panels, cutouts, holes, fold: f, ...(ch ? { chamber: { heightM: hcI, depthM: dc, airM3: chamberAir, driverOn: ch.driverOn, throatDepthM: throatD, driverM: ch.driver.diameterM } } : {}), liningM2: ceilTenth(2 * (f.wI * g.hI + f.wI * f.dI + g.hI * f.dI) - f.wI * g.hI + septaArea) };
 }
 
-/** Least depth of the box the driver sits in when the transmission line has no chamber of its own, m (an assumption: the driver's frame and magnet). */
-const TL_COUPLING_DEPTH_M = 0.1;
+/** Warning when the chamber built into a folded box had to hold more air than designed. */
+function chamberAirWarning(name: string, c: Cabinet, designedM3: number, u: Units): string | null {
+  const ch = c.chamber;
+  if (!ch || ch.airM3 <= designedM3 * (1 + 1e-6)) return null;
+  const L = (m3: number): number => Math.round(m3 * 1000 * 10) / 10;
+  return `${name}: the driver's chamber is built into the top of the folded box at its full ${fl(c.geometry.wI, u)} width, and the driver (${fl(ch.driverM, u)} across) and its frame need at least that much room, so it holds ${L(ch.airM3)} L, more than the ${L(designedM3)} L designed. A narrower horn gives a smaller chamber.`;
+}
+
 
 /**
  * The cabinet of a TQWT (spec v0.17): a straight column with a flat front (the baffle, driver on it), a closed top, the mouth open at
@@ -371,14 +426,12 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     const sug = P.suggestFoldProfile(profile, Math.max(0.25, 1.5 * Math.sqrt(geo.startM2)), t, 'stepped');
     if (sug) {
       const f = P.foldProfile(profile, sug.widthM, sug.legs, sug.depthOutM, t, 'stepped');
-      // the driver sits in a box that joins the line start: the model's own chamber when it has one, else a coupling box. Either is shaped
-      // so the baffle holds the driver (a square-ish baffle one hole wide) at least TL_COUPLING_DEPTH_M deep.
-      const side = driverHole.diameterM + 2 * HOLE_MARGIN;
-      const chamberM3 = Math.max(geo.chamberM3, TL_COUPLING_DEPTH_M * 1.15 * side * side);
-      const depth = chamberM3 / (1.15 * side * side);
-      cabinets.push(cabinet('Chamber behind the cone', chamberM3, dDisp, b, t, false, [driverHole], { rw: 1, rh: 1.15, rd: depth / side }));
-      cabinets.push(foldedCabinet(f, geo.startM2, t, 'Transmission line'));
-      if (geo.chamberM3 < chamberM3 - 1e-9) warnings.push(`${name}: the driver needs a box to sit in, so the cut list adds a ${Math.round(chamberM3 * 1000 * 10) / 10} L box for it, joined to the line start; the simulation has ${Math.round(geo.chamberM3 * 1000 * 10) / 10} L there. The box is the smallest that holds the driver's baffle ${fl(TL_COUPLING_DEPTH_M, u)} deep, so the real line has more air at its closed end than the simulated one: expect a slightly lower line resonance.`);
+      // one cabinet: the driver's chamber (the model's own, or a minimal one for the frame and magnet) is built into the top of the line's box
+      const air = geo.chamberM3 + dDisp;
+      const lineCab = foldedCabinet(f, geo.startM2, t, 'Transmission line', { airM3: air, driver: driverHole, driverOn: 'front' });
+      cabinets.push(lineCab);
+      const aw = chamberAirWarning(name, lineCab, air, u);
+      if (aw) warnings.push(aw);
       warnings.push(`${name}: the line is folded into ${f.heights.length} legs of ${fl(f.leg, u)} (stepped: each leg has one height, the taper's at its middle), ${fl(f.wI, u)} wide inside. The path from the driver to the exit is ${fl(geo.lengthM, u)} and the area tapers from ${Math.round(geo.startM2 * 1e4)} to ${Math.round(geo.exitM2 * 1e4)} cm2 (mean ${Math.round(lineArea * 1e4)} cm2); the exit opens on the front. Bends are not modelled and the simulation treats the line as straight.`);
       if (geo.offset > 0) warnings.push(`${name}: the driver offset along the line is not in the cut list: the line is built from the driver end.`);
     } else {
@@ -431,21 +484,28 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     warnings.push(`${name}: the 6th-order box is one cabinet; the divider belongs ${((d.volumeL / (d.volumeL + d.frontVolumeL)) * 100).toFixed(0)} % of the interior depth from the back, the driver mounts on it, and the rear chamber's ${fl(rearLen, u)} port runs forward through the front chamber to the baffle (its own tube, counted in the port volume). Both ports vent to the room.`);
   } else {
     const rear = d.horn.loading === 'rear';
-    if (rear) {
-      if (d.horn.throatChamberL >= 0.05) cabinets.push(cabinet('Chamber behind the cone', d.horn.throatChamberL / 1000, dDisp, b, t, false, [driverHole]));
-    } else {
-      cabinets.push(cabinet('Rear chamber', d.volumeL / 1000, dDisp, b, t, false, [driverHole]));
-      if (d.horn.throatChamberL >= 0.05) cabinets.push(cabinet('Throat chamber', d.horn.throatChamberL / 1000, 0, b, t, false, []));
-    }
     const view = compute(d, t).horn;
     if (view?.fold) {
       const f = view.fold;
-      cabinets.push(foldedCabinet(f, flareOf(d).throatM2, t));
+      // one cabinet: the driver's chamber is built into the top of the folded box (a front-loaded horn's throat chamber is the space under the shelf)
+      const air = (rear ? Math.max(d.horn.throatChamberL, 0.05) : d.volumeL) / 1000 + dDisp;
+      const foldCab = foldedCabinet(f, flareOf(d).throatM2, t, 'Folded horn', { airM3: air, driver: driverHole, driverOn: rear ? 'front' : 'shelf' });
+      cabinets.push(foldCab);
+      const aw = chamberAirWarning(name, foldCab, air, u);
+      if (aw) warnings.push(aw);
       if (!f.feasible) warnings.push(`${name}: ${d.horn.legs} folds cannot fit this flare at ${fl(d.horn.widthCm / 100, u)} wide: the turns alone are longer than the horn. The cut list is a stand-in; use fewer folds or a wider horn.`);
       if (!f.mouthAtFront) warnings.push(`${name}: an odd number of legs ends the horn at the back of the box, so the folded box has no mouth on the front. Use an even number of legs.`);
       if (f.dI > d.horn.depthCm / 100 - 2 * t + 1e-9) warnings.push(`${name}: ${d.horn.legs} legs need ${fl(f.dO, u)} of outside depth, more than the ${fl(d.horn.depthCm / 100, u)} asked for: the folded box is built ${fl(f.dO, u)} deep.`);
-      warnings.push(`${name}: the folded horn is its own box; the driver sits in the chamber beside it and the throat chamber joins the throat opening at the top front. Bends and losses are not modelled.`);
-    } else if (view) {
+      warnings.push(rear ? `${name}: the folded horn is one cabinet: the driver is on the front at the top, its chamber is built behind it above a shelf, and the horn path starts through an opening in the shelf and folds down to the mouth. Bends and losses are not modelled.` : `${name}: the folded horn is one cabinet: the driver hangs from a shelf at the top, facing down into the horn, with its sealed rear chamber above the shelf. The throat chamber is the space under the shelf, not cut separately. Bends and losses are not modelled.`);
+    } else {
+      if (rear) {
+        if (d.horn.throatChamberL >= 0.05) cabinets.push(cabinet('Chamber behind the cone', d.horn.throatChamberL / 1000, dDisp, b, t, false, [driverHole]));
+      } else {
+        cabinets.push(cabinet('Rear chamber', d.volumeL / 1000, dDisp, b, t, false, [driverHole]));
+        if (d.horn.throatChamberL >= 0.05) cabinets.push(cabinet('Throat chamber', d.horn.throatChamberL / 1000, 0, b, t, false, []));
+      }
+    }
+    if (!view?.fold && view) {
       horn = { sections: P.hornPanels(view.table.map((r) => ({ x: r.xCm / 100, h: r.heightCm / 100 })), d.horn.widthCm / 100, t) };
       if (d.horn.panelsCm.trim() === '') warnings.push(`${name}: no panel lengths are entered, so the horn is cut as ${view.table.length - 1} straight sections along the ideal flare. Enter panel lengths on the box page to build it as simulated.`);
     }
@@ -464,7 +524,9 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     }
   }
   const main = cabinets[0];
-  if (custom && main && shared || (custom && main && (d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8'))) {
+  if (main?.fold) {
+    main.magnetOut = lay.mount === 'out';
+  } else if (custom && main && shared || (custom && main && (d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8'))) {
     const g = main.geometry;
     const bh = down ? g.dO : g.hO;
     const split = side ? { front: n, back: 0 } : pushPullSplit(n, lay.pushPull);

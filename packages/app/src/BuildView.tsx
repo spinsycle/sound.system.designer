@@ -294,12 +294,12 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
                 .map((c, i) => (
                   <div key={`${b.name}-fold-${i}`}>
                     <figure className="baffle">
-                      <div className="fold-drawing" aria-label={`${b.name} fold drawing, side view`} dangerouslySetInnerHTML={{ __html: foldSvg(c.fold!, project.shop.thicknessMm / 1000, `${b.name}: folded horn`, project.units) }} />
+                      <div className="fold-drawing" aria-label={`${b.name} fold drawing, side view`} dangerouslySetInnerHTML={{ __html: foldSvg(c.fold!, project.shop.thicknessMm / 1000, `${b.name}: folded horn`, project.units, c.chamber) }} />
                       <figcaption>
                         {b.name}: folded horn, side view, front on the right. {c.fold!.septaLength.length} septa; each runs the width of the box and stops short of one end for the turn.
                       </figcaption>
                     </figure>
-                    <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-fold.svg`, foldSvg(c.fold!, project.shop.thicknessMm / 1000, `${b.name}: folded horn`, project.units), 'image/svg+xml')}>
+                    <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-fold.svg`, foldSvg(c.fold!, project.shop.thicknessMm / 1000, `${b.name}: folded horn`, project.units, c.chamber), 'image/svg+xml')}>
                       Download SVG
                     </button>
                   </div>

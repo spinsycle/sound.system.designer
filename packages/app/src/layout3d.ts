@@ -215,12 +215,32 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   // a folded horn's septa: fixed to the front wall (even index) or the back wall, stopping short of the other for the U-turn.
   // A sloped septum (tapered fold) runs from its top height at one wall to its height at the other, so it is tilted about x.
   const fold = c.fold;
+  const ch = c.chamber;
+  const drop = ch ? ch.heightM + t : 0; // the chamber and its shelf sit above the legs, so the septa measure from lower down
   fold?.septaLength.forEach((len, k) => {
     const front = fold.septaAnchor[k] === 'front';
     const dMid = front ? len / 2 : fold.dI - len / 2; // depth of the plate's middle from the front inner face
     const topMid = fold.septaFrontTop[k]! + ((fold.septaBackTop[k]! - fold.septaFrontTop[k]!) * dMid) / fold.dI;
-    add('divider', [g.wI, t, fold.septaSlant[k]!], 0, g.hO / 2 - t - topMid - t / 2, g.dO / 2 - t - dMid, -fold.septaAngle[k]!);
+    add('divider', [g.wI, t, fold.septaSlant[k]!], 0, g.hO / 2 - t - drop - topMid - t / 2, g.dO / 2 - t - dMid, -fold.septaAngle[k]!);
   });
+  // the driver's chamber at the top of a folded box: a shelf over the first leg with the opening to it (or the driver's hole), and a back
+  // wall when the chamber is shallower than the box
+  if (ch) {
+    const shelfY = g.hO / 2 - t - ch.heightM - t / 2; // centre, from the middle of the box
+    const front = g.dI / 2; // the front inner face, from the middle of the box, along z
+    const shelf = add('divider', [g.wI, t, g.dI], 0, shelfY, 0);
+    shelf.holeAxis = 'y';
+    if (ch.driverOn === 'shelf') shelf.holes = [{ u: 0, v: front - ch.depthM / 2, radius: ch.driverM / 2 }];
+    else shelf.holes = [{ u: 0, v: front - ch.throatDepthM / 2, radius: Math.max(g.wI, ch.throatDepthM) / 2, shape: 'rect', w: g.wI, h: ch.throatDepthM }];
+    if (ch.depthM < g.dI - 1e-9) add('divider', [g.wI, ch.heightM, t], 0, g.hO / 2 - t - ch.heightM / 2, front - ch.depthM - t / 2);
+    if (ch.driverOn === 'shelf') {
+      const x = cx;
+      const zD = z0 - t - ch.depthM / 2;
+      const yBottom = cy + shelfY - t / 2;
+      out.discs.push({ band, kind: 'driver', center: [x, yBottom - LIFT, zD], radius: ch.driverM / 2, tilt: Math.PI / 2 });
+      out.drivers.push({ band, flange: [x, yBottom + t, zD], dir: [0, 1, 0], radius: ch.driverM / 2 });
+    }
+  }
   const motorOut = c.magnetOut === true;
   const rect = (h: ReturnType<typeof holePositions>[number]): Pick<Disc3, 'shape' | 'w' | 'h'> => (h.shape === 'rect' ? { shape: 'rect', w: h.w, h: h.h } : {});
   if (c.facing === 'down') {

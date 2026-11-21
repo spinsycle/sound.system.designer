@@ -84,7 +84,8 @@ describe('transmission line', () => {
     const line = v.bands[0]!.cabinets.find((c) => c.title === 'Transmission line')!;
     expect(line.fold).toBeDefined();
     expect(line.cutouts.some((x) => x.kind === 'port')).toBe(true);
-    expect(v.bands[0]!.cabinets.some((c) => c.title === 'Chamber behind the cone')).toBe(true);
+    expect(line.chamber).toBeDefined(); // the driver's chamber is in the same box
+    expect(v.bands[0]!.cabinets.map((c) => c.title)).toEqual(['Transmission line']);
     expect(v.bom.some((x) => x.item === 'Line stuffing (loose fibre)' && x.qty > 0)).toBe(true);
   });
   it('warns about a thin line and a missing taper', () => {
