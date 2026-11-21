@@ -2,6 +2,12 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## Unreleased
+
+- **Small and mini-system drivers:** nine generic classes (2 in and 2.5 in full-range, 5 in mid, 5 in and 6.5 in sub, 0.5 in dome, 0.75 in, 1.4 in and 2 in compression drivers), appended to the class list so saved projects are unchanged.
+- **Mini horns:** Mini bass horn, Mini mid horn and Mini HF horn starting points on the Box page.
+- **Desktop Jamaican-style stacks:** three PA starting points (mini desktop stack, mini scoop set, micro stack); a starting point can now set the lowest frequency played.
+
 ## 1.10.0 (2026-11-21)
 
 - **Crossover:** a fourth mode beside PA system, Home speaker and Car subwoofer. 2, 3 and 4 ways and a subwoofer split; Butterworth, Linkwitz-Riley, Bessel and Chebyshev, orders 1 to 8 (passive up to 4); polarity advice and time alignment.

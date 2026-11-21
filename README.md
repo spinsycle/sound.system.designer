@@ -33,8 +33,9 @@ SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](do
   numeric solves of their circuits, not against a book (the app says so where they appear). A transmission line is cut as a folded
   box with a chamber for the driver, and a TQWT as a tapered column.
 - **Systems:** up to four bands behind crossovers (Linkwitz-Riley 4 unless you choose another alignment); trim, delay and polarity per band; drivers and wiring; an
-  amplifier per band with load, power and excursion limits and a max-level table; the summed response in dB SPL; eight
-  generic starting points.
+  amplifier per band with load, power and excursion limits and a max-level table; the summed response in dB SPL; eleven
+  generic starting points, including three desktop-size Jamaican-style stacks (mini desktop stack, mini scoop set, micro stack) built
+  from small drivers and small horns. Driver classes run from a 0.5 in dome and 0.75 in compression driver up to 21 in.
 - **Home speakers:** a second mode for one cabinet with several drivers, desktop to floorstanding: 2-way, MTM (D'Appolito),
   WTW, TMM, 3-way and 2.5-way, with dome, planar and woofer classes from 0.75 in to 21 in, a baffle step from the
   baffle width, a crossover between the drivers, and eight starting points. It builds a one-cabinet cut list with the
