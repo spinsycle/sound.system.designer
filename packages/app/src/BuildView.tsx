@@ -264,7 +264,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             </button>
           </div>
           <Scene3D layout={layout} explode={explode} transparent={transparent} speakers={speakers} />
-          <p className="hint">Drag to orbit, scroll or pinch to zoom. One cabinet per band is drawn; braces and dividers show when see-through or exploded. With Show speakers off the driver hole is amber and the port blue; with it on the drivers are drawn installed, motor inside or outside as set on the box page.</p>
+          <p className="hint">Drag to orbit, scroll or pinch to zoom. One cabinet per band is drawn; braces (drawn as window frames) and dividers show when see-through or exploded; every driver and port hole is cut through its baffle. With Show speakers off the driver hole is amber and the port blue; with it on the drivers are drawn installed, motor inside or outside as set on the box page.</p>
         </section>
 
         <section>

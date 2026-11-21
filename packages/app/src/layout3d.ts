@@ -4,7 +4,18 @@
 // code only draws it and the tests can check it against the cut list.
 import type { BuildView, Cabinet } from './buildlist';
 import { holePositions } from './buildlist';
+import { BRACE_BAR } from '@soundsystemdesigner/physics';
 import type { Project } from './system';
+
+/** A hole cut through a plate: centre offset (u across, v up the plate) from the plate's centre, round (radius) or rectangular (w x h), m. */
+export interface Hole3 {
+  u: number;
+  v: number;
+  radius: number;
+  shape?: 'rect';
+  w?: number;
+  h?: number;
+}
 
 export interface Box3 {
   band: number;
@@ -16,6 +27,10 @@ export interface Box3 {
   origin: [number, number, number];
   /** Rotation about the x axis, radians (a sloped septum). */
   tilt?: number;
+  /** Holes cut through the plate (driver and port cut-outs, a brace's window). Absent: a solid box. */
+  holes?: Hole3[];
+  /** The thin direction of a holed plate: 'z' (default, a front or back panel, u = x, v = y) or 'y' (the baffle is the bottom panel, u = x, v = z). */
+  holeAxis?: 'z' | 'y';
 }
 
 export interface Disc3 {
@@ -58,6 +73,8 @@ export interface Prism3 {
   band: number;
   /** Eight corners: the four of the throat end (z lower), then the four of the mouth end. */
   points: [number, number, number][];
+  /** A plate with holes (the sloping baffle of a wedge): u across from the left edge of the face, v up from its bottom edge. */
+  holes?: Hole3[];
 }
 
 export interface Layout3 {
@@ -69,6 +86,8 @@ export interface Layout3 {
   /** Overall width, height and depth. */
   extent: [number, number, number];
 }
+
+const holeOf = (h: ReturnType<typeof holePositions>[number], u: number, v: number): Hole3 => ({ u, v, radius: h.r, ...(h.shape === 'rect' ? { shape: 'rect' as const, w: h.w, h: h.h } : {}) });
 
 /** Gap between neighbouring bands, m. */
 export const GAP = 0.1;
@@ -105,10 +124,12 @@ function wedgeBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
   const xr = cx + wO / 2;
   const A = [face(xl, 0, 0), face(xr, 0, 0), face(xr, hO, -delta), face(xl, hO, -delta)];
   const B = A.map(([x, y, z]) => face(x, y + t * ny, z + t * nz));
-  out.prisms.push({ band, points: [...A, ...B] });
+  const baffle: Prism3 = { band, points: [...A, ...B], holes: [] };
+  out.prisms.push(baffle);
   // holes lie on the slope: cy runs down the baffle from its top edge
   const tilt = -Math.atan2(delta, hO);
   for (const h of holePositions(c)) {
+    baffle.holes!.push(holeOf(h, h.cx, len - h.cy));
     const y = hO - (h.cy * hO) / len;
     const z = -delta + (h.cy * delta) / len;
     out.discs.push({ band, kind: h.kind, center: [cx + h.cx - wO / 2, y - LIFT * ny, z + LIFT * (hO / len)], radius: h.r, tilt, ...(h.shape === 'rect' ? { shape: 'rect' as const, w: h.w, h: h.h } : {}) });
@@ -134,10 +155,12 @@ function columnBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layou
   const xl = cx - g.wO / 2;
   const xr = cx + g.wO / 2;
   const origin: [number, number, number] = [cx, g.hO / 2, -g.dO / 2];
-  const box = (size: Box3['size'], y: number, z: number): void => {
-    out.boxes.push({ band, kind: 'panel', size, center: [cx, y, z], origin });
+  const box = (size: Box3['size'], y: number, z: number): Box3 => {
+    const b: Box3 = { band, kind: 'panel', size, center: [cx, y, z], origin };
+    out.boxes.push(b);
+    return b;
   };
-  box([g.wO, g.hO, t], g.hO / 2, -t / 2); // front baffle, full height
+  const front = box([g.wO, g.hO, t], g.hO / 2, -t / 2); // front baffle, full height
   box([g.wO, t, col.depthTopI + t], g.hO - t / 2, -t - (col.depthTopI + t) / 2); // closed top
   for (const s of col.sections) {
     const y1 = L - s.x1;
@@ -156,6 +179,7 @@ function columnBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layou
     out.prisms.push({ band, points: [...back(y1, s.d1), ...back(y2, s.d2)] });
   }
   for (const h of holePositions(c)) {
+    (front.holes ??= []).push(holeOf(h, h.cx - g.wO / 2, g.hO / 2 - h.cy));
     out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, g.hO - h.cy, LIFT], radius: h.r });
     if (h.kind === 'driver') out.drivers.push({ band, flange: [cx + h.cx - g.wO / 2, g.hO - h.cy, 0], dir: [0, 0, -1], radius: h.r });
   }
@@ -168,16 +192,23 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   const cy = g.hO / 2 + lift;
   const cz = z0 - g.dO / 2; // the baffle is the front: z0 is its outer face
   const origin: [number, number, number] = [cx, cy, cz];
-  const add = (kind: Box3['kind'], size: Box3['size'], dx: number, dy: number, dz: number, tilt?: number): void => {
-    out.boxes.push({ band, kind, size, center: [cx + dx, cy + dy, cz + dz], origin, ...(tilt ? { tilt } : {}) });
+  const add = (kind: Box3['kind'], size: Box3['size'], dx: number, dy: number, dz: number, tilt?: number): Box3 => {
+    const b: Box3 = { band, kind, size, center: [cx + dx, cy + dy, cz + dz], origin, ...(tilt ? { tilt } : {}) };
+    out.boxes.push(b);
+    return b;
   };
-  add('panel', [g.wO, g.hO, t], 0, 0, g.dO / 2 - t / 2); // front baffle
-  add('panel', [g.wO, g.hO, t], 0, 0, -g.dO / 2 + t / 2); // back
+  const frontPlate = add('panel', [g.wO, g.hO, t], 0, 0, g.dO / 2 - t / 2); // front baffle
+  const backPlate = add('panel', [g.wO, g.hO, t], 0, 0, -g.dO / 2 + t / 2); // back
   add('panel', [g.wO, t, g.dO - 2 * t], 0, g.hO / 2 - t / 2, 0); // top
-  add('panel', [g.wO, t, g.dO - 2 * t], 0, -g.hO / 2 + t / 2, 0); // bottom
+  const bottomPlate = add('panel', [g.wO, t, g.dO - 2 * t], 0, -g.hO / 2 + t / 2, 0); // bottom
   add('panel', [t, g.hO - 2 * t, g.dO - 2 * t], g.wO / 2 - t / 2, 0, 0); // sides
   add('panel', [t, g.hO - 2 * t, g.dO - 2 * t], -g.wO / 2 + t / 2, 0, 0);
-  for (let k = 1; k <= g.braces; k++) add('brace', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + (g.dI * k) / (g.braces + 1));
+  // a window brace is a frame: bars BRACE_BAR wide round an opening (solid when the bars would meet)
+  const frame: Hole3[] = g.wI > 2 * BRACE_BAR && g.hI > 2 * BRACE_BAR ? [{ u: 0, v: 0, radius: 0, shape: 'rect', w: g.wI - 2 * BRACE_BAR, h: g.hI - 2 * BRACE_BAR }] : [];
+  for (let k = 1; k <= g.braces; k++) {
+    const b = add('brace', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + (g.dI * k) / (g.braces + 1));
+    if (frame.length) b.holes = frame;
+  }
   for (const share of dividerShares) add('divider', [g.wI, g.hI, t], 0, 0, -g.dI / 2 + g.dI * share);
   // a speaker's chamber shelves lie flat, wI x dI, at the depth the cut list's air shares put them
   for (const fromTop of c.shelves ?? []) add('divider', [g.wI, t, g.dI], 0, g.hO / 2 - t - fromTop, 0);
@@ -194,7 +225,9 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
   const rect = (h: ReturnType<typeof holePositions>[number]): Pick<Disc3, 'shape' | 'w' | 'h'> => (h.shape === 'rect' ? { shape: 'rect', w: h.w, h: h.h } : {});
   if (c.facing === 'down') {
     // the baffle is the bottom panel: cy runs back from the front edge, the discs lie flat facing the floor
+    bottomPlate.holeAxis = 'y';
     for (const h of holePositions(c)) {
+      (bottomPlate.holes ??= []).push(holeOf(h, h.cx - g.wO / 2, g.dO / 2 - h.cy));
       out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, lift - LIFT, z0 - h.cy], radius: h.r, tilt: Math.PI / 2, ...rect(h) });
       if (h.kind === 'driver') {
         const mo = h.magnetOut ?? motorOut;
@@ -203,6 +236,7 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
     }
   } else {
     for (const h of holePositions(c)) {
+      (frontPlate.holes ??= []).push(holeOf(h, h.cx - g.wO / 2, g.hO / 2 - h.cy));
       out.discs.push({ band, kind: h.kind, center: [cx + h.cx - g.wO / 2, g.hO - h.cy, z0 + LIFT], radius: h.r, ...rect(h) });
       if (h.kind === 'driver') {
         const mo = h.magnetOut ?? motorOut;
@@ -215,6 +249,7 @@ function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: numbe
     const x = cx + g.wO / 2 - h.cx;
     const y = c.facing === 'down' ? lift + g.hO - h.cy : g.hO - h.cy;
     const zb = z0 - g.dO;
+    (backPlate.holes ??= []).push(holeOf(h, g.wO / 2 - h.cx, g.hO / 2 - h.cy));
     out.discs.push({ band, kind: h.kind, center: [x, y, zb - LIFT], radius: h.r, rotY: Math.PI });
     if (h.kind === 'driver') out.drivers.push({ band, flange: [x, y, zb + (motorOut ? t : 0)], dir: motorOut ? [0, 0, -1] : [0, 0, 1], radius: h.r });
   }

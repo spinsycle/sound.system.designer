@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { Layout3 } from './layout3d';
+import type { Hole3, Layout3 } from './layout3d';
 
 const BAND_COLOURS = [0x6fb6c9, 0x9ccf7a, 0xd9a6e0, 0xf08a6c];
 const colour = (band: number): number => BAND_COLOURS[band % BAND_COLOURS.length]!;
@@ -27,6 +27,32 @@ function disposeGroup(g: THREE.Group): void {
     }
   });
   g.clear();
+}
+
+/** A plate w x h x t centred on the origin (thin along z) with the holes cut through it. */
+function plate(w: number, h: number, t: number, holes: Hole3[]): THREE.BufferGeometry {
+  const shape = new THREE.Shape();
+  shape.moveTo(-w / 2, -h / 2);
+  shape.lineTo(w / 2, -h / 2);
+  shape.lineTo(w / 2, h / 2);
+  shape.lineTo(-w / 2, h / 2);
+  shape.closePath();
+  for (const o of holes) {
+    const p = new THREE.Path();
+    if (o.shape === 'rect') {
+      const a = o.w! / 2;
+      const b = o.h! / 2;
+      p.moveTo(o.u - a, o.v - b);
+      p.lineTo(o.u + a, o.v - b);
+      p.lineTo(o.u + a, o.v + b);
+      p.lineTo(o.u - a, o.v + b);
+      p.closePath();
+    } else p.absarc(o.u, o.v, o.radius, 0, Math.PI * 2, false);
+    shape.holes.push(p);
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false, curveSegments: 32 });
+  geo.translate(0, 0, -t / 2);
+  return geo;
 }
 
 function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean, speakers: boolean): void {
@@ -52,7 +78,14 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean,
     const c = new THREE.Vector3(...b.center);
     c.add(c.clone().sub(o).multiplyScalar(explode));
     if (b.kind !== 'panel' && !transparent && explode === 0) continue; // inside a solid box: nothing to see
-    addMesh(new THREE.BoxGeometry(...b.size), colour(b.band), b.kind === 'panel' ? opacity : 0.9, c, b.tilt ?? 0);
+    let geo: THREE.BufferGeometry;
+    if (b.holes?.length && b.holeAxis === 'y') {
+      // the baffle is the bottom panel: draw the plate in x-y with v running along -z, then lay it flat
+      geo = plate(b.size[0], b.size[2], b.size[1], b.holes.map((o) => ({ ...o, v: -o.v })));
+      geo.rotateX(-Math.PI / 2);
+    } else if (b.holes?.length) geo = plate(b.size[0], b.size[1], b.size[2], b.holes);
+    else geo = new THREE.BoxGeometry(...b.size);
+    addMesh(geo, b.kind === 'brace' ? 0xc9a36b : colour(b.band), b.kind === 'panel' ? opacity : 0.9, c, b.tilt ?? 0);
   }
   for (const q of layout.prisms) {
     // eight corners: the throat quad then the mouth quad, each in order bottom-left, bottom-right, top-right, top-left
@@ -62,6 +95,19 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean,
     geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
     geo.setIndex(idx);
     geo.computeVertexNormals();
+    if (q.holes?.length) {
+      // the wedge's sloping baffle: a holed plate on the face's own axes (x across, y up the slope, z out of the face)
+      const [a0, a1, , a3, b0] = q.points.map((pt) => new THREE.Vector3(...pt)) as [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];
+      const ex = a1.clone().sub(a0);
+      const ey = a3.clone().sub(a0);
+      const thick = b0.clone().sub(a0).length();
+      const ez = ex.clone().normalize().cross(ey.clone().normalize());
+      const pg = plate(ex.length(), ey.length(), thick, q.holes.map((o) => ({ ...o, u: o.u - ex.length() / 2, v: o.v - ey.length() / 2 })));
+      const mid = a0.clone().addScaledVector(ex, 0.5).addScaledVector(ey, 0.5).addScaledVector(ez, -thick / 2);
+      pg.applyMatrix4(new THREE.Matrix4().makeBasis(ex.normalize(), ey.normalize(), ez).setPosition(mid));
+      addMesh(pg, colour(q.band), opacity, new THREE.Vector3(0, 0, 0));
+      continue;
+    }
     addMesh(geo, colour(q.band), opacity, new THREE.Vector3(0, 0, 0));
   }
   for (const t of layout.tubes) {
@@ -101,19 +147,25 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean,
   }
   for (const dsc of layout.discs) {
     if (speakers && dsc.kind === 'driver') continue; // the installed driver stands in for the hole marker
-    const geo = dsc.shape === 'rect' ? new THREE.PlaneGeometry(dsc.w!, dsc.h!) : new THREE.CircleGeometry(dsc.radius, 48);
-    const mat = new THREE.MeshBasicMaterial({ color: dsc.kind === 'port' ? 0x6fb6c9 : 0xffb040, side: THREE.DoubleSide });
-    const mesh = new THREE.Mesh(geo, mat);
+    // the holes are cut in the plates now: mark each with an amber (driver) or blue (port) rim round it
+    const rim = new THREE.Shape();
+    const hole = new THREE.Path();
+    if (dsc.shape === 'rect') {
+      const a = dsc.w! / 2;
+      const b = dsc.h! / 2;
+      const m = 0.012;
+      rim.moveTo(-a - m, -b - m); rim.lineTo(a + m, -b - m); rim.lineTo(a + m, b + m); rim.lineTo(-a - m, b + m); rim.closePath();
+      hole.moveTo(-a, -b); hole.lineTo(a, -b); hole.lineTo(a, b); hole.lineTo(-a, b); hole.closePath();
+    } else {
+      rim.absarc(0, 0, dsc.radius * 1.08, 0, Math.PI * 2, false);
+      hole.absarc(0, 0, dsc.radius, 0, Math.PI * 2, false);
+    }
+    rim.holes.push(hole);
+    const mesh = new THREE.Mesh(new THREE.ShapeGeometry(rim, 48), new THREE.MeshBasicMaterial({ color: dsc.kind === 'port' ? 0x6fb6c9 : 0xffb040, side: THREE.DoubleSide }));
     mesh.position.set(...dsc.center);
     mesh.rotation.x = dsc.tilt ?? 0;
     mesh.rotation.y = dsc.rotY ?? 0;
     rig.group.add(mesh);
-    const dark = new THREE.Mesh(dsc.shape === 'rect' ? new THREE.PlaneGeometry(dsc.w! * 0.92, dsc.h! * 0.82) : new THREE.CircleGeometry(dsc.radius * 0.92, 48), new THREE.MeshBasicMaterial({ color: 0x0c0d0c }));
-    dark.rotation.x = dsc.tilt ?? 0;
-    dark.rotation.y = dsc.rotY ?? 0;
-    const sgn = Math.cos(dsc.rotY ?? 0);
-    dark.position.set(dsc.center[0], dsc.center[1] + 0.0005 * Math.sin(-(dsc.tilt ?? 0)), dsc.center[2] + 0.0005 * Math.cos(dsc.tilt ?? 0) * sgn);
-    rig.group.add(dark);
   }
   edge.dispose();
   if (!rig.framed) {

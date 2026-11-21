@@ -35,6 +35,12 @@ describe('cabinet boxes', () => {
     expect(hi[2]!).toBeCloseTo(0, 12);
   });
 
+  it('every driver and port hole is cut in the front baffle, where its marker sits', () => {
+    const front = lay.boxes.find((b) => b.kind === 'panel' && b.size[2] < 0.1 && b.center[2] > -0.1)!;
+    expect(front.holes).toHaveLength(lay.discs.length);
+    expect(front.holes!.length).toBeGreaterThan(0);
+  });
+
   it('panels do not overlap each other (they only touch)', () => {
     const ps = lay.boxes.filter((b) => b.kind === 'panel');
     for (const a of ps)
