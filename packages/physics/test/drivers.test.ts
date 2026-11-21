@@ -4,7 +4,7 @@ import * as P from '../src/index';
 describe('driver classes (H1)', () => {
   it('the plugin eight come first and in order; new classes only ever append', () => {
     expect(P.ALL_DRIVER_CLASSES.slice(0, P.DRIVER_CLASSES.length)).toEqual([...P.DRIVER_CLASSES]);
-    expect(P.ALL_DRIVER_CLASSES.map((d) => d.name).slice(8)).toEqual(['3 in', '4 in', '5.25 in', '3 in mid', '4 in mid', '0.75 in dome', '1 in dome', '1.25 in dome', 'Planar tweeter', '8 in car sub', '10 in car sub', '12 in car sub', '15 in car sub', '10 in shallow sub', '12 in shallow sub', '5.25 in door', '6.5 in door', '6x9 door', '5.25 in coax', '6.5 in coax', '6x9 coax']);
+    expect(P.ALL_DRIVER_CLASSES.map((d) => d.name).slice(8)).toEqual(['3 in', '4 in', '5.25 in', '3 in mid', '4 in mid', '0.75 in dome', '1 in dome', '1.25 in dome', 'Planar tweeter', '8 in car sub', '10 in car sub', '12 in car sub', '15 in car sub', '10 in shallow sub', '12 in shallow sub', '5.25 in door', '6.5 in door', '6x9 door', '5.25 in coax', '6.5 in coax', '6x9 coax', '2 in full-range', '2.5 in full-range', '5 in mid', '5 in sub', '6.5 in sub', '0.5 in dome', '0.75 in compression', '1.4 in HF', '2 in HF']);
     expect(new Set(P.ALL_DRIVER_CLASSES.map((d) => d.name)).size).toBe(P.ALL_DRIVER_CLASSES.length);
   });
 

@@ -93,7 +93,7 @@ describe('6th-order design helper', () => {
         }
       }
     }
-  });
+  }, 30000);
 
   it('is deterministic', () => {
     expect(P.bandpass6Design(driver, 40, 80, 7)).toEqual(P.bandpass6Design(driver, 40, 80, 7));

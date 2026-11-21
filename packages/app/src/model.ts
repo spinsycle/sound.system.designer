@@ -353,6 +353,8 @@ export const DEFAULT_DESIGN: Design = {
   horn: { loading: 'front', flare: 'exponential', cutoffHz: 40, t: 0.6, throatCm2: 500, mouthCm2: 8000, lengthM: 1.5, throatChamberL: 2, widthCm: 60, panelsCm: '', fold: false, legs: 4, depthCm: 100, foldStyle: 'stepped' },
 };
 
+const classNamed = (name: string): number => P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === name);
+
 /** Generic starting points. Invented values, not any product. */
 export const HORN_PRESETS: readonly { label: string; patch: Partial<Design> }[] = [
   { label: 'Bass horn', patch: { driverClass: 3, volumeL: 60, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn } } },
@@ -364,6 +366,19 @@ export const HORN_PRESETS: readonly { label: string; patch: Partial<Design> }[] 
   {
     label: 'HF horn',
     patch: { driverClass: 7, volumeL: 0.1, plotRange: 'high', horn: { ...DEFAULT_DESIGN.horn, flare: 'tractrix', cutoffHz: 600, throatCm2: 5, mouthCm2: 260, throatChamberL: 0, widthCm: 15 } },
+  },
+  // desktop-size horns (generic): a 6.5 in sub bin, a 4 in mid horn and a 0.75 in compression-driver horn
+  {
+    label: 'Mini bass horn',
+    patch: { driverClass: classNamed('6.5 in sub'), volumeL: 6, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn, cutoffHz: 160, throatCm2: 40, mouthCm2: 900, throatChamberL: 1, lengthM: 0.5, widthCm: 25 } },
+  },
+  {
+    label: 'Mini mid horn',
+    patch: { driverClass: classNamed('4 in mid'), volumeL: 0.5, plotRange: 'low', horn: { ...DEFAULT_DESIGN.horn, flare: 'hyperbolic', cutoffHz: 400, t: 0.7, throatCm2: 15, mouthCm2: 250, throatChamberL: 0.05, widthCm: 15 } },
+  },
+  {
+    label: 'Mini HF horn',
+    patch: { driverClass: classNamed('0.75 in compression'), volumeL: 0.1, plotRange: 'high', horn: { ...DEFAULT_DESIGN.horn, flare: 'tractrix', cutoffHz: 1500, throatCm2: 2, mouthCm2: 42, throatChamberL: 0, widthCm: 7 } },
   },
 ];
 

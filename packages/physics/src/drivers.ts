@@ -68,10 +68,24 @@ export const EXTRA_DRIVER_CLASSES: readonly DriverSpec[] = [
   { name: '5.25 in coax', fs: 75, qes: 0.85, qms: 3.5, vasM3: 0.006, sd: 0.0088, re: 3.6, xmax: 0.005, pe: 70 },
   { name: '6.5 in coax', fs: 65, qes: 0.8, qms: 3.5, vasM3: 0.012, sd: 0.014, re: 3.6, xmax: 0.006, pe: 90 },
   { name: '6x9 coax', fs: 60, qes: 0.75, qms: 3.5, vasM3: 0.02, sd: 0.021, re: 3.6, xmax: 0.007, pe: 110 },
+  // small and mini-system drivers (generic invented values): full-range and midrange cones down to 2 in, small subs, dome tweeters
+  // and compression drivers from 0.75 to 2 in, for desktop-size stacks and small horn-loaded tops.
+  { name: '2 in full-range', fs: 200, qes: 0.8, qms: 3, vasM3: 0.0003, sd: 0.0013, re: 4.0, xmax: 0.0015, pe: 10 },
+  { name: '2.5 in full-range', fs: 160, qes: 0.7, qms: 3, vasM3: 0.0005, sd: 0.002, re: 4.0, xmax: 0.002, pe: 15 },
+  { name: '5 in mid', fs: 110, qes: 0.55, qms: 3.5, vasM3: 0.0028, sd: 0.0075, re: 6.0, xmax: 0.0028, pe: 50 },
+  { name: '5 in sub', fs: 50, qes: 0.6, qms: 4, vasM3: 0.0035, sd: 0.0085, re: 4.0, xmax: 0.006, pe: 60 },
+  { name: '6.5 in sub', fs: 42, qes: 0.55, qms: 4, vasM3: 0.01, sd: 0.014, re: 4.0, xmax: 0.008, pe: 100 },
+  { name: '0.5 in dome', fs: 2500, qes: 1.2, qms: 2.5, vasM3: 0.000002, sd: 0.00013, re: 4.0, xmax: 0.0003, pe: 10 },
+  { name: '0.75 in compression', fs: 900, qes: 0.35, qms: 3, vasM3: 0.000001, sd: 0.00035, re: 8.0, xmax: 0.0004, pe: 15 },
+  { name: '1.4 in HF', fs: 600, qes: 0.28, qms: 3, vasM3: 0.000003, sd: 0.0012, re: 8.0, xmax: 0.0007, pe: 60 },
+  { name: '2 in HF', fs: 450, qes: 0.25, qms: 3, vasM3: 0.000008, sd: 0.0022, re: 8.0, xmax: 0.001, pe: 100 },
 ];
 
 /** Every class the app offers: the plugin's eight, then the app's own. Indices are stored in projects, so only ever append. */
 export const ALL_DRIVER_CLASSES: readonly DriverSpec[] = [...DRIVER_CLASSES, ...EXTRA_DRIVER_CLASSES];
+
+/** Index of the first small / mini-system class (the car page's class lists skip these). */
+export const FIRST_SMALL_CLASS = ALL_DRIVER_CLASSES.findIndex((d) => d.name === '2 in full-range');
 
 export interface DriverDerived {
   qts: number;

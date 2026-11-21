@@ -149,9 +149,13 @@ export const DEFAULT_PROJECT: Project = {
   xo: DEFAULT_XO,
 };
 
+const cn = (name: string): number => P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === name);
+
 interface Template {
   label: string;
   description: string;
+  /** Lowest frequency played; the project's current value is kept when absent. */
+  lowestHz?: number;
   xover: number[];
   bands: Band[];
 }
@@ -189,6 +193,37 @@ export const TEMPLATES: readonly Template[] = [
     description: 'Two-way: an 18 in scoop and one 8 in horn-loaded top, crossed at 250 Hz.',
     xover: [250],
     bands: [band(scoop(3, 50, 600, 4000, 1.0)), band(bin(5, 6, 80, 800, 0.2, true))],
+  },
+  // desktop-size stacks: small drivers and small horns. A small horn flares out at a high frequency, so the mid and top horns here
+  // are crossed above their cutoffs and the scoop only plays the upper bass; the ported 6.5 in sub carries the low end.
+  {
+    label: 'Jamaican-style: mini desktop stack',
+    description: 'Three-way, desktop size: a 6.5 in ported sub, a 4 in mid horn and a 0.75 in compression-driver horn; 500 Hz and 2.8 kHz. Plays from about 60 Hz.',
+    xover: [500, 2800],
+    lowestHz: 60,
+    bands: [
+      band({ driverClass: cn('6.5 in sub'), type: 'ported', volumeL: 6, tuneHz: 55 }),
+      band(bin(cn('4 in mid'), 0.5, 15, 250, 0.2, true)),
+      band(bin(cn('0.75 in compression'), 0.1, 2, 42, 0.06, true), { invert: true }),
+    ],
+  },
+  {
+    label: 'Jamaican-style: mini scoop set',
+    description: 'Three-way, desktop size: a 6.5 in rear-loaded scoop, a 4 in mid horn and a 0.75 in compression-driver horn; 450 Hz and 2.8 kHz. Plays from about 110 Hz: a scoop this small cannot go lower.',
+    xover: [450, 2800],
+    lowestHz: 110,
+    bands: [
+      band(scoop(cn('6.5 in sub'), 3, 40, 500, 0.4)),
+      band(bin(cn('4 in mid'), 0.5, 15, 250, 0.2, true)),
+      band(bin(cn('0.75 in compression'), 0.1, 2, 42, 0.06, true), { invert: true }),
+    ],
+  },
+  {
+    label: 'Jamaican-style: micro stack',
+    description: 'Two-way, smaller than a shoebox: a 5 in sealed mid-bass and a 0.75 in compression-driver horn, crossed at 2.8 kHz. Plays from about 200 Hz.',
+    xover: [2800],
+    lowestHz: 200,
+    bands: [band({ driverClass: cn('5 in mid'), type: 'sealed', volumeL: 1.5 }), band(bin(cn('0.75 in compression'), 0.1, 2, 42, 0.06, true), { invert: true })],
   },
 ];
 
@@ -444,7 +479,7 @@ export function levelTrims(p: Project): number[] {
 export function applyTemplate(p: Project, index: number): Project {
   const t = TEMPLATES[index]!;
   const bands = DEFAULT_BANDS().map((def, k) => t.bands[k] ?? def);
-  const next: Project = { ...p, nBands: t.bands.length, xover: DEFAULT_PROJECT.xover.map((x, k) => t.xover[k] ?? x), bands, selected: 0, view: 'system' };
+  const next: Project = { ...p, nBands: t.bands.length, xover: DEFAULT_PROJECT.xover.map((x, k) => t.xover[k] ?? x), bands, selected: 0, view: 'system', lowestHz: t.lowestHz ?? p.lowestHz };
   const trims = levelTrims(next);
   return sanitizeProject({ ...next, bands: bands.map((b, k) => ({ ...b, trimDb: trims[k] ?? 0, ampPowerW: ampJustWithin(driverOf(b.design), b) })) });
 }

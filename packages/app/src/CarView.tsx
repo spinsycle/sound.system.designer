@@ -196,10 +196,10 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
             <label htmlFor="car-class">Driver</label>
             <select id="car-class" value={d.driverClass} onChange={(e) => setDesign({ driverClass: Number(e.target.value) })}>
               <optgroup label="Car subs">
-                {P.ALL_DRIVER_CLASSES.map((k, i) => (i >= FIRST_CAR_CLASS ? <option key={k.name} value={i}>{k.name}</option> : null))}
+                {P.ALL_DRIVER_CLASSES.map((k, i) => (i >= FIRST_CAR_CLASS && i < P.FIRST_SMALL_CLASS ? <option key={k.name} value={i}>{k.name}</option> : null))}
               </optgroup>
               <optgroup label="Other classes">
-                {P.ALL_DRIVER_CLASSES.map((k, i) => (i < FIRST_CAR_CLASS ? <option key={k.name} value={i}>{k.name}</option> : null))}
+                {P.ALL_DRIVER_CLASSES.map((k, i) => (i < FIRST_CAR_CLASS || i >= P.FIRST_SMALL_CLASS ? <option key={k.name} value={i}>{k.name}</option> : null))}
                 <option value={CUSTOM_CLASS}>Custom</option>
               </optgroup>
             </select>

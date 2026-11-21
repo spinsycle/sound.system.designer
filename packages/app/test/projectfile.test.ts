@@ -133,7 +133,7 @@ describe('class numbers are made valid', () => {
     expect(M.sanitize({ driverClass: n }).driverClass).toBe(M.CUSTOM_CLASS);
     expect(M.sanitize({ driverClass: -3 }).driverClass).toBe(0);
     expect(M.sanitize({ driverClass: 2.5 }).driverClass).toBe(M.DEFAULT_DESIGN.driverClass);
-    expect(M.driverOf({ ...M.DEFAULT_DESIGN, driverClass: n - 1 }).name).toBe('6x9 coax');
+    expect(M.driverOf({ ...M.DEFAULT_DESIGN, driverClass: n - 1 }).name).toBe('2 in HF');
     expect(M.driverOf({ ...M.DEFAULT_DESIGN, driverClass: n }).name).toBe('Custom');
   });
 });
