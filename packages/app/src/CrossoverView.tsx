@@ -28,6 +28,7 @@ import { applyOptions, applyToDesign } from './crossoverapply';
 import { applyImport, importFromDesign } from './crossoverimport';
 import { bomCsv, bomLines, eng, outputName, partsCsv, partsList, schematicSvg } from './crossoveroutput';
 import { openText, saveText } from './desktop';
+import { XoComparePanel } from './XoComparePanel';
 import { type Project, sanitizeProject } from './system';
 
 const fmt = (v: number, digits = 1): string => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(digits));
@@ -101,6 +102,7 @@ export function CrossoverView({ project, onChange, onApply, canUndo, onUndo }: {
   const zMax = c.zAmp ? Math.ceil(Math.max(...c.zAmp) / 5) * 5 : 0;
 
   return (
+    <>
     <main>
       <div className="controls">
         <section>
@@ -458,5 +460,7 @@ export function CrossoverView({ project, onChange, onApply, canUndo, onUndo }: {
         )}
       </div>
     </main>
+    <XoComparePanel xo={xo} onUse={setXo} />
+    </>
   );
 }

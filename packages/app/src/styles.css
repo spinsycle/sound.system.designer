@@ -851,3 +851,14 @@ td.left.note-cell {
 .driverranking tr.fav td {
   color: var(--fav);
 }
+
+.comparetable td.best {
+  color: var(--fav);
+}
+.xocompare .comparetable td.left {
+  text-align: left;
+}
+.xocompare,
+.comparepanel {
+  overflow-x: auto;
+}

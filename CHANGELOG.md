@@ -2,6 +2,12 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.13.0 (2026-11-23)
+
+- **Compare crossovers:** on the Crossover page, the same drivers and crossover points through up to four variants of network (active or passive), alignment (Butterworth, Linkwitz-Riley, Bessel, Chebyshev) and order (1 to 8, each 6 dB per octave; passive up to 4), drawn over the current one: summed level, phase and group delay, and the amplifier's impedance when the page is passive. Presets: orders 1 to 4, every alignment at this order, active against passive. A combination that cannot be built is refused with the reason.
+- **The table:** sum flatness (dB rms over the crossover region), how far the filters alone sum from 0 dB within an octave of a crossover, whether the upper driver must be reversed, peak group delay, filter stages (active) or parts (passive), passband loss, the lowest amplifier load, the hottest part, warnings. A passive variant that cannot be built shows its reason. **Use this** makes a variant the crossover on the page.
+- Project file version stays 4; nothing new is stored.
+
 ## 1.12.0 (2026-11-23)
 
 - **Compare box types:** on the box page (not for a horn), the same driver in sealed, ported, passive-radiator, band-pass, 6th- and 8th-order band-pass, transmission-line and TQWT boxes drawn over this one: response, cone excursion with the Xmax line, impedance and group delay, and a table (air, tuning, the -3 dB edges, ripple, peak cone excursion and its share of Xmax, peak group delay, warnings). **Cookbook alignment** sizes each box for the driver (sealed for Qtc 0.707, ported on QB3 at QL 7, the passive-radiator and band-pass designs); **Same air** only changes the type. **Use this** makes a candidate the design.
