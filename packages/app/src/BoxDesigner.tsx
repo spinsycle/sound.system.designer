@@ -4,6 +4,8 @@ import * as P from '@soundsystemdesigner/physics';
 // One box or horn: driver, enclosure, plots. Edits a Design it is given; the app shell owns and stores it.
 import { useMemo, useState } from 'react';
 import { Chart, ProfileChart, niceScale } from './Chart';
+import { DriverPicker } from './drivers/DriverPicker';
+import { type DriverDb, emptyDb } from './drivers/library';
 import { foldSvg } from './export';
 import { LayoutControls, PortControls } from './LayoutControls';
 import {
@@ -78,13 +80,13 @@ export function Field(p: { range: Range; value: number; onChange: (v: number) =>
   );
 }
 
-export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox, wallM }: { design: Design; onChange: (d: Design) => void; count?: number; perBox?: number; onPerBox?: (n: number) => void; wallM?: number }) {
+export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox, wallM, db = emptyDb() }: { design: Design; onChange: (d: Design) => void; count?: number; perBox?: number; onPerBox?: (n: number) => void; wallM?: number; db?: DriverDb }) {
   const [hover, setHover] = useState<number | null>(null);
   const c = useMemo(() => compute(design, wallM), [design, wallM]);
 
   const set = (patch: Partial<Design>): void => onChange(sanitize({ ...design, ...patch }));
   const setHorn = (patch: Partial<HornDesign>): void => set({ horn: { ...design.horn, ...patch } });
-  const isCustom = design.driverClass === CUSTOM_CLASS;
+  const isCustom = design.driverClass === CUSTOM_CLASS && !design.libDriver;
   const isHorn = design.type === 'horn';
   const flare = design.horn.flare;
   const d = c.driver;
@@ -180,17 +182,7 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
         <div className="controls">
           <section>
             <h2>Driver</h2>
-            <div className="field">
-              <label htmlFor="driver-class">Class</label>
-              <select id="driver-class" value={design.driverClass} onChange={(e) => set({ driverClass: Number(e.target.value) })}>
-                {P.ALL_DRIVER_CLASSES.map((k, i) => (
-                  <option key={k.name} value={i}>
-                    {k.name}
-                  </option>
-                ))}
-                <option value={CUSTOM_CLASS}>Custom</option>
-              </select>
-            </div>
+            <DriverPicker id="driver-class" label="Driver" design={design} db={db} onChange={set} />
             {isCustom ? (
               <div className="grid2">
                 {customKeys.map((k) => (
@@ -209,7 +201,7 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
                     </div>
                   ))}
                 </dl>
-                <button type="button" onClick={() => set({ driverClass: CUSTOM_CLASS, custom: sheet })}>
+                <button type="button" onClick={() => set({ driverClass: CUSTOM_CLASS, custom: sheet, libDriver: undefined })}>
                   Edit as Custom
                 </button>
               </>

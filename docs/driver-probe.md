@@ -10,19 +10,8 @@ The page talks to the Driver Probe rig (an ESP32 with an analog front end that s
 
 A second sweep with a small mass stuck to the cone (the **added-mass method**) adds Mms, Cms, Bl and Vas. Sd, Xmax and Pe cannot come from a sweep and are typed in.
 
-## The driver library
+## Saving the driver
 
-![Saved drivers](screenshots/driver-library.png)
+**Save to driver database** adds the record to the [driver database](driver-database.md), where you finish it (Sd, Xmax, Pe and Vas if a sweep could not give them), search it, star it and use it in a design. **Export file** writes a `.driver.json` record; the Drivers page reads one back.
 
-- Saved drivers live on your computer, one per name; saving a name again replaces it.
-- **Export** writes a `.driver.json` record; **Import a driver file** reads one.
-- **Use in design** makes the record the Custom driver of a PA box (it needs Sd, Xmax, Pe and Vas first).
-- A record whose bands are too wide is refused: measure again. A wrong number that looks exact is worse than none.
-
-## Datasheet drivers from a CSV
-
-**Import drivers from CSV** reads a spreadsheet export (comma, semicolon or tab) with one driver per row. **Download CSV template** saves the columns:
-
-`name, fs_hz, qts, qes, qms, re_ohm, vas_l, sd_cm2, xmax_mm, pe_w, le_mh`
-
-A row needs a name, Fs, Re and two of the three Q values; the missing one is derived, and if all three are given they must agree within 10 %. Imported numbers are typed values with a band of 0, marked as datasheet records, not measurements.
+A record whose bands are too wide is refused: measure again. A wrong number that looks exact is worse than none.

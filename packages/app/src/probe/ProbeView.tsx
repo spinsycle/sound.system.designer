@@ -6,13 +6,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chart, niceScale } from '../Chart';
 import { isDesktop } from '../desktop';
 import { type Link, WIFI_DEFAULT_HOST, detectUsb, openWs } from './link';
-import type { CustomDriverFields } from '@soundsystemdesigner/physics';
+import type { DriverDb } from '../drivers/library';
 import { DriverPanel } from './DriverPanel';
 import { ERROR_TEXT, PROBE_VCAP, ProbeSession, type SessionState } from './session';
 
 const pct = (b: number): string => `±${(b * 100).toPrecision(2)} %`;
 
-export function ProbeView({ onClose, canUse, onUse }: { onClose: () => void; canUse: boolean; onUse: (f: CustomDriverFields, name: string) => void }) {
+export function ProbeView({ onClose, db, onDb, onOpenDrivers }: { onClose: () => void; db: DriverDb; onDb: (db: DriverDb) => void; onOpenDrivers: () => void }) {
   const [st, setSt] = useState<SessionState | null>(null);
   const [where, setWhere] = useState('');
   const [msg, setMsg] = useState('');
@@ -225,7 +225,7 @@ export function ProbeView({ onClose, canUse, onUse }: { onClose: () => void; can
         </div>
       )}
 
-      <DriverPanel sweepDone={phase === 'done'} fit={fit} points={st?.points ?? []} probe={st?.hello ? { id: st.hello.id, fw: st.hello.fw } : undefined} canUse={canUse} onUse={onUse} />
+      <DriverPanel sweepDone={phase === 'done'} fit={fit} points={st?.points ?? []} probe={st?.hello ? { id: st.hello.id, fw: st.hello.fw } : undefined} db={db} onDb={onDb} onOpenDrivers={onOpenDrivers} />
     </main>
   );
 }

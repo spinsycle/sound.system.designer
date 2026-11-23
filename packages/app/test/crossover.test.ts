@@ -101,7 +101,7 @@ describe('storage', () => {
   });
 
   it('files: version 3 round-trips the crossover; a version 2 file opens unchanged; a newer one is refused', () => {
-    expect(FILE_VERSION).toBe(3);
+    expect(FILE_VERSION).toBe(4);
     const p = sanitizeProject({ ...DEFAULT_PROJECT, kind: 'crossover', xo: { ...X.DEFAULT_XO, alignment: 'bessel', order: 3, ways: 3 } });
     const back = parseProjectFile(serializeProject(p));
     expect(back.ok).toBe(true);
@@ -110,7 +110,7 @@ describe('storage', () => {
     const o = parseProjectFile(v2);
     expect(o.ok).toBe(true);
     expect(o.project!.xo).toEqual(X.DEFAULT_XO);
-    expect(parseProjectFile(JSON.stringify({ kind: 'sound-system-designer-project', version: 4, project: {} })).ok).toBe(false);
+    expect(parseProjectFile(JSON.stringify({ kind: 'sound-system-designer-project', version: 5, project: {} })).ok).toBe(false);
   });
 });
 

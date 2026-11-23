@@ -13,7 +13,10 @@ import { CrossoverView } from './CrossoverView';
 import { SpeakerView } from './SpeakerView';
 import { SystemView } from './SystemView';
 import { ProbeView } from './probe/ProbeView';
-import { CUSTOM_CLASS, type Design, sanitize } from './model';
+import { DriversView } from './drivers/DriversView';
+import { type DriverDb, loadDb, saveDb } from './drivers/library';
+import { applyDriver, targetsFor } from './drivers/pick';
+import { type Design, sanitize } from './model';
 import { migrateDesignV1, migrateProjectV1 } from './migrate';
 import type { Loudspeaker } from './loudspeaker';
 import type { CarSub } from './carsub';
@@ -47,6 +50,14 @@ export function App() {
   const [fileMsg, setFileMsg] = useState('');
   /** The Driver Probe page replaces the design while it is open. */
   const [probeOpen, setProbeOpen] = useState(false);
+  /** The Drivers page replaces the design while it is open. */
+  const [driversOpen, setDriversOpen] = useState(false);
+  /** The driver database, shared by the Drivers page and the Probe page. */
+  const [db, setDb] = useState<DriverDb>(() => loadDb());
+  const changeDb = (next: DriverDb): void => {
+    setDb(next);
+    if (!saveDb(next)) setFileMsg('The drivers could not be remembered: browser storage is unavailable or full. Export the library as a file instead.');
+  };
 
   useEffect(() => {
     try {
@@ -133,7 +144,10 @@ export function App() {
           <button type="button" onClick={openProject}>
             Open project
           </button>
-          <button type="button" aria-pressed={probeOpen} onClick={() => setProbeOpen(!probeOpen)}>
+          <button type="button" aria-pressed={driversOpen} onClick={() => { setDriversOpen(!driversOpen); setProbeOpen(false); }}>
+            Drivers
+          </button>
+          <button type="button" aria-pressed={probeOpen} onClick={() => { setProbeOpen(!probeOpen); setDriversOpen(false); }}>
             Driver Probe
           </button>
           {fileMsg && (
@@ -144,16 +158,23 @@ export function App() {
         </div>
       </header>
 
-      {probeOpen ? (
-        <ProbeView
-          onClose={() => setProbeOpen(false)}
-          canUse={!speaker && !car && !xover}
-          onUse={(custom, name) => {
-            set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design: { ...b.design, driverClass: CUSTOM_CLASS, custom } } : b)), view: 'box' });
-            setFileMsg(`${name} is now the driver of the selected box.`);
-            setProbeOpen(false);
+      {driversOpen ? (
+        <DriversView
+          db={db}
+          onDb={changeDb}
+          onClose={() => setDriversOpen(false)}
+          targets={targetsFor(project).targets}
+          firstTarget={targetsFor(project).first}
+          onUse={(snap, targetId) => {
+            const next = applyDriver(project, targetId, snap);
+            if (!next) return setFileMsg('That driver could not be used there.');
+            setProject(next);
+            setFileMsg(`${snap.name} is now the driver for: ${targetsFor(project).targets.find((t) => t.id === targetId)?.label ?? 'the design'}.`);
+            setDriversOpen(false);
           }}
         />
+      ) : probeOpen ? (
+        <ProbeView onClose={() => setProbeOpen(false)} db={db} onDb={changeDb} onOpenDrivers={() => { setProbeOpen(false); setDriversOpen(true); }} />
       ) : (
         <>
       {!build && !xover && <BriefPanel key={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} mode={speaker ? 'speaker' : car ? 'car' : box ? 'box' : 'system'} onLoadSystem={loadSystem} onLoadBox={loadBox} onLoadSpeaker={loadSpeaker} onLoadCar={loadCar} canUndo={undo !== null} onUndo={() => { if (undo) { setProject(undo); setUndo(null); } }} />}
@@ -163,11 +184,11 @@ export function App() {
       ) : build ? (
         <BuildView project={project} onChange={setProject} />
       ) : box ? (
-        <BoxDesigner wallM={project.shop.thicknessMm / 1000} design={project.bands[project.selected]!.design} count={project.bands[project.selected]!.count} perBox={project.bands[project.selected]!.perBox} onPerBox={(perBox) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, perBox } : b)) })} onChange={(design) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) })} />
+        <BoxDesigner db={db} wallM={project.shop.thicknessMm / 1000} design={project.bands[project.selected]!.design} count={project.bands[project.selected]!.count} perBox={project.bands[project.selected]!.perBox} onPerBox={(perBox) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, perBox } : b)) })} onChange={(design) => set({ bands: project.bands.map((b, k) => (k === project.selected ? { ...b, design } : b)) })} />
       ) : speaker ? (
-        <SpeakerView project={project} onChange={setProject} />
+        <SpeakerView db={db} project={project} onChange={setProject} />
       ) : car ? (
-        <CarView project={project} onChange={setProject} />
+        <CarView db={db} project={project} onChange={setProject} />
       ) : (
         <SystemView project={project} onChange={setProject} />
       )}

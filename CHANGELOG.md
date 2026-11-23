@@ -2,6 +2,15 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.11.0 (2026-11-23)
+
+- **Driver database:** a Drivers page with your own drivers (manufacturer, series, model, kind, notes and every Thiele-Small number including Le, Mms, Cms, Bl, Rms, sensitivity, Znom and Xmech), search, filters (favourites, ready to use, kind, maker, source, fs, Qts, Vas, cone diameter) and sorting. Favourites are green; generic drivers can be starred too. Missing numbers (third Q, Vas and Cms, Mms, Bl, Rms) are worked out and marked; out-of-range or inconsistent input is refused.
+- **Import and export:** CSV with identity and extended columns, Driver Probe files, whole libraries. The old measured-driver library is converted once; the old data is left in place.
+- **One driver picker** on the box, home speaker and car pages: favourites, your drivers, generic classes, Custom. A design keeps a copy of the driver, so a project opens without the library; Update from the library re-copies it after an edit. Use in design works for any PA band, home-speaker slot and the car subwoofer.
+- The Driver Probe page saves into the database; its own saved-drivers table and CSV importer are gone.
+- Project file version 4 (files from 1.10 and earlier open as before; a 1.11 file is refused by older versions).
+- Not yet: the car page's front speakers still choose from the generic classes only.
+
 ## 1.10.1 (2026-11-21)
 
 - **Small and mini-system drivers:** nine generic classes (2 in and 2.5 in full-range, 5 in mid, 5 in and 6.5 in sub, 0.5 in dome, 0.75 in, 1.4 in and 2 in compression drivers), appended to the class list so saved projects are unchanged.

@@ -7,7 +7,7 @@ import { slug } from './export';
 import { migrateProjectV1 } from './migrate';
 
 export const FILE_KIND = 'sound-system-designer-project';
-export const FILE_VERSION = 3;
+export const FILE_VERSION = 4;
 export const FILE_EXTENSION = '.ssd.json';
 /** A project is a few kilobytes; anything near this size is not one. */
 export const MAX_FILE_BYTES = 2_000_000;

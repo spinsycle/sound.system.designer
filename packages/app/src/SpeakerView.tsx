@@ -4,6 +4,8 @@
 // each driver slot, and the summed response with the baffle step.
 import * as P from '@soundsystemdesigner/physics';
 import { useMemo, useState } from 'react';
+import { DriverPicker } from './drivers/DriverPicker';
+import { type DriverDb, emptyDb } from './drivers/library';
 import { Field } from './BoxDesigner';
 import { LayoutControls, PortControls } from './LayoutControls';
 import { BRACES } from './build';
@@ -40,7 +42,7 @@ const SLOT_BOXES = [
   { id: 'passive', label: 'Passive radiator' },
 ] as const;
 
-export function SpeakerView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
+export function SpeakerView({ project, onChange, db = emptyDb() }: { project: Project; onChange: (p: Project) => void; db?: DriverDb }) {
   const [hover, setHover] = useState<number | null>(null);
   const [template, setTemplate] = useState(1);
   const sp = project.speaker;
@@ -166,7 +168,7 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
         {arr.slots.map((spec, k) => {
           const s = sp.slots[k]!;
           const d = s.design;
-          const isCustom = d.driverClass === CUSTOM_CLASS;
+          const isCustom = d.driverClass === CUSTOM_CLASS && !d.libDriver;
           return (
             <section key={k} className={`band band-${k}`}>
               <h2>
@@ -174,17 +176,7 @@ export function SpeakerView({ project, onChange }: { project: Project; onChange:
                 {c.slots[k]!.name}
               </h2>
               <p className="hint">{c.slots[k]!.summary}</p>
-              <div className="field">
-                <label htmlFor={`sp-class-${k}`}>Driver</label>
-                <select id={`sp-class-${k}`} value={d.driverClass} onChange={(e) => setDesign(k, { driverClass: Number(e.target.value) })}>
-                  {P.ALL_DRIVER_CLASSES.map((cl, i) => (
-                    <option key={cl.name} value={i}>
-                      {cl.name}
-                    </option>
-                  ))}
-                  <option value={CUSTOM_CLASS}>Custom</option>
-                </select>
-              </div>
+              <DriverPicker id={`sp-class-${k}`} design={d} db={db} onChange={(patch) => setDesign(k, patch)} />
               {isCustom &&
                 (Object.keys(CUSTOM_RANGES) as (keyof P.CustomDriverFields)[]).map((f) => (
                   <Field key={f} id={`sp-custom-${k}-${f}`} range={CUSTOM_RANGES[f]} value={d.custom[f]} onChange={(v) => setDesign(k, { custom: { ...d.custom, [f]: v } })} />

@@ -3,6 +3,7 @@
 // The design a user edits and everything derived from it. Pure functions, no UI: the page only draws what
 // compute() returns, and the tests assert the same path against the shared physics vectors.
 import * as P from '@soundsystemdesigner/physics';
+import { type DriverSnapshot, sanitizeSnapshot, snapshotSpec } from './drivers/entry';
 
 export type BoxKind = 'sealed' | 'ported' | 'bandpass' | 'bandpass6' | 'bandpass8' | 'horn' | 'passive' | 'tline' | 'tqwt';
 export const BOX_KINDS: readonly { id: BoxKind; label: string }[] = [
@@ -216,6 +217,8 @@ export const LAYOUT_RANGES = {
 export interface Design {
   driverClass: number;
   custom: P.CustomDriverFields;
+  /** A driver from the database, copied in. Only honoured while driverClass is Custom; it replaces the Custom fields. */
+  libDriver?: DriverSnapshot;
   type: BoxKind;
   /** Box volume; the sealed rear chamber of a band-pass box or a horn. */
   volumeL: number;
@@ -438,6 +441,8 @@ export function sanitize(input: unknown): Design {
   const bp8 = obj(i.bp8);
   out.bp8 = { ...d.bp8, layout: bp8.layout === 'sealed' || bp8.layout === 'chain' ? bp8.layout : 'vented' };
   for (const k of Object.keys(BP8_RANGES) as (keyof typeof BP8_RANGES)[]) out.bp8[k] = num(bp8[k], BP8_RANGES[k], d.bp8[k]);
+  const lib = out.driverClass === CUSTOM_CLASS ? sanitizeSnapshot(i.libDriver) : undefined;
+  if (lib) out.libDriver = lib;
   return out;
 }
 
@@ -476,7 +481,7 @@ export const portLabel = (d: Design): string => (d.portShape === 'rect' ? `${fmt
 const classOf = (n: number): number => (n < 0 ? 0 : n < P.ALL_DRIVER_CLASSES.length ? n : CUSTOM_CLASS);
 
 export const driverOf = (d: Design): P.DriverSpec =>
-  d.driverClass < P.ALL_DRIVER_CLASSES.length ? P.ALL_DRIVER_CLASSES[d.driverClass]! : P.customDriver(d.custom);
+  d.driverClass < P.ALL_DRIVER_CLASSES.length ? P.ALL_DRIVER_CLASSES[d.driverClass]! : d.libDriver ? snapshotSpec(d.libDriver) : P.customDriver(d.custom);
 
 /**
  * The flare a horn design describes, with the limits geometry imposes: the mouth is larger than the throat, and a
@@ -1123,7 +1128,7 @@ export function compute(d: Design, wallM = DEFAULT_WALL_M): Computed {
   });
   if (over >= 0) warnings.push(`At ${fmt(d.powerW)} W the cone exceeds Xmax (${fmt(xmaxMm)} mm) at some frequencies below ${fmt(freqs[Math.min(over + 1, freqs.length - 1)]!)} Hz.`);
   if (d.powerW > driver.pe) warnings.push(`${fmt(d.powerW)} W is above the driver's rated power (${fmt(driver.pe)} W).`);
-  if (d.driverClass === CUSTOM_CLASS && d.custom.qms < d.custom.qts * 1.05)
+  if (d.driverClass === CUSTOM_CLASS && !d.libDriver && d.custom.qms < d.custom.qts * 1.05)
     warnings.push(`Qms must be above Qts: it is treated as ${(d.custom.qts * 1.05).toFixed(2)} so Qes stays positive.`);
 
   return { driver, derived, freqs, curves, overlays, readouts, extras, warnings, notes, markers: markers.filter((m) => m.f >= freqs[0]! && m.f <= freqs[freqs.length - 1]!), horn };

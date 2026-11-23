@@ -4,6 +4,8 @@
 // and the in-car response with the limits.
 import * as P from '@soundsystemdesigner/physics';
 import { useMemo, useState } from 'react';
+import { DriverPicker } from './drivers/DriverPicker';
+import { type DriverDb, emptyDb } from './drivers/library';
 import { Field } from './BoxDesigner';
 import { LayoutControls, PortControls } from './LayoutControls';
 import { BRACES, BUILD_RANGES } from './build';
@@ -53,8 +55,12 @@ const fmt = (v: number, digits = 1): string => (Math.abs(v) >= 100 ? v.toFixed(0
 const CAR_BOXES = ['sealed', 'ported', 'passive', 'bandpass', 'bandpass6', 'bandpass8'] as const;
 
 const FIRST_CAR_CLASS = P.ALL_DRIVER_CLASSES.findIndex((d) => d.name.includes('car sub'));
+const CAR_CLASS_GROUPS = [
+  { label: 'Car subs', classes: P.ALL_DRIVER_CLASSES.map((_, i) => i).filter((i) => i >= FIRST_CAR_CLASS && i < P.FIRST_SMALL_CLASS) },
+  { label: 'Other classes', classes: P.ALL_DRIVER_CLASSES.map((_, i) => i).filter((i) => i < FIRST_CAR_CLASS || i >= P.FIRST_SMALL_CLASS) },
+];
 
-export function CarView({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
+export function CarView({ project, onChange, db = emptyDb() }: { project: Project; onChange: (p: Project) => void; db?: DriverDb }) {
   const [hover, setHover] = useState<number | null>(null);
   const [template, setTemplate] = useState(0);
   const c = project.car;
@@ -72,9 +78,9 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
   const isBandpass = d.type === 'bandpass' || d.type === 'bandpass6' || d.type === 'bandpass8';
   const tuneLabel = d.type === 'passive' ? 'Box tuning fB' : d.type === 'bandpass6' ? 'Front tuning' : d.type === 'bandpass8' ? 'Outer front tuning (port 2)' : BOX_RANGES.tuneHz.label;
   const setBuildOpts = (patch: Partial<CarSub['build']>): void => set({ build: { ...c.build, ...patch } });
-  const driverName = P.ALL_DRIVER_CLASSES[d.driverClass]?.name ?? 'Custom';
+  const driverName = d.libDriver?.name ?? P.ALL_DRIVER_CLASSES[d.driverClass]?.name ?? 'Custom';
   const dual = c.coils === 2;
-  const isCustom = d.driverClass === CUSTOM_CLASS;
+  const isCustom = d.driverClass === CUSTOM_CLASS && !d.libDriver;
   const t = project.shop.thicknessMm / 10; // cm
 
   /** Proportions of the inside of the space, so the box fills it as far as the air allows. */
@@ -192,18 +198,7 @@ export function CarView({ project, onChange }: { project: Project; onChange: (p:
         <section>
           <h2>Subwoofer</h2>
           <p className="hint">{`${c.count > 1 ? `${c.count} x ` : ''}${driverName}`}</p>
-          <div className="field">
-            <label htmlFor="car-class">Driver</label>
-            <select id="car-class" value={d.driverClass} onChange={(e) => setDesign({ driverClass: Number(e.target.value) })}>
-              <optgroup label="Car subs">
-                {P.ALL_DRIVER_CLASSES.map((k, i) => (i >= FIRST_CAR_CLASS && i < P.FIRST_SMALL_CLASS ? <option key={k.name} value={i}>{k.name}</option> : null))}
-              </optgroup>
-              <optgroup label="Other classes">
-                {P.ALL_DRIVER_CLASSES.map((k, i) => (i < FIRST_CAR_CLASS || i >= P.FIRST_SMALL_CLASS ? <option key={k.name} value={i}>{k.name}</option> : null))}
-                <option value={CUSTOM_CLASS}>Custom</option>
-              </optgroup>
-            </select>
-          </div>
+          <DriverPicker id="car-class" design={d} db={db} onChange={setDesign} groups={CAR_CLASS_GROUPS} />
           {isCustom &&
             (Object.keys(CUSTOM_RANGES) as (keyof P.CustomDriverFields)[]).map((f) => (
               <Field key={f} id={`car-custom-${f}`} range={CUSTOM_RANGES[f]} value={d.custom[f]} onChange={(x) => setDesign({ custom: { ...d.custom, [f]: x } })} />

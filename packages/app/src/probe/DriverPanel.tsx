@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Turns finished sweeps into a saved driver: keep a free-air sweep, optionally an added-mass sweep, enter what a sweep
 // cannot measure (Sd, Xmax, Pe, or a datasheet Vas), then save to the library, export a file, or use it in the design.
-// The library also lists imported files. Nothing here talks to the probe.
-import type { CustomDriverFields, FreeAirFit, ImpedancePoint } from '@soundsystemdesigner/physics';
+// Saving puts the driver in the driver database (the Drivers page lists, edits and uses it). Nothing here talks to the probe.
+import type { FreeAirFit, ImpedancePoint } from '@soundsystemdesigner/physics';
 import { useMemo, useState } from 'react';
-import { openText, saveText } from '../desktop';
-import { CSV_TEMPLATE, parseDriverCsv } from './csvimport';
-import { loadLibrary, remove, saveLibrary, upsert } from './library';
-import { type DriverRecord, RECORD_EXTENSION, bandProblems, buildRecord, parseRecord, recordFileName, serializeRecord, toCustomFields } from './record';
+import { saveText } from '../desktop';
+import { entryFromRecord } from '../drivers/entry';
+import { type DriverDb, mergeImported, newId } from '../drivers/library';
+import { type DriverRecord, RECORD_EXTENSION, bandProblems, buildRecord, recordFileName, serializeRecord } from './record';
 
 interface Kept {
   fit: FreeAirFit;
@@ -21,7 +21,7 @@ const posNum = (s: string): number | undefined => {
   return s.trim() !== '' && Number.isFinite(n) && n > 0 ? n : undefined;
 };
 
-export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; points: ImpedancePoint[]; probe?: { id: string; fw: string }; canUse: boolean; onUse: (f: CustomDriverFields, name: string) => void }) {
+export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; points: ImpedancePoint[]; probe?: { id: string; fw: string }; db: DriverDb; onDb: (db: DriverDb) => void; onOpenDrivers: () => void }) {
   const [base, setBase] = useState<Kept | null>(null);
   const [loaded, setLoaded] = useState<Kept | null>(null);
   const [name, setName] = useState('');
@@ -30,7 +30,6 @@ export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; poi
   const [xmax, setXmax] = useState('');
   const [pe, setPe] = useState('');
   const [vas, setVas] = useState('');
-  const [lib, setLib] = useState<DriverRecord[]>(() => loadLibrary());
   const [msg, setMsg] = useState('');
 
   const built = useMemo((): { rec: DriverRecord } | { error: string } | null => {
@@ -57,32 +56,16 @@ export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; poi
 
   const rec = built && 'rec' in built ? built.rec : null;
   const problems = rec ? bandProblems(rec) : [];
-  const store = (list: DriverRecord[]): void => {
-    setLib(list);
-    if (!saveLibrary(list)) setMsg('The driver could not be remembered: browser storage is unavailable or full. Export it as a file instead.');
-  };
   const exportRec = async (r: DriverRecord): Promise<void> => {
     const res = await saveText(recordFileName(r), serializeRecord(r), 'application/json');
     setMsg(res.ok ? `Saved ${res.where}` : res.cancelled ? '' : res.error);
   };
-  const importRec = async (): Promise<void> => {
-    const res = await openText(['json']);
-    if (!res.ok) return setMsg(res.cancelled ? '' : res.error);
-    const r = parseRecord(res.text);
-    if (!r.ok) return setMsg(`${res.name}: ${r.error}`);
-    store(upsert(lib, r.record));
-    setMsg(`Imported ${r.record.name}${r.record.incomplete ? ' (incomplete: ' + missing(r.record).join(', ') + ' still to enter)' : ''}.`);
-  };
-  const importCsv = async (): Promise<void> => {
-    const res = await openText(['csv', 'tsv', 'txt']);
-    if (!res.ok) return setMsg(res.cancelled ? '' : res.error);
-    const { records, errors } = parseDriverCsv(res.text, today());
-    if (records.length) store(records.reduce(upsert, lib));
-    setMsg(`${res.name}: imported ${records.length} driver${records.length === 1 ? '' : 's'} (a name already in the library is replaced).${errors.length ? ' Skipped: ' + errors.join(' ') : ''}`);
-  };
-  const use = (r: DriverRecord): void => {
-    const f = toCustomFields(r);
-    if (f) p.onUse(f, r.name);
+  const saveToDb = (r: DriverRecord): void => {
+    const e = entryFromRecord(r, newId(), today());
+    if (!e.ok) return setMsg(e.errors.join(' '));
+    const m = mergeImported(p.db, [e.entry]);
+    p.onDb(m.db);
+    setMsg(`${m.added ? 'Saved' : 'Updated'} ${r.name} in the driver database.`);
   };
 
   return (
@@ -123,8 +106,8 @@ export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; poi
             <p key={t} role="alert" className="error">{t}</p>
           ))}
           <div className="actions">
-            <button type="button" disabled={problems.length > 0} onClick={() => { store(upsert(lib, rec)); setMsg(`Saved ${rec.name} to the library.`); }}>
-              Save to library
+            <button type="button" disabled={problems.length > 0} onClick={() => saveToDb(rec)}>
+              Save to driver database
             </button>
             <button type="button" disabled={problems.length > 0} onClick={() => exportRec(rec)}>
               Export file (.{RECORD_EXTENSION})
@@ -134,47 +117,12 @@ export function DriverPanel(p: { sweepDone: boolean; fit: FreeAirFit | null; poi
       )}
       {msg && <p className="hint" role="status">{msg}</p>}
 
-      <h3>Saved drivers</h3>
-      <div className="actions">
-        <button type="button" onClick={importRec}>
-          Import a driver file
+      <p className="hint">
+        Saved drivers, imports (CSV, files, whole libraries), favourites and "Use in design" are on the Drivers page.{' '}
+        <button type="button" onClick={p.onOpenDrivers}>
+          Open the Drivers page
         </button>
-        <button type="button" onClick={importCsv}>
-          Import drivers from CSV
-        </button>
-        <button type="button" onClick={async () => { const r = await saveText('drivers-template.csv', CSV_TEMPLATE, 'text/csv'); setMsg(r.ok ? `Saved ${r.where}` : r.cancelled ? '' : r.error); }}>
-          Download CSV template
-        </button>
-      </div>
-      <p className="hint">CSV columns: name, fs_hz, qts, qes, qms, re_ohm, vas_l, sd_cm2, xmax_mm, pe_w, le_mh. Needs name, fs, re and two of the three Q values; Sd, Xmax, Pe and Vas are needed before a driver can be used in a design. Imported numbers are typed values, not measurements.</p>
-      {lib.length === 0 ? (
-        <p className="hint">No measured drivers saved yet.</p>
-      ) : (
-        <table>
-          <tbody>
-            {lib.map((r) => (
-              <tr key={r.name}>
-                <th scope="row" className="left">{r.name}</th>
-                <td>
-                  fs {r.fs.v.toFixed(1)} Hz, Qts {r.qts.v.toFixed(2)}, Re {r.re.v.toFixed(1)} ohm <span className="hint">{r.measuredAt}</span>
-                  {r.incomplete && <span className="hint"> incomplete: needs {missing(r).join(', ')}</span>}
-                </td>
-                <td>
-                  <button type="button" disabled={r.incomplete || !p.canUse || bandProblems(r).length > 0} title={p.canUse ? '' : 'Use in design works on PA system boxes'} onClick={() => use(r)}>
-                    Use in design
-                  </button>{' '}
-                  <button type="button" disabled={bandProblems(r).length > 0} onClick={() => exportRec(r)}>
-                    Export
-                  </button>{' '}
-                  <button type="button" onClick={() => store(remove(lib, r.name))}>
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      </p>
     </section>
   );
 }
