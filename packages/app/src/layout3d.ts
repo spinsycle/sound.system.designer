@@ -186,6 +186,84 @@ function columnBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layou
   return -g.dO;
 }
 
+/**
+ * A tapered box in 3D (plan trapezoid or tower): front baffle face at z = 0 facing +z, the back at -depth, standing on y = 0. Every wall is a
+ * hexahedron (a prism with eight corners) or a box; a plan trapezoid's front is a plain holed plate, a tower's is a trapezoid, so its holes
+ * are drawn as discs over it. Returns the lowest z.
+ */
+function taperBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout3): number {
+  const g = c.taper!;
+  const F = g.wideO / 2;
+  const B = g.narrowO / 2;
+  const origin: [number, number, number] = [cx, g.hO / 2, -g.dO / 2];
+  type V3 = [number, number, number];
+  const prism = (a: V3[], b: V3[]): void => void out.prisms.push({ band, points: [...a, ...b] });
+  const box = (size: Box3['size'], x: number, y: number, z: number): Box3 => {
+    const b: Box3 = { band, kind: 'panel', size, center: [cx + x, y, z], origin };
+    out.boxes.push(b);
+    return b;
+  };
+  let front: Box3 | null = null;
+  if (g.axis === 'plan') {
+    // half width at depth z (z from 0 at the front to -dO at the back)
+    const hw = (z: number): number => F + ((B - F) * -z) / g.dO;
+    front = box([g.wideO, g.hO, t], 0, g.hO / 2, -t / 2);
+    box([g.narrowO, g.hO, t], 0, g.hO / 2, -g.dO + t / 2);
+    const z0 = -t;
+    const z1 = -(g.dO - t);
+    const flat = (y: number): V3[] => [[cx - hw(z0), y, z0], [cx + hw(z0), y, z0], [cx + hw(z1), y, z1], [cx - hw(z1), y, z1]];
+    prism(flat(0), flat(t)); // bottom
+    prism(flat(g.hO - t), flat(g.hO)); // top
+    // the side walls: the outer edge runs from the front corner to the back corner; the plate is t thick, inwards
+    const len = Math.hypot(F - B, g.dO);
+    const nx = g.dO / len; // outward normal (x, z) of the right wall, up to sign
+    const nz = (B - F) / len;
+    const wall = (sign: 1 | -1): void => {
+      const xo = (z: number): number => cx + sign * hw(z);
+      const quad = (y: number): V3[] => [
+        [xo(0), y, 0],
+        [xo(-g.dO), y, -g.dO],
+        [xo(-g.dO) - sign * t * nx, y, -g.dO - t * nz],
+        [xo(0) - sign * t * nx, y, -t * nz],
+      ];
+      prism(quad(0), quad(g.hO));
+    };
+    wall(1);
+    wall(-1);
+  } else {
+    // half width at height y
+    const hw = (y: number): number => F + ((B - F) * y) / g.hO;
+    const face = (z: number): V3[] => [[cx - F, 0, z], [cx + F, 0, z], [cx + B, g.hO, z], [cx - B, g.hO, z]];
+    prism(face(0), face(-t)); // front
+    prism(face(-g.dO + t), face(-g.dO)); // back
+    box([g.wideO, t, g.dO - 2 * t], 0, t / 2, -g.dO / 2); // bottom
+    box([g.narrowO, t, g.dO - 2 * t], 0, g.hO - t / 2, -g.dO / 2); // top
+    const len = Math.hypot(F - B, g.hO);
+    const nx = g.hO / len; // outward normal (x, y) of the right wall, up to sign
+    const ny = (F - B) / len;
+    const wall = (sign: 1 | -1): void => {
+      const quad = (z: number): V3[] => [
+        [cx + sign * hw(0), 0, z],
+        [cx + sign * hw(g.hO), g.hO, z],
+        [cx + sign * hw(g.hO) - sign * t * nx, g.hO - t * ny, z],
+        [cx + sign * hw(0) - sign * t * nx, -t * ny, z],
+      ];
+      prism(quad(-t), quad(-(g.dO - t)));
+    };
+    wall(1);
+    wall(-1);
+  }
+  const motorOut = c.magnetOut === true;
+  for (const h of holePositions(c)) {
+    const x = cx + h.cx - g.wideO / 2;
+    const y = g.hO - h.cy;
+    if (front) (front.holes ??= []).push(holeOf(h, h.cx - g.wideO / 2, g.hO / 2 - h.cy));
+    out.discs.push({ band, kind: h.kind, center: [x, y, LIFT], radius: h.r, ...(h.shape === 'rect' ? { shape: 'rect' as const, w: h.w, h: h.h } : {}) });
+    if (h.kind === 'driver') out.drivers.push({ band, flange: [x, y, (h.magnetOut ?? motorOut) ? -t : 0], dir: (h.magnetOut ?? motorOut) ? [0, 0, 1] : [0, 0, -1], radius: h.r });
+  }
+  return -g.dO;
+}
+
 function cabinetBoxes(c: Cabinet, band: number, cx: number, t: number, z0: number, dividerShares: readonly number[], out: Layout3): number {
   const g = c.geometry;
   const lift = c.facing === 'down' ? (c.clearanceM ?? 0) : 0;
@@ -297,6 +375,23 @@ export function layout3d(v: BuildView, p: Project): Layout3 {
         const zMin = columnBoxes(c, band, cx, t, out);
         x += g.wO;
         maxY = Math.max(maxY, g.hO);
+        minZ = Math.min(minZ, zMin);
+        maxZ = Math.max(maxZ, 0);
+        return;
+      }
+      if (c.taper) {
+        const zMin = taperBoxes(c, band, cx, t, out);
+        if (i === 0) {
+          const holes = holePositions(c).filter((h) => h.kind === 'port');
+          b.ports.forEach((pt, j) => {
+            const port = holes[j];
+            if (!port) return;
+            const rect = pt.shape === 'rect' ? { rect: { w: port.w, h: port.h } } : {};
+            out.tubes.push({ band, center: [cx + port.cx - c.taper!.wideO / 2, c.taper!.hO - port.cy, 0], radius: pt.diameterM / 2, length: Math.min(pt.lengthM, c.taper!.dI), ...rect });
+          });
+        }
+        x += c.taper.wideO;
+        maxY = Math.max(maxY, c.taper.hO);
         minZ = Math.min(minZ, zMin);
         maxZ = Math.max(maxZ, 0);
         return;

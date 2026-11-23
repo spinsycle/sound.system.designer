@@ -7,7 +7,7 @@ driver presets, or enter the Thiele-Small specifications of your actual drivers 
 or measure them with the Driver Probe rig, and use them throughout your enclosure and system designs.
 
 Windows desktop app (also runs in a browser).
-Version 1.13.0.
+Version 1.14.0.
 
 > **Disclaimer:** every number here is a calculated estimate from a simplified model, not a measurement of a real
 > loudspeaker. Use it to explore and compare designs, then check anything you build, or rely on for safety, against real
@@ -62,6 +62,7 @@ SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](do
   amplifier above its minimum load, and the volts, amps, heat and capacitor rating of every part. Outputs: a schematic (SVG
   or print to PDF), a bill of materials and a parts list (CSV). The alignment and frequencies can be applied back to the PA
   system, the home speaker and the car's front speakers, which now take any alignment (default unchanged).
+- **Tapered boxes (new in 1.14):** on the Build page a PA band's box can be a trapezoid (wide front, narrow back) or a tapered tower (wide bottom, narrow top) as well as a rectangle, with the angled panels, bevel angles and trapezoid drawings in the cut list, the 3D view and the SVG exports ([docs/tapered-boxes.md](docs/tapered-boxes.md)).
 - **Compare crossovers (new in 1.13):** on the Crossover page, your drivers and crossover points through other orders (3rd against 4th), other alignments, or active against passive, drawn over the current crossover with a table of sum flatness, filter-sum deviation, polarity, group delay, stages or parts, passband loss, the amplifier load and the hottest part, and Use this ([docs/crossover-compare.md](docs/crossover-compare.md)).
 - **Compare box types and find drivers for this box (new in 1.12):** on the box page, the same driver in sealed, ported, passive-radiator, band-pass, 6th- and 8th-order band-pass, transmission-line and TQWT boxes drawn over this one (Cookbook alignment or the same air) with a table of figures and Use this; and a ranking of every usable driver in the database for this box, with the figures behind a 0 to 100 score ([docs/compare-and-ranking.md](docs/compare-and-ranking.md)).
 - **Driver database (new in 1.11):** your own drivers with manufacturer, series, model and every Thiele-Small number, searchable and filterable, favourites in green; import CSV, Driver Probe files or whole libraries; one driver picker on the box, home speaker and car pages, and Use in design everywhere ([docs/driver-database.md](docs/driver-database.md)). Measure a driver with the Driver Probe rig (USB or WiFi) and save it there ([docs/driver-probe.md](docs/driver-probe.md)).
@@ -179,7 +180,7 @@ Every box type has its own screenshots in [docs/box-types.md](docs/box-types.md)
 
 ## Install
 
-Run `Sound System Designer_1.13.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.14.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 

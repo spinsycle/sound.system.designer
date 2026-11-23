@@ -160,7 +160,7 @@ describe('horns and warnings', () => {
 describe('shop and build settings', () => {
   it('stored values are clamped, and round-trip through the project', () => {
     expect(B.sanitizeShop({ thicknessMm: 1, sheetLmm: 1e6, sheetWmm: 'x', kerfMm: -2 })).toEqual({ thicknessMm: 3, sheetLmm: 6000, sheetWmm: 1220, kerfMm: 0 });
-    expect(B.sanitizeBuild({ rw: 0, rh: 99, rd: 2, brace: 'bogus' })).toEqual({ rw: 0.2, rh: 5, rd: 2, brace: 'none' });
+    expect(B.sanitizeBuild({ rw: 0, rh: 99, rd: 2, brace: 'bogus' })).toEqual({ rw: 0.2, rh: 5, rd: 2, brace: 'none', shape: 'box', taper: 0.7 });
     expect(B.sanitizeBuild({ brace: 'window' }).brace).toBe('window');
     const p = project([band(sealed100, { build: { rw: 1.2, rh: 1, rd: 2, brace: 'single' } })], { shop: { thicknessMm: 12, sheetLmm: 2500, sheetWmm: 1250, kerfMm: 2 } });
     expect(S.sanitizeProject(p)).toEqual(p);

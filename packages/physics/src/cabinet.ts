@@ -79,6 +79,12 @@ export interface Panel {
   l: number;
   w: number;
   qty: number;
+  /** The true outline of a panel that is not a rectangle, m, in the panel's own flat axes (x along l, y along w, origin at the corner of its bounding box). */
+  poly?: [number, number][];
+  /** Angle the cut edges named in `bevelEdges` are bevelled to, degrees from square. */
+  bevelDeg?: number;
+  /** Which edges the bevel is on, in words for the cut list. */
+  bevelEdges?: string;
 }
 
 /** Cut list of the box: front and back full size, top and bottom full width between them, sides between top and bottom. */
@@ -133,6 +139,96 @@ export function wedgePanels(g: WedgeGeometry): Panel[] {
     { name: 'Bottom', l: g.wO, w: g.dBottomI, qty: 1 },
     { name: 'Top', l: g.wO, w: g.dTopI, qty: 1 },
     { name: 'Sides', l: g.hI, w: g.dBottomI, qty: 2 },
+  ];
+}
+
+/** Which way a tapered box narrows: 'plan' (the side walls angle in, front wide and back narrow) or 'height' (a tower: wide at the bottom, narrow at the top). */
+export type TaperAxis = 'plan' | 'height';
+
+export interface TaperGeometry {
+  axis: TaperAxis;
+  /** Narrow end over wide end of the interior width, in (0, 1]. */
+  taper: number;
+  /** Interior widths at the wide and the narrow end, height and depth. */
+  wideI: number;
+  narrowI: number;
+  hI: number;
+  dI: number;
+  /** The same outside: each width plus two walls, height and depth likewise. */
+  wideO: number;
+  narrowO: number;
+  hO: number;
+  dO: number;
+  /** How far each side wall leans in, over the whole depth (plan) or height (tower): half the difference of the interior widths. */
+  insetI: number;
+  /** Interior length of a side wall along its slant. */
+  slantI: number;
+  /** The lean of a side wall from straight, degrees: the bevel its edges are cut to. */
+  angleDeg: number;
+  /** Air left after what is inside is taken out. */
+  netM3: number;
+}
+
+/**
+ * A box whose width narrows linearly, either front to back (plan) or bottom to top (height): a trapezoidal prism. Interior proportions are
+ * wide-end width : height : depth, taper is narrow over wide. The interior volume is (wide + narrow) / 2 x height x depth, so the
+ * air of the design is held exactly; disp is taken out of it. Walls are t thick, butt joints; no bracing.
+ */
+export function solveTaper(vNet: number, disp: number, rw: number, rh: number, rd: number, taper: number, axis: TaperAxis, t: number): TaperGeometry {
+  const s = ((vNet + disp) / ((rw * rh * rd * (1 + taper)) / 2)) ** (1 / 3);
+  const wideI = s * rw;
+  const narrowI = taper * wideI;
+  const hI = s * rh;
+  const dI = s * rd;
+  const insetI = (wideI - narrowI) / 2;
+  const along = axis === 'plan' ? dI : hI;
+  return {
+    axis,
+    taper,
+    wideI,
+    narrowI,
+    hI,
+    dI,
+    wideO: wideI + 2 * t,
+    narrowO: narrowI + 2 * t,
+    hO: hI + 2 * t,
+    dO: dI + 2 * t,
+    insetI,
+    slantI: Math.hypot(along, insetI),
+    angleDeg: (Math.atan2(insetI, along) * 180) / Math.PI,
+    netM3: ((wideI + narrowI) / 2) * hI * dI - disp,
+  };
+}
+
+/** The trapezoid with parallel edges wide (along y = 0) and narrow (along y = h), centred: corners in order round the outline. */
+const trapezoid = (wide: number, narrow: number, h: number): [number, number][] => [
+  [0, 0],
+  [wide, 0],
+  [(wide + narrow) / 2, h],
+  [(wide - narrow) / 2, h],
+];
+
+/**
+ * Cut list of a tapered box. Plan: a front baffle at the wide end and a back at the narrow end (both rectangles), trapezoid top and
+ * bottom, and two angled sides. Tower: trapezoid front and back, a wide bottom and a narrow top, and two leaning sides. A trapezoid is
+ * listed by its bounding rectangle with its outline in poly; a side is cut to its slant length with its ends bevelled.
+ */
+export function taperPanels(g: TaperGeometry): Panel[] {
+  const bevel = { bevelDeg: g.angleDeg, bevelEdges: g.axis === 'plan' ? 'the two edges that meet the front and the back' : 'the two edges that meet the top and the bottom' };
+  if (g.axis === 'plan') {
+    return [
+      { name: 'Front baffle (wide end)', l: g.wideO, w: g.hO, qty: 1 },
+      { name: 'Back (narrow end)', l: g.narrowO, w: g.hO, qty: 1 },
+      { name: 'Top and bottom (trapezoid)', l: g.wideO, w: g.dI, qty: 2, poly: trapezoid(g.wideO, g.narrowO, g.dI) },
+      { name: 'Sides (angled)', l: g.slantI, w: g.hI, qty: 2, ...bevel },
+    ];
+  }
+  return [
+    { name: 'Front baffle (trapezoid)', l: g.wideO, w: g.hO, qty: 1, poly: trapezoid(g.wideO, g.narrowO, g.hO) },
+    { name: 'Back (trapezoid)', l: g.wideO, w: g.hO, qty: 1, poly: trapezoid(g.wideO, g.narrowO, g.hO) },
+    { name: 'Bottom (wide end)', l: g.wideO, w: g.dI, qty: 1 },
+    { name: 'Top (narrow end)', l: g.narrowO, w: g.dI, qty: 1 },
+    { name: 'Sides (leaning)', l: g.slantI, w: g.dI, qty: 2, ...bevel },
   ];
 }
 

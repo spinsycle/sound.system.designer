@@ -3,6 +3,7 @@
 // Cut list, sheet layout and bill of materials for a project. Pure functions; the Build page draws what comes back.
 // Spec: "Cabinet, cut list and sheets". Metric only (millimetres on the page, metres inside).
 import * as P from '@soundsystemdesigner/physics';
+import { DEFAULT_TAPER } from './build';
 import { type FrontRing, checkFront, ringOf, tweeterName, wooferName } from './carfront';
 import { type CarSub, computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
 import { arrangementOf, coneDiameterM, slotLabel } from './loudspeaker';
@@ -74,6 +75,8 @@ export interface Cabinet {
   column?: P.Column;
   /** A wedge enclosure's geometry (the baffle drawing uses `geometry` with the sloping baffle as its height). */
   wedge?: P.WedgeGeometry;
+  /** A tapered box (trapezoid or tower): `geometry` describes its baffle at the wide end, this the whole shape. */
+  taper?: P.TaperGeometry;
   /** Outside width, height and depth for a caption, when `geometry` describes the baffle. */
   outside?: [number, number, number];
   /** Horizontal chamber partitions of a speaker: distance down from the top of the interior to the shelf, m. */
@@ -235,8 +238,33 @@ export function holePositions(c: Cabinet, rear = false): HolePos[] {
   });
 }
 
-function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: number, divider: boolean | number, cutouts: Cutout[], shape?: { rw: number; rh: number; rd: number }): Cabinet {
+/** Width of a tapered box's baffle at a distance below its top edge, m: the whole front for a trapezoid, narrowing towards the top of a tower. */
+export function taperBaffleWidthAt(g: P.TaperGeometry, fromTopM: number): number {
+  if (g.axis === 'plan') return g.wideO;
+  return g.narrowO + ((g.wideO - g.narrowO) * Math.min(Math.max(fromTopM, 0), g.hO)) / g.hO;
+}
+
+/** The width of a tower's baffle where the top edge of a hole sits, when the hole with its margin does not fit there; otherwise null. */
+export function taperHoleNarrow(g: P.TaperGeometry, hole: { cy: number; h: number; w: number }): number | null {
+  const wide = taperBaffleWidthAt(g, hole.cy - hole.h / 2);
+  return hole.w + 2 * HOLE_MARGIN > wide + 1e-9 ? wide : null;
+}
+
+/**
+ * The box of a band. A tapered shape (`allowTaper`, the walls with no divider) is built when the band asks for one; otherwise a rectangle.
+ * A tapered box has no bracing: its baffle is the front at the wide end, so `geometry` describes that and `taper` the whole shape.
+ */
+function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: number, divider: boolean | number, cutouts: Cutout[], shape?: { rw: number; rh: number; rd: number }, allowTaper = false): Cabinet {
   const o = shape ? { ...b.build, ...shape } : b.build;
+  const kind = o.shape ?? 'box';
+  if (allowTaper && kind !== 'box') {
+    const tg = P.solveTaper(vNetM3, dispM3, o.rw, o.rh, o.rd, o.taper ?? DEFAULT_TAPER, kind === 'trapezoid' ? 'plan' : 'height', tM);
+    const bg: P.BoxGeometry = { wI: tg.wideI, hI: tg.hI, dI: tg.dI, wO: tg.wideO, hO: tg.hO, dO: tg.dO, braces: 0, netM3: tg.netM3 };
+    // the walls other than the baffle, inside
+    const side = tg.slantI * (tg.axis === 'plan' ? tg.hI : tg.dI);
+    const rest = tg.axis === 'plan' ? tg.narrowI * tg.hI + ((tg.wideI + tg.narrowI) / 2) * tg.dI * 2 : ((tg.wideI + tg.narrowI) / 2) * tg.hI + (tg.wideI + tg.narrowI) * tg.dI;
+    return { title, geometry: bg, panels: P.taperPanels(tg), cutouts, taper: tg, liningM2: ceilTenth(2 * side + rest) };
+  }
   const g = P.solveBox(vNetM3, dispM3, o.rw, o.rh, o.rd, tM, o.brace, divider);
   return {
     title,
@@ -382,6 +410,8 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   const side = lay.pushPull && lay.pushPullStyle === 'side' && n >= 2;
   const nOut = side ? (lay.mount === 'out' ? Math.ceil(n / 2) : Math.floor(n / 2)) : lay.mount === 'out' ? n : 0;
   const dDisp = (n - nOut) * P.driverDisplacementMount(driver.sd, false) + nOut * P.driverDisplacementMount(driver.sd, true);
+  // a tapered box takes one driver, facing front, in the default layout; anything else is built rectangular (and says so below)
+  const taperOk = n === 1 && !lay.pushPull && lay.cols === 0 && lay.facing === 'front';
   const cabinets: Cabinet[] = [];
   let horn: HornRows | null = null;
   const ports: PortBuild[] = [];
@@ -403,16 +433,16 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   };
 
   if (d.type === 'sealed') {
-    cabinets.push(cabinet('Box', (n * d.volumeL) / 1000, dDisp, b, t, false, Array.from({ length: n }, () => driverHole)));
+    cabinets.push(cabinet('Box', (n * d.volumeL) / 1000, dDisp, b, t, false, Array.from({ length: n }, () => driverHole), undefined, taperOk));
   } else if (d.type === 'ported') {
     ports.push(...portsFor(d.volumeL));
     const disp = dDisp + ports.reduce((a, x) => a + portDispOf(x, t), 0);
-    cabinets.push(cabinet('Box', (n * d.volumeL) / 1000, disp, b, t, false, [...Array.from({ length: n }, () => driverHole), ...ports.map(portCut)]));
+    cabinets.push(cabinet('Box', (n * d.volumeL) / 1000, disp, b, t, false, [...Array.from({ length: n }, () => driverHole), ...ports.map(portCut)], undefined, taperOk));
   } else if (d.type === 'passive') {
     const pr = prOf(d);
     const prHole: Cutout = { kind: 'driver', diameterM: 2 * Math.sqrt(pr.radiator.sdp / Math.PI) };
     const disp = dDisp + P.driverDisplacementMount(pr.radiator.sdp, false);
-    cabinets.push(cabinet('Passive-radiator box', d.volumeL / 1000, disp, b, t, false, [driverHole, prHole]));
+    cabinets.push(cabinet('Passive-radiator box', d.volumeL / 1000, disp, b, t, false, [driverHole, prHole], undefined, taperOk));
     extraDrivers.push({ name: `Passive radiator, ${fmtCm(prHole.diameterM * 100)} cm cone`, qty: 1 });
     warnings.push(pr.addedKg >= 0 ? `${name}: add ${Math.round(pr.addedKg * 1000)} g to the passive radiator (clay, lead or a metal weight stuck to the centre) to tune the box to ${Math.round(d.tuneHz)} Hz; check the tuning by measuring the impedance dip and adjust.` : `${name}: the passive radiator alone is heavier than ${Math.round(d.tuneHz)} Hz needs (it tunes to ${Math.round(pr.fbHz)} Hz). Use a lighter or more compliant radiator.`);
     warnings.push(`${name}: the radiator can sit on the baffle beside the driver or on another wall; the Cookbook finds its position and mutual coupling negligible. It needs room to travel about twice the driver's excursion.`);
@@ -511,6 +541,20 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     }
   }
 
+  // a tapered shape that could not be built, and what a tapered box leaves out
+  const wantShape = b.build.shape ?? 'box';
+  if (wantShape !== 'box') {
+    const tapered = cabinets.find((c) => c.taper);
+    if (!tapered) {
+      const why = !['sealed', 'ported', 'passive'].includes(d.type) ? `a ${d.type} box (a divider, a fold or a flare)` : `several drivers in a box, push-pull, columns or a baffle facing down`;
+      warnings.push(`${name}: the ${wantShape === 'trapezoid' ? 'trapezoid' : 'tapered tower'} shape is for sealed, ported and passive-radiator boxes with one driver facing front; this has ${why}, so it is built rectangular.`);
+    } else {
+      const g = tapered.taper!;
+      if (b.build.brace !== 'none') warnings.push(`${name}: a tapered box has no braces in the cut list; add them yourself if it is large.`);
+      warnings.push(`${name}: the ${g.axis === 'plan' ? 'side walls angle in over the depth' : 'side walls lean in over the height'}: ${fl(g.wideO, u)} wide at the ${g.axis === 'plan' ? 'front' : 'bottom'}, ${fl(g.narrowO, u)} at the ${g.axis === 'plan' ? 'back' : 'top'}. Cut the sides to their slant length with the ends bevelled ${(Math.round(g.angleDeg * 10) / 10).toString()} degrees (${g.axis === 'plan' ? 'the edges that meet the front and the back' : 'the edges that meet the top and the bottom'}); the trapezoid panels are drawn on the Build page. The cut sizes are for butt joints: test-fit before cutting everything.`);
+    }
+  }
+
   // drivers, the port and the layout have to fit on the baffle
   const down = lay.facing === 'down';
   const custom = n > 1 || lay.cols > 0 || lay.pushPull || down || ports.some((x) => x.shape === 'rect');
@@ -521,6 +565,13 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
     if (!custom) {
       if (holes.length > 0 && Math.max(...holes) + 2 * HOLE_MARGIN > baffle) warnings.push(`${name}: the ${fl(Math.max(...holes), u)} hole does not fit the ${formatLength(c.geometry.wO * 1000, u)} x ${fl(c.geometry.hO, u)} baffle. Change the proportions or the volume.`);
       else if (holes.length === 2 && holes[0]! + holes[1]! + 3 * HOLE_MARGIN > Math.max(c.geometry.wO, c.geometry.hO)) warnings.push(`${name}: the driver and port holes do not both fit the baffle. Change the proportions.`);
+    }
+  }
+  for (const c of cabinets) {
+    if (c.taper?.axis !== 'height') continue;
+    for (const h of holePositions(c)) {
+      const wide = taperHoleNarrow(c.taper, h);
+      if (wide !== null) warnings.push(`${name}: the ${fl(h.w, u)} ${h.kind === 'driver' ? 'driver' : 'port'} hole reaches ${fl(Math.max(wide - h.w, 0) / 2, u)} from the leaning side wall at its upper edge; the baffle is ${fl(wide, u)} wide there. Move it down, make the box taller or less tapered, or use a smaller hole.`);
     }
   }
   const main = cabinets[0];
@@ -549,7 +600,7 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
   const dname = d.driverClass < P.ALL_DRIVER_CLASSES.length ? `${driver.name} driver` : 'Custom driver';
   const parts = rectPortParts(ports, t);
   for (const c of cabinets) {
-    if (c.fold || c.wedge || c.column) continue;
+    if (c.fold || c.wedge || c.column || c.taper) continue;
     const pw = proportionWarning(name, c.geometry);
     if (pw) warnings.push(pw);
   }
@@ -904,6 +955,18 @@ export function carBuild(p: Project): BandBuild {
 const fmtCm = (v: number): string => (Math.round(v * 10) / 10).toString();
 const fmtL = (v: number): string => (v < 10 ? v.toFixed(1) : v.toFixed(0));
 
+/** What a cut-list row says about a panel: a window to cut out, a trapezoid's outline, a bevel. */
+export function panelNote(pn: P.Panel, u: Units): string {
+  const bits: string[] = [];
+  if (pn.name.endsWith('frame')) bits.push('cut the window out');
+  if (pn.poly) {
+    const top = pn.poly[2]![0] - pn.poly[3]![0];
+    bits.push(`trapezoid: ${fl(pn.l, u)} on one edge and ${fl(top, u)} on the parallel one; the bounding rectangle is listed`);
+  }
+  if (pn.bevelDeg !== undefined) bits.push(`bevel ${(Math.round(pn.bevelDeg * 10) / 10).toString()} degrees on ${pn.bevelEdges ?? 'its ends'}`);
+  return bits.join('; ');
+}
+
 export function computeBuild(p: Project): BuildView {
   const bands = p.kind === 'speaker' ? [speakerBuild(p)] : p.kind === 'car' ? [carBuild(p)] : p.bands.slice(0, p.nBands).map((b, k) => bandBuild(b, bandName(p.nBands, k), p.shop, p.units));
   const cutList: CutRow[] = [];
@@ -915,7 +978,7 @@ export function computeBuild(p: Project): BuildView {
   };
   for (const bb of bands) {
     for (const c of bb.cabinets) {
-      for (const pn of c.panels) add(bb, bb.cabinets.length > 1 ? `${c.title}: ${pn.name}` : pn.name, pn.l, pn.w, pn.qty, pn.name.endsWith('frame') ? 'cut the window out' : '');
+      for (const pn of c.panels) add(bb, bb.cabinets.length > 1 ? `${c.title}: ${pn.name}` : pn.name, pn.l, pn.w, pn.qty, panelNote(pn, p.units));
     }
     for (const pt of bb.parts ?? []) add(bb, pt.part, pt.l, pt.w, pt.qty, pt.note);
     bb.horn?.sections.forEach((s, k) => {
@@ -974,9 +1037,9 @@ export function computeBuild(p: Project): BuildView {
   if (p.shop.thicknessMm < 15 && wallArea > 0) bom.push({ item: 'Wall damping sheet (roofing felt or bitumen)', qty: Math.ceil(wallArea * 0.6 * 10 - 1e-9) / 10, unit: 'm2', note: 'Cookbook p. 114: thin walls need heavy damping; 4 to 6 layers of felt over 50 to 75 % of the walls and the baffle, or a constrained layer' });
 
   if (p.shop.thicknessMm < 12) warnings.push(`The ${p.shop.thicknessMm} mm wall is thinner than the Cookbook's lightest approach (1/2 in, 12 mm, marine plywood with heavy damping): large panels will ring. Use thicker sheet, brace each panel and damp the walls.`);
-  const rooms = bands.filter((b) => b.cabinets.some((c) => !c.fold && !c.wedge));
+  const rooms = bands.filter((b) => b.cabinets.some((c) => !c.fold && !c.wedge && !c.taper));
   const modes = rooms.slice(0, 1).flatMap((b) => {
-    const g = b.cabinets.find((c) => !c.fold && !c.wedge)!.geometry;
+    const g = b.cabinets.find((c) => !c.fold && !c.wedge && !c.taper)!.geometry;
     const m = axialModesHz(g);
     return [`Axial standing waves of the first box (${b.name}) at ${Math.round(m.w)}, ${Math.round(m.h)} and ${Math.round(m.d)} Hz (width, height, depth; c / 2L, standard physics). Fibre fill damps them; the Cookbook finds shape and ratio secondary once the box is filled, and vented boxes (fill under half) show them more.`];
   });

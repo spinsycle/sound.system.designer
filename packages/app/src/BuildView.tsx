@@ -4,11 +4,11 @@
 // and the bill of materials.
 import { useMemo, useState } from 'react';
 import { Field } from './BoxDesigner';
-import { BRACES, BUILD_RANGES, MATERIALS, SHOP_RANGES } from './build';
+import { BOX_SHAPES, BRACES, BUILD_RANGES, DEFAULT_TAPER, MATERIALS, SHOP_RANGES, TAPER_RANGE } from './build';
 import type { Range } from './model';
 import { BOOK_PROPORTIONS, type Cabinet, type BuildView as Build, computeBuild, holePositions } from './buildlist';
 import { saveText } from './desktop';
-import { baffleHeight, baffleSvg, foldSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
+import { baffleHeight, baffleSvg, foldSvg, panelSvg, ringSvg, sheetDxf, sheetSvg, slug } from './export';
 import { type FrontRing, RING_SCREW_CM, ringScrews } from './carfront';
 import { layout3d } from './layout3d';
 import { Scene3D } from './Scene3D';
@@ -52,7 +52,11 @@ function Baffle({ c, u, rear = false }: { c: Cabinet; u: Units; rear?: boolean }
   return (
     <figure className="baffle">
       <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${h0 + 2 * pad}`} role="img" aria-label={`${c.title} ${what}, ${mm(g.wO, u)} by ${mm(h0, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>
-        <rect x={0} y={0} width={g.wO} height={h0} className="piece" />
+        {!rear && c.taper?.axis === 'height' ? (
+          <polygon points={`${(c.taper.wideO - c.taper.narrowO) / 2},0 ${(c.taper.wideO + c.taper.narrowO) / 2},0 ${g.wO},${h0} 0,${h0}`} className="piece" />
+        ) : (
+          <rect x={0} y={0} width={g.wO} height={h0} className="piece" />
+        )}
         {holePositions(c, rear).map((h, i) =>
           h.shape === 'rect' ? (
             <rect key={i} x={h.cx - h.w / 2} y={h.cy - h.h / 2} width={h.w} height={h.h} className="hole port-hole" />
@@ -174,6 +178,17 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             <h2>{v.bands[k]!.name}</h2>
             <p className="hint">{v.bands[k]!.summary}</p>
             <h3>Box shape and bracing</h3>
+            <div className="field">
+              <label htmlFor={`shape-${k}`}>Shape</label>
+              <select id={`shape-${k}`} value={band.build.shape ?? 'box'} onChange={(e) => setBuild(k, { shape: e.target.value as NonNullable<Band['build']['shape']> })}>
+                {BOX_SHAPES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(band.build.shape ?? 'box') !== 'box' && <Field id={`taper-${k}`} range={TAPER_RANGE} value={band.build.taper ?? DEFAULT_TAPER} onChange={(x) => setBuild(k, { taper: x })} />}
             <Field id={`rw-${k}`} range={BUILD_RANGES.rw} value={band.build.rw} onChange={(x) => setBuild(k, { rw: x })} />
             <Field id={`rh-${k}`} range={BUILD_RANGES.rh} value={band.build.rh} onChange={(x) => setBuild(k, { rh: x })} />
             <Field id={`rd-${k}`} range={BUILD_RANGES.rd} value={band.build.rd} onChange={(x) => setBuild(k, { rd: x })} />
@@ -195,7 +210,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
               </select>
             </div>
             <p className="hint">
-              Proportions of the inside, width : height : depth. {v.bands[k]!.cabinets.map((c) => `${c.title}: ${mm(c.geometry.wI, project.units)} x ${mm(c.geometry.hI, project.units)} x ${mm(c.geometry.dI, project.units)} ${project.units} inside`).join('; ') || 'Horn sections only.'}
+              Proportions of the inside, width : height : depth{(band.build.shape ?? 'box') !== 'box' ? ' (the width is the wide end; a tapered box is for sealed, ported and passive-radiator boxes with one driver, and has no bracing)' : ''}. {v.bands[k]!.cabinets.map((c) => `${c.title}: ${mm(c.geometry.wI, project.units)} x ${mm(c.geometry.hI, project.units)} x ${mm(c.geometry.dI, project.units)} ${project.units} inside`).join('; ') || 'Horn sections only.'}
             </p>
           </section>
         ))}
@@ -304,6 +319,25 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
                     </button>
                   </div>
                 )),
+            )}
+            {v.bands.flatMap((b) =>
+              b.cabinets.flatMap((c, ci) =>
+                c.panels
+                  .filter((pn) => pn.poly)
+                  .map((pn) => (
+                    <div key={`${b.name}-${ci}-${pn.name}`}>
+                      <figure className="baffle">
+                        <div className="fold-drawing" aria-label={`${b.name} ${pn.name}`} dangerouslySetInnerHTML={{ __html: panelSvg(pn, `${b.name}: ${pn.name}`, project.units) ?? '' }} />
+                        <figcaption>
+                          {b.name}: {pn.name}, {pn.qty * b.count} to cut, drawn to scale with the length of every edge.
+                        </figcaption>
+                      </figure>
+                      <button type="button" className="no-print" onClick={() => download(`${base}-${slug(b.name)}-${slug(pn.name)}.svg`, panelSvg(pn, `${b.name}: ${pn.name}`, project.units) ?? '', 'image/svg+xml')}>
+                        Download SVG
+                      </button>
+                    </div>
+                  )),
+              ),
             )}
             {v.bands.flatMap((b) =>
               (b.rings ?? []).map((r, i) => (

@@ -51,10 +51,15 @@ export function baffleSvg(c: Cabinet, title: string, u: Units = 'mm', rear = fal
     .join('\n');
   const W = mm(g.wO);
   const H = mm(baffleHeight(c));
+  // a tower's baffle is a trapezoid, narrow at the top; every other baffle is a rectangle
+  const tower = !rear && c.taper?.axis === 'height' ? c.taper : null;
+  const outline = tower
+    ? `<polygon points="${mm((tower.wideO - tower.narrowO) / 2)},0 ${mm((tower.wideO + tower.narrowO) / 2)},0 ${W},${H} 0,${H}" ${STYLE}/>`
+    : `<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${physical(W, u)}" height="${physical(H, u)}" viewBox="0 0 ${W} ${H}">
 <title>${esc(title)}</title>
-<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>
+${outline}
 ${holes}
 </svg>
 `;
@@ -127,6 +132,39 @@ export function ringSvg(r: FrontRing, u: Units = 'mm'): string {
 const pair = (code: number, value: string | number): string => `${code}\n${value}\n`;
 const line = (layer: string, x1: number, y1: number, x2: number, y2: number): string => pair(0, 'LINE') + pair(8, layer) + pair(10, x1) + pair(20, y1) + pair(30, 0) + pair(11, x2) + pair(21, y2) + pair(31, 0);
 const rect = (layer: string, x: number, y: number, w: number, h: number): string => line(layer, x, y, x + w, y) + line(layer, x + w, y, x + w, y + h) + line(layer, x + w, y + h, x, y + h) + line(layer, x, y + h, x, y);
+
+/**
+ * A panel that is not a rectangle, to scale: its outline with the length of every edge, and the bevel to cut if it has one. The outline is
+ * the panel's own flat shape (poly); bevelDeg and bevelEdges say how the edges are cut. Returns null for a rectangle.
+ */
+export function panelSvg(pn: P.Panel, title: string, u: Units = 'mm'): string | null {
+  if (!pn.poly) return null;
+  const H = pn.w;
+  const pts = pn.poly.map(([x, y]) => [mm(x), mm(H - y)] as const);
+  const W = mm(pn.l);
+  const Hh = mm(H);
+  const margin = 80;
+  const edge = (a: readonly [number, number], b: readonly [number, number], dx: number, dy: number): string => {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) / 1000;
+    const label = `${formatLength(len * 1000, u)} ${u}`;
+    return `<text x="${(a[0] + b[0]) / 2 + dx}" y="${(a[1] + b[1]) / 2 + dy}" font-size="28" font-family="sans-serif" text-anchor="middle">${label}</text>`;
+  };
+  const labels = pts.map((a, i) => {
+    const b = pts[(i + 1) % pts.length]!;
+    const horizontal = Math.abs(b[1] - a[1]) < Math.abs(b[0] - a[0]);
+    const above = (a[1] + b[1]) / 2 < Hh / 2;
+    return edge(a, b, horizontal ? 0 : (a[0] + b[0]) / 2 < W / 2 ? -50 : 50, horizontal ? (above ? -14 : 36) : 0);
+  });
+  const note = pn.bevelDeg !== undefined ? `<text x="${W / 2}" y="${Hh / 2}" font-size="28" font-family="sans-serif" text-anchor="middle">bevel ${(Math.round(pn.bevelDeg * 10) / 10).toString()} degrees on ${esc(pn.bevelEdges ?? 'its ends')}</text>` : '';
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${physical(W + 2 * margin, u)}" height="${physical(Hh + 2 * margin, u)}" viewBox="${-margin} ${-margin} ${W + 2 * margin} ${Hh + 2 * margin}">
+<title>${esc(title)}</title>
+<polygon points="${pts.map((q) => q.join(',')).join(' ')}" ${STYLE}/>
+${labels.join('\n')}
+${note}
+</svg>
+`;
+}
 
 /**
  * One sheet as ASCII DXF R12, in the project's unit (millimetres, or inches with $INSUNITS 1), y up: the sheet outline on layer SHEET, each piece as four LINE entities on

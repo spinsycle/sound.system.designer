@@ -2,6 +2,13 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.14.0 (2026-11-23)
+
+- **Tapered boxes:** a PA band's box on the Build page can be a **trapezoid** (the side walls angle in over the depth: wide front, narrow back) or a **tapered tower** (they lean in over the height: wide bottom, narrow top), with a taper from 0.3 to 1 (narrow end over wide end). The air of the design is held exactly. The cut list has the panels of the shape: trapezoid top and bottom (or front and back), angled or leaning sides cut to their slant length with the bevel angle in the note, and the parallel edges of every trapezoid. A tower's baffle is drawn as a trapezoid; every trapezoid panel is drawn to scale with the length of its edges and can be downloaded as SVG. The 3D preview shows the walls, holes and drivers.
+- Sealed, ported and passive-radiator boxes with one driver facing front; anything else (a band-pass box, a horn, several drivers, push-pull, columns, a baffle facing down) is built rectangular with a warning saying why. A tapered box has no braces in the cut list. A hole that reaches the leaning wall at the narrow top of a tower is warned about.
+- The sheet layout lists an angled panel by its bounding rectangle, as the wedge and horn sides are. Home speaker and car pages are unchanged.
+- Project file version stays 4; old files open as rectangular boxes (a new optional shape and taper per band).
+
 ## 1.13.0 (2026-11-23)
 
 - **Compare crossovers:** on the Crossover page, the same drivers and crossover points through up to four variants of network (active or passive), alignment (Butterworth, Linkwitz-Riley, Bessel, Chebyshev) and order (1 to 8, each 6 dB per octave; passive up to 4), drawn over the current one: summed level, phase and group delay, and the amplifier's impedance when the page is passive. Presets: orders 1 to 4, every alignment at this order, active against passive. A combination that cannot be built is refused with the reason.

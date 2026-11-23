@@ -4,12 +4,27 @@
 import * as P from '@soundsystemdesigner/physics';
 import type { Range } from './model';
 
-/** How the box is shaped and braced; one per band. Interior proportions width : height : depth. */
+/** The shape of a box: rectangular, or tapered (the side walls angle in over the depth, or lean in over the height: a tower). */
+export type BoxShape = 'box' | 'trapezoid' | 'tower';
+export const BOX_SHAPES: readonly { id: BoxShape; label: string }[] = [
+  { id: 'box', label: 'Rectangular' },
+  { id: 'trapezoid', label: 'Trapezoid: wide front, narrow back' },
+  { id: 'tower', label: 'Tapered tower: wide bottom, narrow top' },
+];
+/** Narrow end over wide end of a tapered box. */
+export const TAPER_RANGE: Range = { label: 'Narrow end over wide end', unit: '', min: 0.3, max: 1, linear: true };
+export const DEFAULT_TAPER = 0.7;
+
+/** How the box is shaped and braced; one per band. Interior proportions width : height : depth (the wide end's width for a tapered box). */
 export interface BuildOpts {
   rw: number;
   rh: number;
   rd: number;
   brace: P.Brace;
+  /** Absent means rectangular. */
+  shape?: BoxShape;
+  /** Narrow end over wide end of a tapered box (absent: the default). */
+  taper?: number;
 }
 
 /** Wall material and sheet stock; one for the whole project. Millimetres. */
@@ -33,7 +48,7 @@ export const BUILD_RANGES: Record<BuildField, Range> = {
   rd: { label: 'Depth', unit: '', min: 0.2, max: 5 },
 };
 /** The Cookbook's interior ratios (p. 113): Thiele's 2.6 : 1.6 : 1 height : width : depth, which avoids equal sides and pipe resonances. */
-export const DEFAULT_BUILD: BuildOpts = { rw: 1.6, rh: 2.6, rd: 1, brace: 'none' };
+export const DEFAULT_BUILD: BuildOpts = { rw: 1.6, rh: 2.6, rd: 1, brace: 'none', shape: 'box', taper: DEFAULT_TAPER };
 
 export type ShopField = keyof Shop;
 export const SHOP_RANGES: Record<ShopField, Range> = {
@@ -63,6 +78,8 @@ export function sanitizeBuild(input: unknown): BuildOpts {
     rh: num(i.rh, BUILD_RANGES.rh, d.rh),
     rd: num(i.rd, BUILD_RANGES.rd, d.rd),
     brace: BRACES.some((b) => b.id === i.brace) ? (i.brace as P.Brace) : d.brace,
+    shape: BOX_SHAPES.some((b) => b.id === i.shape) ? (i.shape as BoxShape) : 'box',
+    taper: num(i.taper, TAPER_RANGE, DEFAULT_TAPER),
   };
 }
 
