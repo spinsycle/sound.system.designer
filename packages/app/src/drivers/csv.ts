@@ -8,8 +8,8 @@ import { splitLine, num } from '../probe/csvimport';
 import { type DriverEntry, type DriverInput, buildEntry } from './entry';
 
 export const DB_CSV_TEMPLATE =
-  'manufacturer,series,model,name,kind,favourite,fs_hz,qts,qes,qms,re_ohm,vas_l,sd_cm2,xmax_mm,pe_w,le_mh,mms_g,cms_mm_n,bl_tm,rms,sens_db,znom_ohm,xmech_mm,notes\n' +
-  'Generic,Generic,Example 12 in,,woofer,no,38,0.35,0.40,4.5,5.4,90,520,8,400,1.2,,,,,92,8,,from a datasheet\n';
+  'manufacturer,series,model,name,kind,favourite,fs_hz,qts,qes,qms,re_ohm,vas_l,sd_cm2,xmax_mm,pe_w,le_mh,mms_g,cms_mm_n,bl_tm,rms,sens_db,znom_ohm,xmech_mm,cutout_mm,cutout_h_mm,depth_mm,notes\n' +
+  'Generic,Generic,Example 12 in,,woofer,no,38,0.35,0.40,4.5,5.4,90,520,8,400,1.2,,,,,92,8,,,,,from a datasheet\n';
 
 const ALIASES: Record<string, string[]> = {
   manufacturer: ['manufacturer', 'brand', 'make'],
@@ -36,6 +36,9 @@ const ALIASES: Record<string, string[]> = {
   rms: ['rms'],
   sens: ['sens', 'sensitivity', 'sensdb', 'spl'],
   znom: ['znom', 'znomohm', 'impedance'],
+  cutout: ['cutout', 'cutoutmm', 'cutoutwidth'],
+  cutouth: ['cutouth', 'cutouthmm', 'cutoutheight'],
+  depth: ['depth', 'depthmm', 'mountingdepth'],
 };
 const TEXT = new Set(['manufacturer', 'series', 'model', 'name', 'kind', 'favourite', 'notes']);
 /** CSV value to the SI number buildEntry wants. */
@@ -57,6 +60,9 @@ const SCALE: Record<string, [keyof DriverInput, number]> = {
   rms: ['rms', 1],
   sens: ['sensDb', 1],
   znom: ['znomOhm', 1],
+  cutout: ['cutoutWM', 1e-3],
+  cutouth: ['cutoutHM', 1e-3],
+  depth: ['depthM', 1e-3],
 };
 const YES = new Set(['yes', 'y', 'true', '1', 'x', '*', 'fav', 'favourite', 'favorite']);
 

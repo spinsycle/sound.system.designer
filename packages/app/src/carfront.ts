@@ -6,7 +6,8 @@
 import * as P from '@soundsystemdesigner/physics';
 import { DEFAULT_SHAPE, type XoShape, sanitizeShape } from './crossover';
 import { coneDiameterM, kaOf, BEAMING_KA, MIN_XOVER_OVER_FS } from './loudspeaker';
-import { DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
+import { type DriverSnapshot, sanitizeSnapshot } from './drivers/entry';
+import { CUSTOM_CLASS, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
 export type FrontType = 'component' | 'coaxial';
 export type FrontMount = 'door' | 'kick' | 'dash';
@@ -48,6 +49,9 @@ export interface CarFront {
   /** Class index of the woofer (or the coaxial) and of the separate tweeter. */
   wooferClass: number;
   tweeterClass: number;
+  /** A database driver used instead of the class: its numbers are copied in, so the project opens without the library. */
+  wooferDriver?: DriverSnapshot;
+  tweeterDriver?: DriverSnapshot;
   /** Sealed air behind each woofer, L; the depth available behind the baffle, the width of the opening in the panel and the adapter ring's thickness, cm. */
   airL: number;
   depthCm: number;
@@ -75,6 +79,53 @@ export const FRONT_RANGES: Record<FrontField, Range> = {
 };
 
 export const infoOf = (classIdx: number): (typeof FRONT_INFO)[string] | null => FRONT_INFO[P.ALL_DRIVER_CLASSES[classIdx]?.name ?? ''] ?? null;
+
+export interface FrontInfo {
+  depthCm: number;
+  cutout: Cutout;
+  coax: boolean;
+  /** True when a database driver has no cut-out or mounting depth of its own and these are guessed from its cone area. */
+  estimated: boolean;
+}
+
+/**
+ * What the front woofer needs behind and in the panel. A class has fixed generic numbers. A database driver uses its own cut-out and
+ * mounting depth when it has them; otherwise both are estimated from the cone (cut-out about 1.06 times the cone's diameter, depth
+ * about 0.45 times it plus 1 cm, within a few mm of the generic classes) and flagged `estimated`.
+ */
+export function frontInfoOf(f: CarFront): FrontInfo | null {
+  const s = f.wooferDriver;
+  if (!s) {
+    const i = infoOf(f.wooferClass);
+    return i ? { ...i, estimated: false } : null;
+  }
+  const cm = (m: number): number => Number((m * 100).toPrecision(10)); // 0.216 m is 21.6 cm, not 21.599999999999998
+  const coneCm = coneDiameterM(s.sd) * 100;
+  const w = s.cutoutWM !== undefined ? cm(s.cutoutWM) : Math.round(coneCm * 1.06 * 10) / 10;
+  const oval = s.cutoutHM !== undefined && Math.abs(s.cutoutHM - (s.cutoutWM ?? 0)) > 1e-4;
+  return {
+    depthCm: s.depthM !== undefined ? cm(s.depthM) : Math.round((coneCm * 0.45 + 1) * 10) / 10,
+    cutout: { kind: oval ? 'oval' : 'round', wCm: w, hCm: oval ? cm(s.cutoutHM!) : w },
+    coax: f.type === 'coaxial',
+    estimated: s.cutoutWM === undefined || s.depthM === undefined,
+  };
+}
+
+/** Names of the front drivers: the database driver's or the class's. */
+export const wooferName = (f: CarFront): string => f.wooferDriver?.name ?? P.ALL_DRIVER_CLASSES[f.wooferClass]?.name ?? 'front';
+export const tweeterName = (f: CarFront): string => f.tweeterDriver?.name ?? P.ALL_DRIVER_CLASSES[f.tweeterClass]?.name ?? 'tweeter';
+
+/**
+ * What a driver picker's design patch means for the fronts: a database driver, or a class (applyFront then drops a database driver). `Custom` is not offered for the fronts
+ * (their cut-outs are not typed), so it changes nothing.
+ */
+export function frontPatchFrom(which: 'woofer' | 'tweeter', patch: Partial<Design>): Partial<CarFront> {
+  const dk = which === 'woofer' ? 'wooferDriver' : 'tweeterDriver';
+  const ck = which === 'woofer' ? 'wooferClass' : 'tweeterClass';
+  if (patch.libDriver) return { [dk]: patch.libDriver };
+  if (typeof patch.driverClass === 'number' && patch.driverClass !== CUSTOM_CLASS) return { [ck]: patch.driverClass };
+  return {};
+}
 
 export const DEFAULT_FRONT: CarFront = {
   enabled: false,
@@ -111,6 +162,8 @@ export function sanitizeFront(input: unknown): CarFront {
     mount,
     wooferClass,
     tweeterClass: typeof i.tweeterClass === 'number' && tweeters.includes(i.tweeterClass) ? i.tweeterClass : d.tweeterClass,
+    ...(sanitizeSnapshot(i.wooferDriver) ? { wooferDriver: sanitizeSnapshot(i.wooferDriver) } : {}),
+    ...(sanitizeSnapshot(i.tweeterDriver) ? { tweeterDriver: sanitizeSnapshot(i.tweeterDriver) } : {}),
     airL: num(i.airL, FRONT_RANGES.airL, MOUNT_DEFAULTS[mount].airL),
     depthCm: num(i.depthCm, FRONT_RANGES.depthCm, MOUNT_DEFAULTS[mount].depthCm),
     openingCm: num(i.openingCm, FRONT_RANGES.openingCm, d.openingCm),
@@ -130,10 +183,16 @@ export function applyFront(f: CarFront, patch: Partial<CarFront>): CarFront {
     next.airL = MOUNT_DEFAULTS[patch.mount].airL;
     next.depthCm = MOUNT_DEFAULTS[patch.mount].depthCm;
   }
-  if (patch.type !== undefined && patch.type !== f.type) next.wooferClass = classIndex(patch.type === 'coaxial' ? '6.5 in coax' : '6.5 in door');
+  // a type change starts a fresh woofer (the lists differ); choosing a class by number drops a database driver unless one is given too
+  if (patch.type !== undefined && patch.type !== f.type) {
+    next.wooferClass = classIndex(patch.type === 'coaxial' ? '6.5 in coax' : '6.5 in door');
+    next.wooferDriver = undefined;
+  }
+  if (patch.wooferClass !== undefined && !('wooferDriver' in patch)) next.wooferDriver = undefined;
+  if (patch.tweeterClass !== undefined && !('tweeterDriver' in patch)) next.tweeterDriver = undefined;
   // a different driver has a different cut-out: the opening starts 1 cm wider than it
-  if (next.wooferClass !== f.wooferClass) {
-    const cut = infoOf(next.wooferClass)?.cutout;
+  if (next.wooferClass !== f.wooferClass || next.wooferDriver?.id !== f.wooferDriver?.id) {
+    const cut = frontInfoOf(sanitizeFront(next))?.cutout;
     if (cut) next.openingCm = cut.wCm + 1;
   }
   return sanitizeFront(next);
@@ -154,13 +213,13 @@ export interface FrontRing {
 
 /** The adapter ring each front woofer sits on, or null when the class is unknown. */
 export function ringOf(f: CarFront): FrontRing | null {
-  const info = infoOf(f.wooferClass);
+  const info = frontInfoOf(f);
   if (!info) return null;
   const c = info.cutout;
   const oval = c.kind === 'oval';
   const outW = Math.max(f.openingCm, c.wCm + 1) + 2 * RING_FLANGE_CM;
   const outH = oval ? Math.max(f.openingCm * (c.hCm / c.wCm), c.hCm + 1) + 2 * RING_FLANGE_CM : outW;
-  return { title: `${P.ALL_DRIVER_CLASSES[f.wooferClass]!.name} adapter ring`, outer: { kind: c.kind, wCm: outW, hCm: outH }, inner: c, thicknessCm: f.ringCm, screws: 4 };
+  return { title: `${wooferName(f)} adapter ring`, outer: { kind: c.kind, wCm: outW, hCm: outH }, inner: c, thicknessCm: f.ringCm, screws: 4 };
 }
 
 /** Screw holes of a ring, cm from its centre: on the circle (or the ellipse) halfway between the cut-out and the edge, at 45, 135, 225 and 315 degrees. */
@@ -190,9 +249,10 @@ export function checkFront(f: CarFront): FrontView {
   const driver = driverOf(wooferDesign(f));
   const qts = P.deriveDriver(driver).qts;
   const fcHz = P.sealedParams(driver.fs, qts, driver.vasM3, f.airL / 1000).fc;
-  const info = infoOf(f.wooferClass);
+  const info = frontInfoOf(f);
   const needDepthCm = (info?.depthCm ?? 0) + f.ringCm;
-  const name = P.ALL_DRIVER_CLASSES[f.wooferClass]?.name ?? 'front';
+  const name = wooferName(f);
+  if (info?.estimated) warnings.push(`The ${name} has no cut-out or mounting depth entered, so ${fmt(info.cutout.wCm)} cm and ${fmt(info.depthCm)} cm are guessed from its cone. Enter the real ones on the Drivers page.`);
   if (info && needDepthCm > f.depthCm + 1e-9)
     warnings.push(`The ${name} needs about ${fmt(needDepthCm)} cm behind the baffle (${fmt(info.depthCm)} cm driver and ${fmt(f.ringCm)} cm ring) and ${mountText(f.mount)} has ${fmt(f.depthCm)} cm. Use a thinner ring, a shallower driver or more room.`);
   if (info && f.openingCm < info.cutout.wCm + 0.5 - 1e-9)
@@ -200,8 +260,8 @@ export function checkFront(f: CarFront): FrontView {
   if (f.xoverSubHz < fcHz - 1e-9)
     warnings.push(`The front speakers are still rolling off at the ${fmt(f.xoverSubHz, 0)} Hz crossover: they are a sealed ${fmt(f.airL)} L box with a corner at ${fmt(fcHz, 0)} Hz. Cross higher or give them more air.`);
   if (f.type === 'component') {
-    const tw = P.ALL_DRIVER_CLASSES[f.tweeterClass]!;
-    if (f.xoverTweeterHz < MIN_XOVER_OVER_FS * tw.fs) warnings.push(`The ${tw.name} is crossed at ${fmt(f.xoverTweeterHz, 0)} Hz, under twice its ${fmt(tw.fs, 0)} Hz resonance. Cross higher.`);
+    const tw = driverOf(tweeterDesign(f));
+    if (f.xoverTweeterHz < MIN_XOVER_OVER_FS * tw.fs) warnings.push(`The ${tweeterName(f)} is crossed at ${fmt(f.xoverTweeterHz, 0)} Hz, under twice its ${fmt(tw.fs, 0)} Hz resonance. Cross higher.`);
     const dia = coneDiameterM(driver.sd);
     if (kaOf(f.xoverTweeterHz, dia) > BEAMING_KA) warnings.push(`The ${fmt(f.xoverTweeterHz, 0)} Hz tweeter crossover is above where a ${fmt(dia * 100)} cm cone starts to narrow its beam. Cross lower.`);
   }
@@ -212,10 +272,10 @@ const mountText = (m: FrontMount): string => ({ door: 'the door', kick: 'the kic
 
 /** The front woofer (or the coaxial) in its sealed air, as a box design. */
 export function wooferDesign(f: CarFront): Design {
-  return sanitize({ ...DEFAULT_DESIGN, driverClass: f.wooferClass, type: 'sealed', volumeL: f.airL, plotRange: 'low' });
+  return sanitize({ ...DEFAULT_DESIGN, driverClass: f.wooferDriver ? CUSTOM_CLASS : f.wooferClass, ...(f.wooferDriver ? { libDriver: f.wooferDriver } : {}), type: 'sealed', volumeL: f.airL, plotRange: 'low' });
 }
 export function tweeterDesign(f: CarFront): Design {
-  return sanitize({ ...DEFAULT_DESIGN, driverClass: f.tweeterClass, type: 'sealed', volumeL: 0.5, plotRange: 'high' });
+  return sanitize({ ...DEFAULT_DESIGN, driverClass: f.tweeterDriver ? CUSTOM_CLASS : f.tweeterClass, ...(f.tweeterDriver ? { libDriver: f.tweeterDriver } : {}), type: 'sealed', volumeL: 0.5, plotRange: 'high' });
 }
 
 /** The front drivers' pressure at 1 m for the reference voltage, one speaker, before the crossover legs and the trims. */

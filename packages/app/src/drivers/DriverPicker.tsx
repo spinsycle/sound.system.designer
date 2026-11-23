@@ -5,6 +5,7 @@
 // driver was edited on the Drivers page.
 import { ALL_DRIVER_CLASSES } from '@soundsystemdesigner/physics';
 import { CUSTOM_CLASS, type Design } from '../model';
+import type { DriverKind } from './entry';
 import type { DriverDb } from './library';
 import { libraryMissing, libraryUpdate, patchFor, pickLists, valueOf } from './pick';
 
@@ -14,10 +15,11 @@ export interface ClassGroup {
   classes: number[];
 }
 
-export function DriverPicker(p: { id: string; design: Design; db: DriverDb; onChange: (patch: Partial<Design>) => void; groups?: ClassGroup[]; label?: string }) {
+export function DriverPicker(p: { id: string; design: Design; db: DriverDb; onChange: (patch: Partial<Design>) => void; groups?: ClassGroup[]; label?: string; kinds?: readonly DriverKind[]; allowCustom?: boolean }) {
   const { design: d, db } = p;
-  const { favourites, mine } = pickLists(db);
   const groups = p.groups ?? [{ label: 'Generic classes', classes: ALL_DRIVER_CLASSES.map((_, i) => i) }];
+  // a generic driver is offered only if its class is in the lists shown (the car's fronts allow just a few)
+  const { favourites, mine } = pickLists(db, p.kinds, new Set(groups.flatMap((g) => g.classes)));
   const value = valueOf(d);
   const update = libraryUpdate(d, db);
   const missing = libraryMissing(d, db);
@@ -62,7 +64,7 @@ export function DriverPicker(p: { id: string; design: Design; db: DriverDb; onCh
               ))}
             </optgroup>
           ))}
-          <option value="custom">Custom</option>
+          {(p.allowCustom ?? true) && <option value="custom">Custom</option>}
         </select>
       </div>
       {update && (

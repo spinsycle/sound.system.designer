@@ -43,7 +43,11 @@ import {
   type FrontMount,
   MOUNT_DEFAULTS,
   applyFront,
+  frontPatchFrom,
+  tweeterDesign,
+  wooferDesign,
 } from './carfront';
+import type { DriverKind } from './drivers/entry';
 import { BOX_KINDS, BOX_RANGES, BP6_RANGES, BP8_LAYOUTS, BP8_RANGES, CUSTOM_CLASS, CUSTOM_RANGES, type Design, EXTRA_RANGES, PR_RANGES, type PassiveDesign, passiveDefaults } from './model';
 import { type Project, sanitizeProject } from './system';
 
@@ -52,6 +56,10 @@ const divisors = (n: number): number[] => Array.from({ length: n }, (_, i) => i 
 const fmt = (v: number, digits = 1): string => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(digits));
 /** First class that is a car sub: the picker lists these before the others. */
 /** The box types a car sub can be (a horn, a transmission line and a TQWT are too big for a car). */
+/** Which database drivers the front pickers offer: a component woofer, a coaxial, a tweeter. */
+const WOOFER_KINDS: DriverKind[] = ['woofer', 'midrange', 'fullrange'];
+const COAX_KINDS: DriverKind[] = ['coaxial'];
+const TWEETER_KINDS: DriverKind[] = ['tweeter'];
 const CAR_BOXES = ['sealed', 'ported', 'passive', 'bandpass', 'bandpass6', 'bandpass8'] as const;
 
 const FIRST_CAR_CLASS = P.ALL_DRIVER_CLASSES.findIndex((d) => d.name.includes('car sub'));
@@ -373,26 +381,28 @@ export function CarView({ project, onChange, db = emptyDb() }: { project: Projec
                 ))}
               </div>
               <div className="field">
-                <label htmlFor="front-class">{fr.type === 'coaxial' ? 'Coaxial' : 'Woofer'}</label>
-                <select id="front-class" value={fr.wooferClass} onChange={(e) => setFront({ wooferClass: Number(e.target.value) })}>
-                  {(fr.type === 'coaxial' ? FRONT_COAX_CLASSES : FRONT_COMPONENT_CLASSES).map((n) => (
-                    <option key={n} value={P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === n)}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
+                <DriverPicker
+                  id="front-class"
+                  label={fr.type === 'coaxial' ? 'Coaxial' : 'Woofer'}
+                  design={wooferDesign(fr)}
+                  db={db}
+                  allowCustom={false}
+                  kinds={fr.type === 'coaxial' ? COAX_KINDS : WOOFER_KINDS}
+                  groups={[{ label: 'Generic classes', classes: (fr.type === 'coaxial' ? FRONT_COAX_CLASSES : FRONT_COMPONENT_CLASSES).map((n) => P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === n)) }]}
+                  onChange={(patch) => setFront(frontPatchFrom('woofer', patch))}
+                />
               </div>
               {fr.type === 'component' && (
-                <div className="field">
-                  <label htmlFor="front-tweeter">Tweeter</label>
-                  <select id="front-tweeter" value={fr.tweeterClass} onChange={(e) => setFront({ tweeterClass: Number(e.target.value) })}>
-                    {FRONT_TWEETER_CLASSES.map((n) => (
-                      <option key={n} value={P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === n)}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <DriverPicker
+                  id="front-tweeter"
+                  label="Tweeter"
+                  design={tweeterDesign(fr)}
+                  db={db}
+                  allowCustom={false}
+                  kinds={TWEETER_KINDS}
+                  groups={[{ label: 'Generic classes', classes: FRONT_TWEETER_CLASSES.map((n) => P.ALL_DRIVER_CLASSES.findIndex((d) => d.name === n)) }]}
+                  onChange={(patch) => setFront(frontPatchFrom('tweeter', patch))}
+                />
               )}
               <Field id="front-air" slider range={FRONT_RANGES.airL} value={fr.airL} onChange={(x) => setFront({ airL: x })} />
               <Field id="front-xsub" slider range={FRONT_RANGES.xoverSubHz} value={fr.xoverSubHz} onChange={(x) => setFront({ xoverSubHz: x })} />

@@ -6,13 +6,15 @@ import { ALL_DRIVER_CLASSES } from '@soundsystemdesigner/physics';
 import { CUSTOM_CLASS, type Design, sanitize } from '../model';
 import { arrangementOf, slotLabel } from '../loudspeaker';
 import { type Project, bandName, sanitizeProject } from '../system';
-import { type DriverEntry, type DriverSnapshot, isGeneric, isUsable, snapshotOf } from './entry';
+import { type DriverEntry, type DriverKind, type DriverSnapshot, isGeneric, isUsable, snapshotOf } from './entry';
 import { type DriverDb, allDrivers, findDriver } from './library';
 
 /** Usable drivers worth listing by name: favourites (any source) and the user's own, never twice in one list. */
-export function pickLists(db: DriverDb): { favourites: DriverEntry[]; mine: DriverEntry[] } {
-  const all = allDrivers(db).filter(isUsable);
-  return { favourites: all.filter((e) => e.favourite), mine: all.filter((e) => !isGeneric(e)) };
+export function pickLists(db: DriverDb, kinds?: readonly DriverKind[], classes?: ReadonlySet<number>): { favourites: DriverEntry[]; mine: DriverEntry[] } {
+  const all = allDrivers(db).filter((e) => isUsable(e) && (!kinds || kinds.includes(e.kind)));
+  // a generic driver is its class: offered only when that class is one the caller lists
+  const offered = (e: DriverEntry): boolean => !isGeneric(e) || !classes || classes.has(classIndex(e));
+  return { favourites: all.filter((e) => e.favourite && offered(e)), mine: all.filter((e) => !isGeneric(e)) };
 }
 
 const classIndex = (e: DriverEntry): number => (isGeneric(e) ? Number(e.id.slice('generic-'.length)) : -1);
@@ -39,7 +41,7 @@ export function patchFor(value: string, db: DriverDb): Partial<Design> | null {
   return s ? { driverClass: CUSTOM_CLASS, libDriver: s } : null;
 }
 
-const sameNumbers = (a: DriverSnapshot, b: DriverSnapshot): boolean => a.name === b.name && a.fs === b.fs && a.re === b.re && a.qes === b.qes && a.qms === b.qms && a.vasM3 === b.vasM3 && a.sd === b.sd && a.xmax === b.xmax && a.pe === b.pe && a.le === b.le;
+const sameNumbers = (a: DriverSnapshot, b: DriverSnapshot): boolean => a.name === b.name && a.fs === b.fs && a.re === b.re && a.qes === b.qes && a.qms === b.qms && a.vasM3 === b.vasM3 && a.sd === b.sd && a.xmax === b.xmax && a.pe === b.pe && a.le === b.le && a.cutoutWM === b.cutoutWM && a.cutoutHM === b.cutoutHM && a.depthM === b.depthM;
 
 /** The library's current numbers for the driver a design carries, when they differ from the copy in the design. Else null. */
 export function libraryUpdate(d: Design, db: DriverDb): DriverSnapshot | null {

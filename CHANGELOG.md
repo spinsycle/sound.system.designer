@@ -2,6 +2,11 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.11.1 (2026-11-23)
+
+- **Car front speakers on the database:** the woofer, coaxial and tweeter pickers on the car page list your favourites and your database drivers (by kind: woofer, midrange or full-range; coaxial; tweeter) beside the generic classes. A database driver uses its own **cut-out** (width or diameter, and height for an oval) and **mounting depth**, new optional fields on a driver (form, CSV columns `cutout_mm`, `cutout_h_mm`, `depth_mm`); without them both are guessed from the cone and a warning says so. The opening follows the cut-out, and the adapter ring, bill of materials, response checks and the crossover import carry the driver. Choosing a generic class drops a database driver.
+- Project file version stays 4.
+
 ## 1.11.0 (2026-11-23)
 
 - **Driver database:** a Drivers page with your own drivers (manufacturer, series, model, kind, notes and every Thiele-Small number including Le, Mms, Cms, Bl, Rms, sensitivity, Znom and Xmech), search, filters (favourites, ready to use, kind, maker, source, fs, Qts, Vas, cone diameter) and sorting. Favourites are green; generic drivers can be starred too. Missing numbers (third Q, Vas and Cms, Mms, Bl, Rms) are worked out and marked; out-of-range or inconsistent input is refused.

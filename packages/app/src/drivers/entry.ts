@@ -17,7 +17,7 @@ export type DriverSource = (typeof DRIVER_SOURCES)[number];
 
 /** SI numbers of an entry. The first five are always present; the rest are optional and filled when they can be derived. */
 export const CORE_KEYS = ['fs', 're', 'qes', 'qms', 'qts'] as const;
-export const OPTIONAL_KEYS = ['vasM3', 'sd', 'xmax', 'pe', 'le', 'mms', 'cms', 'bl', 'rms', 'sensDb', 'znomOhm', 'xmechM'] as const;
+export const OPTIONAL_KEYS = ['vasM3', 'sd', 'xmax', 'pe', 'le', 'mms', 'cms', 'bl', 'rms', 'sensDb', 'znomOhm', 'xmechM', 'cutoutWM', 'cutoutHM', 'depthM'] as const;
 type OptionalKey = (typeof OPTIONAL_KEYS)[number];
 
 export interface DriverEntry {
@@ -60,6 +60,11 @@ export interface DriverEntry {
   znomOhm?: number;
   /** Mechanical (physical) excursion limit, one way, m. */
   xmechM?: number;
+  /** Mounting cut-out: width, or diameter of a round hole, and height of an oval (absent for round), m. Used by the car's front speakers. */
+  cutoutWM?: number;
+  cutoutHM?: number;
+  /** Mounting depth behind the baffle, m. */
+  depthM?: number;
   /** Keys that were computed, not entered. */
   derived: string[];
   /** The Driver Probe record this came from, kept for a later re-fit. */
@@ -89,8 +94,11 @@ export const RANGES: Record<(typeof CORE_KEYS)[number] | OptionalKey, [number, n
   sensDb: [50, 130],
   znomOhm: [0.5, 64],
   xmechM: [1e-5, 0.2],
+  cutoutWM: [0.03, 0.4],
+  cutoutHM: [0.03, 0.4],
+  depthM: [0.01, 0.3],
 };
-const LABEL: Record<string, string> = { fs: 'fs', re: 'Re', qes: 'Qes', qms: 'Qms', qts: 'Qts', vasM3: 'Vas', sd: 'Sd', xmax: 'Xmax', pe: 'Pe', le: 'Le', mms: 'Mms', cms: 'Cms', bl: 'Bl', rms: 'Rms', sensDb: 'Sensitivity', znomOhm: 'Znom', xmechM: 'Xmech' };
+const LABEL: Record<string, string> = { fs: 'fs', re: 'Re', qes: 'Qes', qms: 'Qms', qts: 'Qts', vasM3: 'Vas', sd: 'Sd', xmax: 'Xmax', pe: 'Pe', le: 'Le', mms: 'Mms', cms: 'Cms', bl: 'Bl', rms: 'Rms', sensDb: 'Sensitivity', znomOhm: 'Znom', xmechM: 'Xmech', cutoutWM: 'Cut-out width', cutoutHM: 'Cut-out height', depthM: 'Mounting depth' };
 
 const num = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const text = (x: unknown, fallback: string, max = 120): string => (typeof x === 'string' && x.trim() ? x.trim().slice(0, max) : fallback);
@@ -219,12 +227,17 @@ export interface DriverSnapshot {
   xmax: number;
   pe: number;
   le?: number;
+  /** Mounting cut-out and depth, m, when the entry has them (the car's front speakers use them). */
+  cutoutWM?: number;
+  cutoutHM?: number;
+  depthM?: number;
 }
 const SNAP_KEYS = ['fs', 're', 'qes', 'qms', 'vasM3', 'sd', 'xmax', 'pe'] as const;
+const SNAP_OPTIONAL = ['le', 'cutoutWM', 'cutoutHM', 'depthM'] as const;
 
 export function snapshotOf(e: DriverEntry): DriverSnapshot | null {
   const s = entryToSpec(e);
-  return s ? { id: e.id, name: e.name, fs: s.fs, re: s.re, qes: s.qes, qms: s.qms, vasM3: s.vasM3, sd: s.sd, xmax: s.xmax, pe: s.pe, ...(s.le !== undefined ? { le: s.le } : {}) } : null;
+  return s ? { id: e.id, name: e.name, fs: s.fs, re: s.re, qes: s.qes, qms: s.qms, vasM3: s.vasM3, sd: s.sd, xmax: s.xmax, pe: s.pe, ...(s.le !== undefined ? { le: s.le } : {}), ...(e.cutoutWM !== undefined ? { cutoutWM: e.cutoutWM } : {}), ...(e.cutoutHM !== undefined ? { cutoutHM: e.cutoutHM } : {}), ...(e.depthM !== undefined ? { depthM: e.depthM } : {}) } : null;
 }
 export const snapshotSpec = (s: DriverSnapshot): DriverSpec => ({ name: s.name, fs: s.fs, qes: s.qes, qms: s.qms, vasM3: s.vasM3, sd: s.sd, re: s.re, xmax: s.xmax, pe: s.pe, ...(s.le !== undefined ? { le: s.le } : {}) });
 
@@ -238,9 +251,11 @@ export function sanitizeSnapshot(x: unknown): DriverSnapshot | undefined {
     if (!num(v) || v < RANGES[k][0] || v > RANGES[k][1]) return undefined;
     out[k] = v;
   }
-  if (o.le !== undefined) {
-    if (!num(o.le) || o.le < RANGES.le[0] || o.le > RANGES.le[1]) return undefined;
-    out.le = o.le;
+  for (const k of SNAP_OPTIONAL) {
+    if (o[k] === undefined) continue;
+    const v = o[k];
+    if (!num(v) || v < RANGES[k][0] || v > RANGES[k][1]) return undefined;
+    out[k] = v;
   }
   return out as unknown as DriverSnapshot;
 }

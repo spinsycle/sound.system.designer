@@ -3,7 +3,7 @@
 // Cut list, sheet layout and bill of materials for a project. Pure functions; the Build page draws what comes back.
 // Spec: "Cabinet, cut list and sheets". Metric only (millimetres on the page, metres inside).
 import * as P from '@soundsystemdesigner/physics';
-import { type FrontRing, checkFront, ringOf } from './carfront';
+import { type FrontRing, checkFront, ringOf, tweeterName, wooferName } from './carfront';
 import { type CarSub, computeCarElectric, computeCarSub, mountDepthCm } from './carsub';
 import { arrangementOf, coneDiameterM, slotLabel } from './loudspeaker';
 import { type Design, bp6RearPortLengthM, bp8InnerPortLengthM, bp8RearPortLengthM, compute, driverOf, flareOf, portLengthOf, portOpeningM, prOf, tlGeometryOf, tlLineVolumeM3 } from './model';
@@ -741,9 +741,9 @@ function carFrontExtras(fr: CarSub['front']): { ring: FrontRing | null; warnings
   const parts: NonNullable<BandBuild['parts']> = [];
   if (fr.enabled) {
     warnings.push(...checkFront(fr).warnings);
-    const wName = P.ALL_DRIVER_CLASSES[fr.wooferClass]!.name;
+    const wName = wooferName(fr);
     drivers.push({ name: `${wName} (front, one each side)`, qty: 2 });
-    if (fr.type === 'component') drivers.push({ name: `${P.ALL_DRIVER_CLASSES[fr.tweeterClass]!.name} tweeter (front, one each side)`, qty: 2 });
+    if (fr.type === 'component') drivers.push({ name: `${tweeterName(fr)} tweeter (front, one each side)`, qty: 2 });
     if (ring) parts.push({ part: ring.title, l: ring.outer.wCm / 100, w: ring.outer.hCm / 100, qty: 2, note: `${fmtCm(ring.thicknessCm)} cm thick; cut ${ring.outer.kind === 'round' ? 'a round' : 'an oval'} ring: the size listed is the outside's bounding rectangle, the cut-out is ${ring.inner.kind === 'round' ? `${fmtCm(ring.inner.wCm)} cm round` : `${fmtCm(ring.inner.wCm)} x ${fmtCm(ring.inner.hCm)} cm oval`}` });
   }
   return { ring, warnings, drivers, parts };

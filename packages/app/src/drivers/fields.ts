@@ -5,7 +5,7 @@
 // a computed value into a typed one.
 import { DRIVER_KINDS, type DriverEntry, type DriverInput, type DriverKind, autoName } from './entry';
 
-type NumKey = 'fs' | 're' | 'qts' | 'qes' | 'qms' | 'vasM3' | 'sd' | 'xmax' | 'pe' | 'le' | 'mms' | 'cms' | 'bl' | 'rms' | 'sensDb' | 'znomOhm' | 'xmechM';
+type NumKey = 'fs' | 're' | 'qts' | 'qes' | 'qms' | 'vasM3' | 'sd' | 'xmax' | 'pe' | 'le' | 'mms' | 'cms' | 'bl' | 'rms' | 'sensDb' | 'znomOhm' | 'xmechM' | 'cutoutWM' | 'cutoutHM' | 'depthM';
 
 export interface FieldDef {
   key: NumKey;
@@ -35,6 +35,9 @@ export const FIELDS: readonly FieldDef[] = [
   { key: 'sensDb', label: 'Sensitivity', unit: 'dB (1 W, 1 m)', scale: 1, core: false },
   { key: 'znomOhm', label: 'Znom', unit: 'ohm', scale: 1, core: false },
   { key: 'xmechM', label: 'Xmech', unit: 'mm', scale: 1e-3, core: false },
+  { key: 'cutoutWM', label: 'Cut-out width or diameter', unit: 'mm', scale: 1e-3, core: false },
+  { key: 'cutoutHM', label: 'Cut-out height (oval only)', unit: 'mm', scale: 1e-3, core: false },
+  { key: 'depthM', label: 'Mounting depth', unit: 'mm', scale: 1e-3, core: false },
 ];
 
 export type FormState = Record<NumKey, string> & { name: string; manufacturer: string; series: string; model: string; kind: DriverKind | ''; notes: string };

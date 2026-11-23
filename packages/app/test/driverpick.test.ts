@@ -29,6 +29,21 @@ describe('pickLists', () => {
   });
 });
 
+describe('pickLists filters', () => {
+  it('by kind and by the generic classes a page lists', () => {
+    const woof = mk({ kind: 'woofer' }, 'kw');
+    const db = upsertEntry(upsertEntry(emptyDb(), woof), T1);
+    expect(pickLists(db, ['tweeter']).mine.map((e) => e.id)).toEqual(['t1']);
+    expect(pickLists(db, ['woofer']).mine.map((e) => e.id)).toEqual(['kw']);
+    expect(pickLists(db, ['woofer', 'tweeter']).mine.map((e) => e.id)).toEqual(['kw', 't1']);
+    const fav = toggleFavourite(toggleFavourite(db, 'generic-3'), 'generic-4');
+    expect(pickLists(fav).favourites.map((e) => e.id)).toEqual(['generic-3', 'generic-4']);
+    expect(pickLists(fav, undefined, new Set([4, 9])).favourites.map((e) => e.id)).toEqual(['generic-4']);
+    expect(pickLists(fav, undefined, new Set()).favourites).toEqual([]);
+    expect(pickLists(toggleFavourite(db, 'kw'), undefined, new Set()).favourites.map((e) => e.id)).toEqual(['kw']);
+  });
+});
+
 describe('valueOf and patchFor', () => {
   it('describes where a design is', () => {
     expect(valueOf(M.sanitize({ ...M.DEFAULT_DESIGN, driverClass: 5 }))).toBe('class:5');

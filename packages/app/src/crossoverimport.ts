@@ -4,6 +4,7 @@
 // speakers. Each driver comes over as its generic datasheet numbers (level, resonance, resistance, an estimated inductance) to edit.
 import * as P from '@soundsystemdesigner/physics';
 import { type Role, ROLES_FOR, ROLE_DEFAULTS, type XoDriver, type XoState, XOVER_FOR, driverFor, sanitizeXo } from './crossover';
+import { tweeterDesign, wooferDesign } from './carfront';
 import { arrangementOf } from './loudspeaker';
 import { driverOf } from './model';
 import { type Project, bandName } from './system';
@@ -49,7 +50,7 @@ export function importFromDesign(p: Project, kind: 'system' | 'speaker' | 'car')
     return {
       ok: true,
       label: 'car front speakers',
-      drivers: [driverFromSpec(P.ALL_DRIVER_CLASSES[f.wooferClass]!, 'woofer', 'Woofer'), driverFromSpec(P.ALL_DRIVER_CLASSES[f.tweeterClass]!, 'tweeter', 'Tweeter')],
+      drivers: [driverFromSpec(driverOf(wooferDesign(f)), 'woofer', 'Woofer'), driverFromSpec(driverOf(tweeterDesign(f)), 'tweeter', 'Tweeter')],
       xover: [f.xoverTweeterHz],
     };
   }
