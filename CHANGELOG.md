@@ -2,6 +2,13 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.12.0 (2026-11-23)
+
+- **Compare box types:** on the box page (not for a horn), the same driver in sealed, ported, passive-radiator, band-pass, 6th- and 8th-order band-pass, transmission-line and TQWT boxes drawn over this one: response, cone excursion with the Xmax line, impedance and group delay, and a table (air, tuning, the -3 dB edges, ripple, peak cone excursion and its share of Xmax, peak group delay, warnings). **Cookbook alignment** sizes each box for the driver (sealed for Qtc 0.707, ported on QB3 at QL 7, the passive-radiator and band-pass designs); **Same air** only changes the type. **Use this** makes a candidate the design.
+- **Find drivers for this box:** every usable driver in the database and the generic classes, put in this box (box, tuning, port and chosen power kept) and ranked 0 to 100: 40 % reaching the wanted -3 dB point (full marks at or below it, none at twice it), 30 % a flat passband (full to 1 dB of ripple, none at 6 dB), 30 % staying inside Xmax (none at twice Xmax), 10 off per warning (at most 30). Filter by kind and favourites, Show draws a driver over the current response, **Use** puts it in the box.
+- The alignment solvers are slow (up to a second each), so their answers are kept while you change the box.
+- Project file version stays 4; no new stored fields.
+
 ## 1.11.1 (2026-11-23)
 
 - **Car front speakers on the database:** the woofer, coaxial and tweeter pickers on the car page list your favourites and your database drivers (by kind: woofer, midrange or full-range; coaxial; tweeter) beside the generic classes. A database driver uses its own **cut-out** (width or diameter, and height for an oval) and **mounting depth**, new optional fields on a driver (form, CSV columns `cutout_mm`, `cutout_h_mm`, `depth_mm`); without them both are guessed from the cone and a warning says so. The opening follows the cut-out, and the adapter ring, bill of materials, response checks and the crossover import carry the driver. Choosing a generic class drops a database driver.

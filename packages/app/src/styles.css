@@ -815,3 +815,39 @@ td.left.note-cell {
 .driverlist th.left {
   padding-left: 8px;
 }
+
+/* compare box types and find drivers */
+.comparepanel,
+.driverfinder {
+  margin-top: 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.chart .overlay.cmp,
+.overlay.cmp {
+  stroke-dasharray: none;
+  stroke-width: 1.6;
+}
+.overlay.cmp-1 { stroke: #6fb6c9; }
+.overlay.cmp-2 { stroke: #9ccf7a; }
+.overlay.cmp-3 { stroke: #d9a6e0; }
+.overlay.cmp-4 { stroke: #f08a6c; }
+.overlay.cmp-5 { stroke: #e6d36a; }
+.overlay.cmp-6 { stroke: #8aa4ff; }
+.overlay.cmp-7 { stroke: #ff8fb8; }
+.comparetable tr.this th,
+.comparetable tr.this td {
+  color: var(--amber);
+}
+.comparetable tr.cmp-1 th { color: #6fb6c9; }
+.comparetable tr.cmp-2 th { color: #9ccf7a; }
+.comparetable tr.cmp-3 th { color: #d9a6e0; }
+.comparetable tr.cmp-4 th { color: #f08a6c; }
+.comparetable tr.cmp-5 th { color: #e6d36a; }
+.comparetable tr.cmp-6 th { color: #8aa4ff; }
+.comparetable tr.cmp-7 th { color: #ff8fb8; }
+.driverranking tr.fav th,
+.driverranking tr.fav td {
+  color: var(--fav);
+}

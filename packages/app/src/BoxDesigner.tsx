@@ -4,6 +4,8 @@ import * as P from '@soundsystemdesigner/physics';
 // One box or horn: driver, enclosure, plots. Edits a Design it is given; the app shell owns and stores it.
 import { useMemo, useState } from 'react';
 import { Chart, ProfileChart, niceScale } from './Chart';
+import { ComparePanel } from './ComparePanel';
+import { DriverFinder } from './DriverFinder';
 import { DriverPicker } from './drivers/DriverPicker';
 import { type DriverDb, emptyDb } from './drivers/library';
 import { foldSvg } from './export';
@@ -178,6 +180,7 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
   const common = { freqs: c.freqs, hover, onHover: setHover, vLines: c.markers };
 
   return (
+    <>
       <main>
         <div className="controls">
           <section>
@@ -615,5 +618,12 @@ export function BoxDesigner({ design, onChange, count = 1, perBox = 1, onPerBox,
           <Chart {...common} title="Group delay" unit="ms" values={c.curves.groupDelayMs} overlays={c.overlays.groupDelayMs} yMin={0} yMax={gd.max} yStep={gd.step} />
         </div>
       </main>
+      {design.type !== 'horn' && (
+        <>
+          <ComparePanel design={design} wallM={wallM} onUse={onChange} />
+          <DriverFinder design={design} db={db} wallM={wallM} onUse={onChange} />
+        </>
+      )}
+    </>
   );
 }
