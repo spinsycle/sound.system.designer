@@ -8,7 +8,7 @@ import { DriverPicker } from './drivers/DriverPicker';
 import { type DriverDb, emptyDb } from './drivers/library';
 import { Field } from './BoxDesigner';
 import { LayoutControls, PortControls } from './LayoutControls';
-import { BRACES } from './build';
+import { BOX_SHAPES, BRACES, DEFAULT_TAPER, TAPER_RANGE } from './build';
 import { Chart } from './Chart';
 import { ShapeControls } from './ShapeControls';
 import {
@@ -150,6 +150,17 @@ export function SpeakerView({ project, onChange, db = emptyDb() }: { project: Pr
           />
           <h3>Build</h3>
           <Field id="quantity" range={QUANTITY_RANGE} value={sp.quantity} onChange={(v) => set({ quantity: Math.round(v) })} />
+          <div className="field stacked">
+            <label htmlFor="sp-boxshape">Shape</label>
+            <select id="sp-boxshape" value={sp.boxShape} onChange={(e) => set({ boxShape: e.target.value as Loudspeaker['boxShape'] })}>
+              {BOX_SHAPES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {sp.boxShape !== 'box' && <Field id="sp-taper" range={TAPER_RANGE} value={sp.taper ?? DEFAULT_TAPER} onChange={(v) => set({ taper: v })} />}
           <div className="field">
             <label htmlFor="sp-brace">Bracing</label>
             <select id="sp-brace" value={sp.brace} onChange={(e) => set({ brace: e.target.value as Loudspeaker['brace'] })}>

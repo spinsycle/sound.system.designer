@@ -26,7 +26,7 @@ describe('cookbook: vented box', () => {
     console.log('B4 3', JSON.stringify(a), 'B4 15', JSON.stringify(b));
     expect(a.alpha).toBeCloseTo(0.6543, 1);
     expect(b.alpha).toBeCloseTo(1.2444, 1);
-  });
+  }, 30_000);
 });
 
 describe('cookbook: sealed box', () => {

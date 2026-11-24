@@ -5,6 +5,7 @@
 // sum as complex pressure and the baffle step multiplies the sum. Pure functions; the page draws what computeLoudspeaker
 // returns. Spec: "Loudspeaker cabinets" (v0.11).
 import * as P from '@soundsystemdesigner/physics';
+import { BOX_SHAPES, type BoxShape, DEFAULT_TAPER, TAPER_RANGE } from './build';
 import { DEFAULT_SHAPE, type XoShape, sanitizeShape, shapeBands, shapeLow, shapeNotes } from './crossover';
 import { BOX_RANGES, DEFAULT_DESIGN, type Design, type Range, REF_VOLTS, driverOf, rawEvaluator, sanitize } from './model';
 
@@ -80,6 +81,10 @@ export interface Loudspeaker {
   quantity: number;
   /** Bracing across the cabinet, for the cut list. */
   brace: P.Brace;
+  /** The cabinet's shape: a rectangle, or a trapezoid or tower with the baffle at the wide end (one chamber, one column, facing front, ports below the drivers). */
+  boxShape: BoxShape;
+  /** Narrow end over wide end of a trapezoid or tower. */
+  taper: number;
   /** Where the port holes of the ported slots go on the cabinet (cut list, drawing and 3D only; the response is unchanged). */
   portPos: PortPosition;
 }
@@ -129,6 +134,8 @@ export function defaultSpeaker(id: ArrangementId = 'two-way'): Loudspeaker {
     baffleStep: true,
     quantity: 2,
     brace: 'none',
+    boxShape: 'box',
+    taper: DEFAULT_TAPER,
     portPos: { place: 'below', dxCm: 0, dyCm: 0 },
   };
 }
@@ -163,6 +170,8 @@ export function sanitizeLoudspeaker(input: unknown): Loudspeaker {
     baffleStep: i.baffleStep !== false,
     quantity: Math.round(num(i.quantity, QUANTITY_RANGE, d.quantity)),
     brace: i.brace === 'single' || i.brace === 'window' ? i.brace : 'none',
+    boxShape: BOX_SHAPES.some((b) => b.id === i.boxShape) ? (i.boxShape as BoxShape) : 'box',
+    taper: num(i.taper, TAPER_RANGE, DEFAULT_TAPER),
     portPos: {
       place: PORT_PLACES.find((x) => x === obj(i.portPos).place) ?? 'below',
       dxCm: num(obj(i.portPos).dxCm, PORT_OFFSET_RANGE.dxCm, 0),
@@ -367,5 +376,5 @@ export const SPEAKER_TEMPLATES: readonly SpeakerTemplate[] = [
 /** A starting design as the speaker, keeping how many to build and the bracing. */
 export function applySpeakerTemplate(sp: Loudspeaker, index: number): Loudspeaker {
   const t = SPEAKER_TEMPLATES[index]!.speaker;
-  return sanitizeLoudspeaker({ ...t, quantity: sp.quantity, brace: sp.brace, chambers: sp.chambers });
+  return sanitizeLoudspeaker({ ...t, quantity: sp.quantity, brace: sp.brace, chambers: sp.chambers, boxShape: sp.boxShape, taper: sp.taper });
 }

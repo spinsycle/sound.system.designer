@@ -1859,6 +1859,17 @@ const mutations = [
   [app('layout3d.ts'), "b.kind = 'brace';", "void 0;"],
   [app('layout3d.ts'), "brace.holes = [{ u: g.wideI / 2, v: g.hI / 2,", "brace.holes = [{ u: g.narrowI / 2, v: g.hI / 2,"],
   [app('layout3d.ts'), 'if (towerFront) towerFront.holes!.push(holeOf(h, h.cx, g.hO - h.cy));', 'void 0;'],
+  [app('buildlist.ts'), 'const rd = (vNet + disp + g.braceM3) / (((1 + taper) / 2) * wI * hI);', 'const rd = (vNet + disp + g.braceM3) / (wI * hI);'],
+  [app('buildlist.ts'), 'const rd = (vNet + disp + g.braceM3) / (((1 + taper) / 2) * wI * hI);', 'const rd = (vNet + disp) / (((1 + taper) / 2) * wI * hI);'],
+  [app('buildlist.ts'), 'const taperOk = partitions === 0 && lay1.cols <= 1 &&', 'const taperOk = lay1.cols <= 1 &&'],
+  [app('buildlist.ts'), "lay1.facing === 'front' && sp.portPos.place === 'below';", "sp.portPos.place === 'below';"],
+  [app('buildlist.ts'), "lay1.facing === 'front' && sp.portPos.place === 'below';", "lay1.facing === 'front';"],
+  [app('buildlist.ts'), "wantShape === 'trapezoid' ? 'plan' : 'height', t, sp.brace) : undefined;", "wantShape === 'trapezoid' ? 'height' : 'plan', t, sp.brace) : undefined;"],
+  [app('buildlist.ts'), "if (wantShape !== 'box' && !tg) warnings.push(", "if (wantShape !== 'box' && tg) warnings.push("],
+  [app('buildlist.ts'), "liningM2: tg ? taperLining(tg) :", "liningM2: tg ? 0 :"],
+  [app('buildlist.ts'), "if (tg?.axis === 'height') {", "if (tg?.axis === 'plan') {"],
+  [app('loudspeaker.ts'), 'taper: num(i.taper, TAPER_RANGE, DEFAULT_TAPER),', 'taper: num(i.taper, TAPER_RANGE, 0.5),'],
+  [app('loudspeaker.ts'), "chambers: sp.chambers, boxShape: sp.boxShape, taper: sp.taper }", "chambers: sp.chambers }"],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect

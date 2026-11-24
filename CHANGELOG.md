@@ -2,6 +2,12 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.15.0 (2026-11-23)
+
+- **Home speaker shapes:** the Build section of the home speaker page has a **Shape** (Rectangular, Trapezoid, Tapered tower) and **Narrow end over wide end**. The baffle is the wide end, so it keeps the width and height set above and the depth follows from the air (drivers, ports and braces taken out). The cut list, drawings, lining, 3D view and bracing are the PA page's. It needs one chamber (no partitions), one column of drivers, a baffle facing front and the ports under the drivers; anything else is built rectangular with a warning saying why. A tower warns when a hole reaches the leaning wall at its narrow top. Speaker templates keep the chosen shape.
+- Project file version stays 4; old files open as rectangular (a new optional shape and taper on the speaker).
+- Test: the slow vented-box solver test has a 30 s limit (it timed out under load).
+
 ## 1.14.1 (2026-11-23)
 
 - **Tapered boxes get bracing:** the Bracing setting now works on a trapezoid and a tapered tower. Each brace is a frame across the interior (a window of bars cut out) evenly spaced from front to back; the cut list has a frame per brace of a trapezoid, or a trapezoid frame repeated for a tower; the wood is taken out of the air so the net volume still holds. The 3D preview shows them (when see-through or exploded) with their windows.
