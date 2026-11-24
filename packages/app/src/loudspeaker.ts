@@ -81,7 +81,7 @@ export interface Loudspeaker {
   quantity: number;
   /** Bracing across the cabinet, for the cut list. */
   brace: P.Brace;
-  /** The cabinet's shape: a rectangle, or a trapezoid or tower with the baffle at the wide end (one chamber, one column, facing front, ports below the drivers). */
+  /** The cabinet's shape: a rectangle, or a trapezoid or tower with the baffle at the wide end (one column of drivers, facing front). */
   boxShape: BoxShape;
   /** Narrow end over wide end of a trapezoid or tower. */
   taper: number;

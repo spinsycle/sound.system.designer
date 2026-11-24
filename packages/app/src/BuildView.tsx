@@ -47,15 +47,17 @@ function Baffle({ c, u, rear = false }: { c: Cabinet; u: Units; rear?: boolean }
   const g = c.geometry;
   const h0 = baffleHeight(c);
   const holes = rear ? (c.rearHoles ?? []) : c.cutouts;
+  // the back wall of a plan trapezoid is its narrow end; every other back is as wide as the baffle
+  const w0 = rear && c.taper?.axis === 'plan' ? c.taper.narrowO : g.wO;
   const pad = 0.03;
   const what = rear ? 'back wall (push-pull drivers or a rear port)' : c.facing === 'down' ? 'bottom baffle (drivers fire down)' : 'front baffle';
   return (
     <figure className="baffle">
-      <svg viewBox={`${-pad} ${-pad} ${g.wO + 2 * pad} ${h0 + 2 * pad}`} role="img" aria-label={`${c.title} ${what}, ${mm(g.wO, u)} by ${mm(h0, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>
-        {!rear && c.taper?.axis === 'height' ? (
+      <svg viewBox={`${-pad} ${-pad} ${w0 + 2 * pad} ${h0 + 2 * pad}`} role="img" aria-label={`${c.title} ${what}, ${mm(w0, u)} by ${mm(h0, u)} ${u === 'in' ? 'inches' : 'millimetres'}`}>
+        {c.taper?.axis === 'height' ? (
           <polygon points={`${(c.taper.wideO - c.taper.narrowO) / 2},0 ${(c.taper.wideO + c.taper.narrowO) / 2},0 ${g.wO},${h0} 0,${h0}`} className="piece" />
         ) : (
-          <rect x={0} y={0} width={g.wO} height={h0} className="piece" />
+          <rect x={0} y={0} width={w0} height={h0} className="piece" />
         )}
         {holePositions(c, rear).map((h, i) =>
           h.shape === 'rect' ? (

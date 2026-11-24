@@ -30,8 +30,8 @@ describe('baffleSvg', () => {
       expect(svg).not.toContain('<polygon');
     }
   });
-  it('the back of a tower (rear drawing) is not the trapezoid', () => {
-    expect(baffleSvg(cab({ shape: 'tower' }), 'Back', 'mm', true)).not.toContain('<polygon');
+  it('the back of a tower (rear drawing) is a trapezoid like its front: a tower has a trapezoid back wall', () => {
+    expect(baffleSvg(cab({ shape: 'tower' }), 'Back', 'mm', true)).toContain('<polygon');
   });
 });
 

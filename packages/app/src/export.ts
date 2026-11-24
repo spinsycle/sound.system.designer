@@ -50,10 +50,10 @@ export function baffleSvg(c: Cabinet, title: string, u: Units = 'mm', rear = fal
   const holes = holePositions(c, rear)
     .map((h) => (h.shape === 'rect' ? `<rect x="${mm(h.cx - h.w / 2)}" y="${mm(h.cy - h.h / 2)}" width="${mm(h.w)}" height="${mm(h.h)}" ${STYLE}/>` : `<circle cx="${mm(h.cx)}" cy="${mm(h.cy)}" r="${mm(h.r)}" ${STYLE}/>`))
     .join('\n');
-  const W = mm(g.wO);
+  // the back wall of a plan trapezoid is its narrow end; a tower's baffle and back are trapezoids, narrow at the top; every other one is a rectangle
+  const W = mm(rear && c.taper?.axis === 'plan' ? c.taper.narrowO : g.wO);
   const H = mm(baffleHeight(c));
-  // a tower's baffle is a trapezoid, narrow at the top; every other baffle is a rectangle
-  const tower = !rear && c.taper?.axis === 'height' ? c.taper : null;
+  const tower = c.taper?.axis === 'height' ? c.taper : null;
   const outline = tower
     ? `<polygon points="${mm((tower.wideO - tower.narrowO) / 2)},0 ${mm((tower.wideO + tower.narrowO) / 2)},0 ${W},${H} 0,${H}" ${STYLE}/>`
     : `<rect x="0" y="0" width="${W}" height="${H}" ${STYLE}/>`;

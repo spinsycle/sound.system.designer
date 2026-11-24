@@ -172,7 +172,12 @@ export interface TaperGeometry {
   braceWidths: number[];
   /** Wood in the braces, m3 (a window of the narrow end's width less two bars, by the height less two bars, is cut out of each). */
   braceM3: number;
-  /** Air left after what is inside (drivers, ports, braces) is taken out. */
+  /** Chamber partitions (a speaker's shelves, flat): each one's distance down from the top of the interior to its middle, and its interior width there (a trapezoid's is the wide end: it is cut to the trapezoid). */
+  shelfAt: number[];
+  shelfWidths: number[];
+  /** Wood in the partitions, m3. */
+  shelfM3: number;
+  /** Air left after what is inside (drivers, ports, braces, partitions) is taken out. */
   netM3: number;
 }
 
@@ -183,8 +188,11 @@ export interface TaperGeometry {
  * (`brace`, as for a rectangular box) cross the interior, evenly spaced from the front to the back; the box is sized with eight passes
  * because the braces depend on the size.
  */
-export function solveTaper(vNet: number, disp: number, rw: number, rh: number, rd: number, taper: number, axis: TaperAxis, t: number, brace: Brace = 'none'): TaperGeometry {
+export function solveTaper(vNet: number, disp: number, rw: number, rh: number, rd: number, taper: number, axis: TaperAxis, t: number, brace: Brace = 'none', shelfFrac: readonly number[] = []): TaperGeometry {
   let braceM3 = 0;
+  let shelfM3 = 0;
+  let shelfAt: number[] = [];
+  let shelfWidths: number[] = [];
   let braces = 0;
   let wideI = 0;
   let narrowI = 0;
@@ -193,7 +201,7 @@ export function solveTaper(vNet: number, disp: number, rw: number, rh: number, r
   let braceAt: number[] = [];
   let braceWidths: number[] = [];
   for (let pass = 0; pass < 8; pass++) {
-    const s = ((vNet + disp + braceM3) / ((rw * rh * rd * (1 + taper)) / 2)) ** (1 / 3);
+    const s = ((vNet + disp + braceM3 + shelfM3) / ((rw * rh * rd * (1 + taper)) / 2)) ** (1 / 3);
     wideI = s * rw;
     narrowI = taper * wideI;
     hI = s * rh;
@@ -203,6 +211,10 @@ export function solveTaper(vNet: number, disp: number, rw: number, rh: number, r
     // a plan trapezoid's brace is as wide as the interior where it sits; a tower's is the whole trapezoid
     braceWidths = braceAt.map((z) => (axis === 'plan' ? wideI - ((wideI - narrowI) * z) / dI : wideI));
     braceM3 = braceWidths.reduce((a, w) => a + (axis === 'plan' ? braceVolume(w, hI, t) : trapezoidBraceVolume(wideI, narrowI, hI, t)), 0);
+    // partitions: each lies flat where the air above it has run out; a plan trapezoid's is a trapezoid, a tower's a rectangle as wide as the interior there
+    shelfAt = shelfFrac.map((f) => taperShelfDepth(axis, wideI, narrowI, hI, f));
+    shelfWidths = shelfAt.map((s0) => (axis === 'plan' ? wideI : narrowI + ((wideI - narrowI) * s0) / hI));
+    shelfM3 = shelfWidths.reduce((a, w) => a + (axis === 'plan' ? ((wideI + narrowI) / 2) * dI * t : w * dI * t), 0);
   }
   const insetI = (wideI - narrowI) / 2;
   const along = axis === 'plan' ? dI : hI;
@@ -224,8 +236,21 @@ export function solveTaper(vNet: number, disp: number, rw: number, rh: number, r
     braceAt,
     braceWidths,
     braceM3,
-    netM3: ((wideI + narrowI) / 2) * hI * dI - disp - braceM3,
+    shelfAt,
+    shelfWidths,
+    shelfM3,
+    netM3: ((wideI + narrowI) / 2) * hI * dI - disp - braceM3 - shelfM3,
   };
+}
+
+/**
+ * How far down from the top of the interior a flat partition sits when `frac` of the air (0 to 1) is above it. A plan trapezoid has the same
+ * cross-section at every height, so it is frac of the height; a tower narrows to the top, so the air above a level is a quadratic in it.
+ */
+export function taperShelfDepth(axis: TaperAxis, wide: number, narrow: number, h: number, frac: number): number {
+  if (axis === 'plan' || wide - narrow < 1e-12) return frac * h;
+  const a = (wide - narrow) / (2 * h);
+  return (-narrow + Math.sqrt(narrow * narrow + 4 * a * frac * ((wide + narrow) / 2) * h)) / (2 * a);
 }
 
 /** One frame brace across a tower's trapezoid interior: its area less a window (the narrow end's width and the height, each less two bars), by t; solid when the bars would meet. */
@@ -254,6 +279,12 @@ export function taperPanels(g: TaperGeometry): Panel[] {
   if (g.braces > 0) {
     if (g.axis === 'plan') g.braceWidths.forEach((w, k) => panels.push({ name: `Brace frame ${k + 1} of ${g.braces}`, l: w, w: g.hI, qty: 1 }));
     else panels.push({ name: 'Brace frame (trapezoid)', l: g.wideI, w: g.hI, qty: g.braces, poly: trapezoid(g.wideI, g.narrowI, g.hI) });
+  }
+  // partitions, edges bevelled to meet the leaning or angled sides
+  const bevel = { bevelDeg: g.angleDeg, bevelEdges: 'the two edges that meet the side walls' };
+  if (g.shelfAt.length > 0) {
+    if (g.axis === 'plan') panels.push({ name: 'Chamber partition (trapezoid)', l: g.wideI, w: g.dI, qty: g.shelfAt.length, poly: trapezoid(g.wideI, g.narrowI, g.dI), ...bevel });
+    else g.shelfWidths.forEach((w, k) => panels.push({ name: `Chamber partition ${k + 1} of ${g.shelfAt.length}`, l: w, w: g.dI, qty: 1, ...bevel }));
   }
   return panels;
 }

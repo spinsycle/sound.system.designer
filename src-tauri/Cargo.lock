@@ -3384,7 +3384,7 @@ dependencies = [
 
 [[package]]
 name = "sound-system-designer"
-version = "1.16.0"
+version = "1.17.0"
 dependencies = [
  "serialport",
  "tauri",

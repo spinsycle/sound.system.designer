@@ -614,11 +614,11 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
  * A tapered box whose baffle (the wide end: wI wide, hI high inside) is fixed: only the depth follows from the air. `solveTaper` scales
  * proportions, so the depth proportion that makes the scale 1 is found by passes (the braces' wood depends on the size).
  */
-function solveTaperFixedBaffle(vNet: number, disp: number, wI: number, hI: number, taper: number, axis: P.TaperAxis, t: number, brace: P.Brace): P.TaperGeometry {
-  let g = P.solveTaper(vNet, disp, wI, hI, 1, taper, axis, t, brace);
+function solveTaperFixedBaffle(vNet: number, disp: number, wI: number, hI: number, taper: number, axis: P.TaperAxis, t: number, brace: P.Brace, shelfFrac: readonly number[] = []): P.TaperGeometry {
+  let g = P.solveTaper(vNet, disp, wI, hI, 1, taper, axis, t, brace, shelfFrac);
   for (let pass = 0; pass < 8; pass++) {
-    const rd = (vNet + disp + g.braceM3) / (((1 + taper) / 2) * wI * hI);
-    g = P.solveTaper(vNet, disp, wI, hI, rd, taper, axis, t, brace);
+    const rd = (vNet + disp + g.braceM3 + g.shelfM3) / (((1 + taper) / 2) * wI * hI);
+    g = P.solveTaper(vNet, disp, wI, hI, rd, taper, axis, t, brace, shelfFrac);
   }
   return g;
 }
@@ -706,9 +706,13 @@ export function speakerBuild(p: Project): BandBuild {
   // a trapezoid or tower: the baffle is its wide end; it needs one chamber, one column, a baffle facing front and the ports under the drivers
   const lay1 = sp.slots[0]!.design.layout;
   const wantShape = sp.boxShape;
-  const taperOk = partitions === 0 && lay1.cols <= 1 && lay1.facing === 'front' && sp.portPos.place === 'below';
-  const tg = wantShape !== 'box' && taperOk ? solveTaperFixedBaffle(air, disp, wI, hI, sp.taper, wantShape === 'trapezoid' ? 'plan' : 'height', t, sp.brace) : undefined;
-  if (wantShape !== 'box' && !tg) warnings.push(`${name}: the ${wantShape === 'trapezoid' ? 'trapezoid' : 'tapered tower'} shape needs one chamber, one column of drivers, a baffle facing front and the ports under the drivers; this has ${partitions > 0 ? 'chamber partitions' : lay1.cols > 1 ? 'several columns' : lay1.facing !== 'front' ? 'a baffle facing down' : 'the port placed away from the stack'}, so it is built rectangular.`);
+  const taperOk = lay1.cols <= 1 && lay1.facing === 'front';
+  // the air above each chamber partition, as a share of all of it: where the shelves go
+  const totalAir = chamberAir.reduce((a, b) => a + b, 0);
+  let running = 0;
+  const shelfFrac = chamberAir.slice(0, -1).map((a) => (running += a) / totalAir);
+  const tg = wantShape !== 'box' && taperOk ? solveTaperFixedBaffle(air, disp, wI, hI, sp.taper, wantShape === 'trapezoid' ? 'plan' : 'height', t, sp.brace, shelfFrac) : undefined;
+  if (wantShape !== 'box' && !tg) warnings.push(`${name}: the ${wantShape === 'trapezoid' ? 'trapezoid' : 'tapered tower'} shape needs one column of drivers and a baffle facing front; this has ${lay1.cols > 1 ? 'several columns' : 'a baffle facing down'}, so it is built rectangular.`);
   if (tg) {
     dI = tg.dI;
     nBraces = tg.braces;
@@ -718,14 +722,9 @@ export function speakerBuild(p: Project): BandBuild {
     ? { wI: tg.wideI, hI: tg.hI, dI: tg.dI, wO: tg.wideO, hO: tg.hO, dO: tg.dO, braces: tg.braces, netM3: tg.netM3 }
     : { wI, hI, dI, wO: wI + 2 * t, hO: hI + 2 * t, dO: dI + 2 * t, braces: nBraces, netM3: wI * hI * dI - disp - braces - partitions * wI * dI * t };
   const panels = tg ? P.taperPanels(tg) : P.boxPanels(g, t, false);
-  if (partitions > 0) panels.push({ name: 'Chamber partition', l: wI, w: dI, qty: partitions });
+  if (partitions > 0 && !tg) panels.push({ name: 'Chamber partition', l: wI, w: dI, qty: partitions });
   // each shelf sits where the air above it has run out: the interior is shared out in proportion to the chambers' air
-  const totalAir = chamberAir.reduce((a, b) => a + b, 0);
-  let running = 0;
-  const shelves = chamberAir.slice(0, -1).map((a) => {
-    running += a;
-    return (hI * running) / totalAir;
-  });
+  const shelves = tg ? tg.shelfAt : shelfFrac.map((f) => hI * f);
 
   // the holes: drivers in layout order from the top, then the ports. One column (the default) stacks them; more columns lay the
   // same order out row by row. A baffle facing down is the bottom panel, so its height is the depth.
@@ -733,6 +732,8 @@ export function speakerBuild(p: Project): BandBuild {
   const down = lay0.facing === 'down';
   const baffleH = down ? g.dO : g.hO;
   const pp = sp.portPos;
+  // the back wall: the narrow end of a plan trapezoid, otherwise as wide as the baffle (a tower's back is a trapezoid like its front)
+  const rearW = tg?.axis === 'plan' ? tg.narrowO : g.wO;
   const portHoles = ports.map(portCut);
   // a port under the drivers (the default) is part of the stack; one beside a driver or on the back is placed after it
   const below = pp.place === 'below';
@@ -759,7 +760,7 @@ export function speakerBuild(p: Project): BandBuild {
     const dy = pp.dyCm / 100;
     if (pp.place === 'rear') {
       // on the back wall, seen from behind: a third of the way down, centred, then nudged
-      rearHoles = portHoles.map((h, i) => ({ ...h, cx: g.wO / 2 + dx + i * (sizeOf(h).w + HOLE_GAP), cy: baffleH / 3 + dy }));
+      rearHoles = portHoles.map((h, i) => ({ ...h, cx: rearW / 2 + dx + i * (sizeOf(h).w + HOLE_GAP), cy: baffleH / 3 + dy }));
     } else {
       // beside the first (top) or last (bottom) driver of the layout, on its right or left; further ports continue outwards
       const ref = holes[pp.place.startsWith('top') ? 0 : arr.layout.length - 1]!;
@@ -774,12 +775,12 @@ export function speakerBuild(p: Project): BandBuild {
     }
   }
   if (lay0.cols > 1 || !below) fitHoles(name, holes, g.wO, baffleH, u, warnings);
-  if (rearHoles) fitHoles(`${name} (back wall)`, rearHoles, g.wO, baffleH, u, warnings);
+  if (rearHoles) fitHoles(`${name} (back wall)`, rearHoles, rearW, baffleH, u, warnings);
   floorWarning(name, lay0, Math.max(...stack.map((h) => h.diameterM)), u, warnings);
   const parts = rectPortParts(ports, t);
   const cab: Cabinet = { title: 'Cabinet', geometry: g, panels, cutouts: [...stack, ...(below ? [] : portHoles)], holes, ...(rearHoles ? { rearHoles } : {}), shelves, facing: down ? 'down' : 'front', clearanceM: down ? lay0.clearanceCm / 100 : 0, magnetOut: sp.slots.some((s) => s.design.layout.mount === 'out'), liningM2: tg ? taperLining(tg) : ceilTenth(2 * (g.wI * g.hI + g.wI * g.dI + g.hI * g.dI) - g.wI * g.hI), ...(tg ? { taper: tg } : {}) };
   if (tg?.axis === 'height') {
-    for (const h of holePositions(cab)) {
+    for (const h of [...holePositions(cab), ...holePositions(cab, true)]) {
       const wide = taperHoleNarrow(tg, h);
       if (wide !== null) warnings.push(`${name}: the ${fl(h.w, u)} ${h.kind === 'driver' ? 'driver' : 'port'} hole reaches ${fl(Math.max(wide - h.w, 0) / 2, u)} from the leaning side wall at its upper edge; the baffle is ${fl(wide, u)} wide there. Move it down, make the speaker taller or less tapered, or use a smaller hole.`);
     }

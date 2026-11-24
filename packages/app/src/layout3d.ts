@@ -209,11 +209,13 @@ function taperBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
   };
   let front: Box3 | null = null;
   let towerFront: Prism3 | null = null;
+  let backPlate: Box3 | null = null;
+  let towerBack: Prism3 | null = null;
   if (g.axis === 'plan') {
     // half width at depth z (z from 0 at the front to -dO at the back)
     const hw = (z: number): number => F + ((B - F) * -z) / g.dO;
     front = box([g.wideO, g.hO, t], 0, g.hO / 2, -t / 2);
-    box([g.narrowO, g.hO, t], 0, g.hO / 2, -g.dO + t / 2);
+    backPlate = box([g.narrowO, g.hO, t], 0, g.hO / 2, -g.dO + t / 2);
     const z0 = -t;
     const z1 = -(g.dO - t);
     const flat = (y: number): V3[] => [[cx - hw(z0), y, z0], [cx + hw(z0), y, z0], [cx + hw(z1), y, z1], [cx - hw(z1), y, z1]];
@@ -242,7 +244,8 @@ function taperBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
     // the front is a trapezoid plate; its driver and port holes are cut through it by the scene (u across from the bottom left corner, v up)
     towerFront = { band, points: [...face(0), ...face(-t)], holes: [], origin };
     out.prisms.push(towerFront);
-    prism(face(-g.dO + t), face(-g.dO)); // back
+    towerBack = { band, points: [...face(-g.dO + t), ...face(-g.dO)], holes: [], origin }; // back, a trapezoid plate like the front
+    out.prisms.push(towerBack);
     box([g.wideO, t, g.dO - 2 * t], 0, t / 2, -g.dO / 2); // bottom
     box([g.narrowO, t, g.dO - 2 * t], 0, g.hO - t / 2, -g.dO / 2); // top
     const len = Math.hypot(F - B, g.hO);
@@ -276,6 +279,24 @@ function taperBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
       out.prisms.push(brace);
     }
   });
+  // chamber partitions lie flat, g.shelfAt[k] below the top of the interior: a trapezoid (plan) or a rectangle as wide as the interior there (tower)
+  g.shelfAt.forEach((s, k) => {
+    const y = g.hO - t - s;
+    if (g.axis === 'plan') {
+      const flat = (yy: number): V3[] => [[cx - g.wideI / 2, yy, -t], [cx + g.wideI / 2, yy, -t], [cx + g.narrowI / 2, yy, -(g.dO - t)], [cx - g.narrowI / 2, yy, -(g.dO - t)]];
+      const shelf: Prism3 = { band, points: [...flat(y - t / 2), ...flat(y + t / 2)], origin };
+      out.prisms.push(shelf);
+    } else {
+      out.boxes.push({ band, kind: 'divider', size: [g.shelfWidths[k]!, t, g.dI], center: [cx, y, -g.dO / 2], origin });
+    }
+  });
+  // the back wall's holes (a rear port): seen from behind, so across is mirrored
+  const rearW = g.axis === 'plan' ? g.narrowO : g.wideO;
+  for (const h of holePositions(c, true)) {
+    if (backPlate) (backPlate.holes ??= []).push(holeOf(h, rearW / 2 - h.cx, g.hO / 2 - h.cy));
+    if (towerBack) towerBack.holes!.push(holeOf(h, rearW - h.cx, g.hO - h.cy));
+    out.discs.push({ band, kind: h.kind, center: [cx + rearW / 2 - h.cx, g.hO - h.cy, -g.dO - LIFT], radius: h.r, rotY: Math.PI, ...(h.shape === 'rect' ? { shape: 'rect' as const, w: h.w, h: h.h } : {}) });
+  }
   const motorOut = c.magnetOut === true;
   for (const h of holePositions(c)) {
     const x = cx + h.cx - g.wideO / 2;

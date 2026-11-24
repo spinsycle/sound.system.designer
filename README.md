@@ -7,7 +7,7 @@ driver presets, or enter the Thiele-Small specifications of your actual drivers 
 or measure them with the Driver Probe rig, and use them throughout your enclosure and system designs.
 
 Windows desktop app (also runs in a browser).
-Version 1.16.0.
+Version 1.17.0.
 
 > **Disclaimer:** every number here is a calculated estimate from a simplified model, not a measurement of a real
 > loudspeaker. Use it to explore and compare designs, then check anything you build, or rely on for safety, against real
@@ -180,7 +180,7 @@ Every box type has its own screenshots in [docs/box-types.md](docs/box-types.md)
 
 ## Install
 
-Run `Sound System Designer_1.16.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
+Run `Sound System Designer_1.17.0_x64-setup.exe` (a per-user installer: no administrator rights, adds a Start menu entry
 and a desktop shortcut, and an uninstaller in Settings, Apps). It is not code-signed, so Windows SmartScreen will warn on
 the first run: choose More info, Run anyway. It needs the Microsoft WebView2 runtime, which Windows 11 includes.
 

@@ -2,6 +2,13 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.17.0 (2026-11-23)
+
+- **Home speaker shapes take chamber partitions and any port position:** a trapezoid or tapered tower speaker no longer falls back to a rectangle when it has chamber partitions (a 3-way with separate chambers, a woofer and midrange in their own air) or the port is on the back wall or beside a driver. Each partition lies flat where the air above it has run out: a trapezoid's is a trapezoid, a tower's is a rectangle as wide as the interior at that height, so a tower puts the shelf lower than a plain share of the height would (the air above a level is a quadratic in it). The partitions' wood is taken out of the air and the depth grows to hold it; the cut list lists them with the bevel of the sloping side walls, and the 3D view shows them.
+- A rear port is drawn on the back wall: the narrow end of a trapezoid, the trapezoid back of a tower, in the baffle drawing, the SVG download and the 3D view (seen from behind, as for a rectangular box). A tower warns when a rear hole reaches the leaning wall at the narrow top.
+- Still built rectangular, with a warning: several columns of drivers, and a baffle facing down.
+- Project file unchanged.
+
 ## 1.16.0 (2026-11-23)
 
 - **Outline nesting:** on the sheet layout a trapezoid panel (the front and back of a tower, the top and bottom of a trapezoid box, a tower's brace frames) is drawn with its true outline in the on-screen layout, the SVG and the DXF. Two identical trapezoids are laid head to tail, a saw kerf apart along their slanted edges, as one unit, so a pair takes (wide - narrow) / 2 less sheet length than two bounding rectangles; a pair wider than a sheet is split. The waste figure now counts the true area of each piece. Rectangles, the angled sides, the wedge and horn sides pack as before.

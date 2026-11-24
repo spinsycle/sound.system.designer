@@ -137,6 +137,59 @@ describe('braces in a tapered box', () => {
   });
 });
 
+describe('chamber partitions in a tapered box', () => {
+  const frac = [0.35, 0.7];
+  const part = (axis: P.TaperAxis) => P.solveTaper(0.03, 0.001, 1, 1.6, 1, 0.6, axis, T, 'none', frac);
+  it('none by default: nothing in the lists, the volume as before', () => {
+    const g = P.solveTaper(0.03, 0.001, 1, 1.6, 1, 0.6, 'plan', T);
+    expect([g.shelfAt, g.shelfWidths, g.shelfM3]).toEqual([[], [], 0]);
+  });
+  it('shelf depth: a plan trapezoid is the share of the height; a tower solves the quadratic, so the air above is the share', () => {
+    expect(P.taperShelfDepth('plan', 0.3, 0.2, 0.5, 0.4)).toBeCloseTo(0.2, 12);
+    for (const f of [0, 0.1, 0.5, 0.9, 1]) {
+      const s = P.taperShelfDepth('height', 0.3, 0.12, 0.8, f);
+      const above = 0.12 * s + ((0.3 - 0.12) * s * s) / (2 * 0.8);
+      expect(above / (((0.3 + 0.12) / 2) * 0.8)).toBeCloseTo(f, 12);
+    }
+    // no taper: the same as the plan rule, with no division by zero
+    expect(P.taperShelfDepth('height', 0.3, 0.3, 0.8, 0.25)).toBeCloseTo(0.2, 12);
+    // a tower puts a given share of the air lower than a plan trapezoid does, because the top is the narrow end
+    expect(P.taperShelfDepth('height', 0.3, 0.12, 0.8, 0.4)).toBeGreaterThan(0.4 * 0.8);
+  });
+  it('the shelves lie in order inside the interior and the air is still held', () => {
+    for (const axis of ['plan', 'height'] as const) {
+      const g = part(axis);
+      expect(g.shelfAt).toHaveLength(2);
+      expect(g.shelfAt[0]!).toBeGreaterThan(0);
+      expect(g.shelfAt[1]!).toBeGreaterThan(g.shelfAt[0]!);
+      expect(g.shelfAt[1]!).toBeLessThan(g.hI);
+      expect(((g.wideI + g.narrowI) / 2) * g.hI * g.dI - 0.001 - g.shelfM3).toBeCloseTo(0.03, 9);
+      expect(g.netM3).toBeCloseTo(0.03, 9);
+    }
+  });
+  it('a plan shelf is as wide as the wide end and as deep as the box; a tower shelf is as wide as the interior where it sits', () => {
+    const p = part('plan');
+    expect(p.shelfWidths).toEqual([p.wideI, p.wideI]);
+    expect(p.shelfM3).toBeCloseTo(2 * ((p.wideI + p.narrowI) / 2) * p.dI * T, 12);
+    const t = part('height');
+    t.shelfAt.forEach((s, k) => expect(t.shelfWidths[k]).toBeCloseTo(t.narrowI + ((t.wideI - t.narrowI) * s) / t.hI, 12));
+    expect(t.shelfWidths[1]!).toBeGreaterThan(t.shelfWidths[0]!);
+    expect(t.shelfM3).toBeCloseTo(t.shelfWidths.reduce((a, w) => a + w * t.dI * T, 0), 12);
+  });
+  it('the cut list: one trapezoid listing for a plan box, a rectangle for each shelf of a tower, edges bevelled', () => {
+    const p = P.taperPanels(part('plan')).filter((x) => x.name.startsWith('Chamber partition'));
+    expect(p).toHaveLength(1);
+    expect(p[0]).toMatchObject({ name: 'Chamber partition (trapezoid)', qty: 2 });
+    expect(p[0]!.poly).toBeDefined();
+    expect(p[0]!.bevelDeg).toBeGreaterThan(0);
+    const g = part('height');
+    const t = P.taperPanels(g).filter((x) => x.name.startsWith('Chamber partition'));
+    expect(t.map((x) => x.name)).toEqual(['Chamber partition 1 of 2', 'Chamber partition 2 of 2']);
+    expect(t.map((x) => x.l)).toEqual(g.shelfWidths);
+    expect(t.every((x) => x.w === g.dI && x.qty === 1 && x.bevelDeg! > 0)).toBe(true);
+  });
+});
+
 describe('taperPanels', () => {
   const area = (poly: [number, number][]): number => Math.abs(poly.reduce((a, [x, y], i) => a + (x * poly[(i + 1) % poly.length]![1] - poly[(i + 1) % poly.length]![0] * y), 0)) / 2;
   it('plan: a wide front, a narrow back, trapezoid top and bottom, angled sides', () => {
