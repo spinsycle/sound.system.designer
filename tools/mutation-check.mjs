@@ -1870,6 +1870,20 @@ const mutations = [
   [app('buildlist.ts'), "if (tg?.axis === 'height') {", "if (tg?.axis === 'plan') {"],
   [app('loudspeaker.ts'), 'taper: num(i.taper, TAPER_RANGE, DEFAULT_TAPER),', 'taper: num(i.taper, TAPER_RANGE, 0.5),'],
   [app('loudspeaker.ts'), "chambers: sp.chambers, boxShape: sp.boxShape, taper: sp.taper }", "chambers: sp.chambers }"],
+  [src('cabinet.ts'), "(t.a + t.b) / 2 + (kerf * Math.hypot((t.a - t.b) / 2, t.h)) / t.h", "(t.a + t.b) / 2 + kerf"],
+  [src('cabinet.ts'), "(t.a + t.b) / 2 + (kerf * Math.hypot((t.a - t.b) / 2, t.h)) / t.h", "(t.a + t.b) / 2"],
+  [src('cabinet.ts'), "(t.a + t.b) / 2 + (kerf * Math.hypot((t.a - t.b) / 2, t.h)) / t.h", "t.a"],
+  [src('cabinet.ts'), "[shift + x, t.h - y]", "[shift + x, y]"],
+  [src('cabinet.ts'), "const bw = shift + t.a;", "const bw = 2 * t.a;"],
+  [src('cabinet.ts'), "const ok = p0![1] === 0 && p1![1] === 0", "const ok = p1![1] === 0"],
+  [src('cabinet.ts'), "const turned = u.bw < u.bh;", "const turned = u.bw > u.bh;"],
+  [src('cabinet.ts'), "(turned ? [at.x + y, at.y + x] : [at.x + x, at.y + y])", "[at.x + x, at.y + y]"],
+  [src('cabinet.ts'), "const key = [t.a, t.b, t.h].join('/');", "const key = [t.a, t.h].join('/');"],
+  [src('cabinet.ts'), "if (Math.max(bw, t.h) <= sheetL && Math.min(bw, t.h) <= sheetW)", "if (true)"],
+  [src('cabinet.ts'), "Math.abs(poly.reduce((a, [x, y], i) => a + (x * poly[(i + 1) % poly.length]![1] - poly[(i + 1) % poly.length]![0] * y), 0)) / 2;", "Math.abs(poly.reduce((a, [x, y], i) => a + (x * poly[(i + 1) % poly.length]![1] - poly[(i + 1) % poly.length]![0] * y), 0));"],
+  [app('buildlist.ts'), "x.placement.poly ? P.polyArea(x.placement.poly) : x.placement.w * x.placement.h", "x.placement.w * x.placement.h"],
+  [app('buildlist.ts'), "const packed = P.packNested(raw,", "const packed = P.packSheets(raw,"],
+  [app('buildlist.ts'), "panelNote(pn, p.units), pn.poly);", "panelNote(pn, p.units));"],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect

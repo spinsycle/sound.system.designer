@@ -34,7 +34,8 @@ export function sheetSvg(v: BuildView, p: Project, sheet: number): string {
     .map((x) => {
       const { x: px, y: py, w, h } = x.placement;
       const label = `${esc(x.label)} ${formatLength(w * 1000, p.units)} x ${formatLength(h * 1000, p.units)}`;
-      return `<rect x="${mm(px)}" y="${mm(py)}" width="${mm(w)}" height="${mm(h)}" ${STYLE}/><text x="${mm(px) + 10}" y="${mm(py) + 30}" font-size="24" font-family="sans-serif">${label}</text>`;
+      const shape = x.placement.poly ? `<polygon points="${x.placement.poly.map(([a, b]) => `${mm(a)},${mm(b)}`).join(' ')}" ${STYLE}/>` : `<rect x="${mm(px)}" y="${mm(py)}" width="${mm(w)}" height="${mm(h)}" ${STYLE}/>`;
+      return `${shape}<text x="${mm(px) + 10}" y="${mm(py) + 30}" font-size="24" font-family="sans-serif">${label}</text>`;
     })
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${physical(L, p.units)}" height="${physical(W, p.units)}" viewBox="0 0 ${L} ${W}">\n<rect x="0" y="0" width="${L}" height="${W}" ${STYLE} stroke-dasharray="20 10"/>\n${body}\n</svg>\n`;
@@ -183,7 +184,10 @@ export function sheetDxf(v: BuildView, p: Project, sheet: number): string {
     // sheet coordinates run down the page; DXF runs up
     const x0 = out(px, u);
     const y0 = Math.round((W - out(py, u) - out(h, u)) * 1e4) / 1e4;
-    entities.push(rect('CUT', x0, y0, out(w, u), out(h, u)));
+    if (x.placement.poly) {
+      const pts = x.placement.poly.map(([a, b]) => [out(a, u), Math.round((W - out(b, u)) * 1e4) / 1e4] as const);
+      pts.forEach((pt, k) => entities.push(line('CUT', pt[0], pt[1], pts[(k + 1) % pts.length]![0], pts[(k + 1) % pts.length]![1])));
+    } else entities.push(rect('CUT', x0, y0, out(w, u), out(h, u)));
     entities.push(pair(0, 'TEXT') + pair(8, 'LABELS') + pair(10, x0 + inset) + pair(20, y0 + inset) + pair(30, 0) + pair(40, textHeight) + pair(1, `${x.label} ${formatLength(w * 1000, u)} x ${formatLength(h * 1000, u)}`.replace(/[\r\n]/g, ' ')));
   }
   return (

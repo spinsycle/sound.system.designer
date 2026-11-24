@@ -107,7 +107,11 @@ function Sheet({ v, sheet, p }: { v: Build; sheet: number; p: Project }) {
         <rect x={0} y={0} width={L} height={W} className="stock" />
         {here.map((x, i) => (
           <g key={i} className={`band-${x.band}`}>
-            <rect x={x.placement.x * 1000} y={x.placement.y * 1000} width={x.placement.w * 1000} height={x.placement.h * 1000} className="cut" />
+            {x.placement.poly ? (
+              <polygon points={x.placement.poly.map(([a, b]) => `${a * 1000},${b * 1000}`).join(' ')} className="cut" />
+            ) : (
+              <rect x={x.placement.x * 1000} y={x.placement.y * 1000} width={x.placement.w * 1000} height={x.placement.h * 1000} className="cut" />
+            )}
             <text x={x.placement.x * 1000 + 12} y={x.placement.y * 1000 + 40} className="cut-label">
               {mm(x.placement.w, p.units)} x {mm(x.placement.h, p.units)}
             </text>

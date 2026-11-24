@@ -309,6 +309,8 @@ export interface Placement {
   /** Size as placed: long side along the sheet length. */
   w: number;
   h: number;
+  /** The true outline on the sheet, m (packNested only, for a piece that is not a rectangle); x, y, w, h are its bounding box. */
+  poly?: [number, number][];
 }
 
 /**
@@ -353,4 +355,81 @@ export function packSheets(pieces: readonly { l: number; w: number }[], sheetL: 
     }
   }
   return { sheets: sheets.length, placements: out };
+}
+
+export interface NestPiece {
+  l: number;
+  w: number;
+  /** The true outline in the piece's own axes (see Panel.poly). */
+  poly?: [number, number][];
+}
+
+/** Area of a polygon, m2. */
+export const polyArea = (poly: readonly (readonly [number, number])[]): number =>
+  Math.abs(poly.reduce((a, [x, y], i) => a + (x * poly[(i + 1) % poly.length]![1] - poly[(i + 1) % poly.length]![0] * y), 0)) / 2;
+
+/** The parts of an isosceles trapezoid (wide edge along y = 0, narrow along y = h) from its outline; null for anything else, or a rectangle. */
+function trapezoidOf(poly: readonly (readonly [number, number])[]): { a: number; b: number; h: number } | null {
+  if (poly.length !== 4) return null;
+  const [p0, p1, p2, p3] = poly as [number, number][];
+  const a = p1![0] - p0![0];
+  const b = p2![0] - p3![0];
+  const h = p2![1];
+  const ok = p0![1] === 0 && p1![1] === 0 && p3![1] === h && a > b && b > 0 && h > 0 && Math.abs(p3![0] - (a - b) / 2) < 1e-9 * Math.max(a, 1);
+  return ok ? { a, b, h } : null;
+}
+
+/**
+ * packSheets for pieces with outlines. Two identical isosceles trapezoids lie head to tail, one turned half a turn, their slanted edges
+ * a kerf apart, as one unit (a parallelogram ending in two triangles of waste) shorter than two bounding rectangles by (wide - narrow) / 2;
+ * the units are packed as rectangles by packSheets. A trapezoid left over, and anything else, is a piece of its own. A piece with an
+ * outline comes back with `poly` in sheet coordinates.
+ */
+export function packNested(pieces: readonly NestPiece[], sheetL: number, sheetW: number, kerf: number): { sheets: number; placements: Placement[] } {
+  type Unit = { members: { i: number; poly?: [number, number][] }[]; bw: number; bh: number };
+  const units: Unit[] = [];
+  const open = new Map<string, number[]>();
+  pieces.forEach((pc, i) => {
+    const t = pc.poly ? trapezoidOf(pc.poly) : null;
+    if (!t) {
+      units.push({ members: [{ i, ...(pc.poly ? { poly: pc.poly } : {}) }], bw: pc.poly ? Math.max(...pc.poly.map((q) => q[0])) : pc.l, bh: pc.poly ? Math.max(...pc.poly.map((q) => q[1])) : pc.w });
+      return;
+    }
+    const key = [t.a, t.b, t.h].join('/');
+    const wait = open.get(key);
+    if (wait && wait.length > 0) {
+      const first = wait.pop()!;
+      const shift = (t.a + t.b) / 2 + (kerf * Math.hypot((t.a - t.b) / 2, t.h)) / t.h;
+      // turned half a turn; an isosceles trapezoid turned that way is the same shape as one flipped top to bottom
+      const flipped = pc.poly!.map(([x, y]): [number, number] => [shift + x, t.h - y]);
+      const bw = shift + t.a;
+      if (Math.max(bw, t.h) <= sheetL && Math.min(bw, t.h) <= sheetW) units.push({ members: [{ i: first, poly: pieces[first]!.poly! }, { i, poly: flipped }], bw, bh: t.h });
+      else {
+        // the pair is bigger than a sheet: each lies alone
+        units.push({ members: [{ i: first, poly: pieces[first]!.poly! }], bw: t.a, bh: t.h }, { members: [{ i, poly: pc.poly! }], bw: t.a, bh: t.h });
+      }
+    } else {
+      open.set(key, [...(wait ?? []), i]);
+      return;
+    }
+  });
+  // a trapezoid with no partner stands alone
+  for (const [, left] of open) for (const i of left) units.push({ members: [{ i, poly: pieces[i]!.poly! }], bw: Math.max(...pieces[i]!.poly!.map((q) => q[0])), bh: pieces[i]!.poly![2]![1] });
+  const packed = packSheets(units.map((u) => ({ l: u.bw, w: u.bh })), sheetL, sheetW, kerf);
+  const out: Placement[] = new Array(pieces.length);
+  units.forEach((u, k) => {
+    const at = packed.placements[k]!;
+    const turned = u.bw < u.bh; // packSheets lays the long side along the sheet
+    for (const m of u.members) {
+      if (at.sheet < 0 || !m.poly) {
+        out[m.i] = { sheet: at.sheet, x: at.x, y: at.y, w: at.w, h: at.h };
+        continue;
+      }
+      const poly = m.poly.map(([x, y]): [number, number] => (turned ? [at.x + y, at.y + x] : [at.x + x, at.y + y]));
+      const xs = poly.map((q) => q[0]);
+      const ys = poly.map((q) => q[1]);
+      out[m.i] = { sheet: at.sheet, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), poly };
+    }
+  });
+  return { sheets: packed.sheets, placements: out };
 }

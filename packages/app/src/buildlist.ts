@@ -1005,15 +1005,15 @@ export function panelNote(pn: P.Panel, u: Units): string {
 export function computeBuild(p: Project): BuildView {
   const bands = p.kind === 'speaker' ? [speakerBuild(p)] : p.kind === 'car' ? [carBuild(p)] : p.bands.slice(0, p.nBands).map((b, k) => bandBuild(b, bandName(p.nBands, k), p.shop, p.units));
   const cutList: CutRow[] = [];
-  const raw: { label: string; band: number; l: number; w: number }[] = [];
-  const add = (band: BandBuild, part: string, l: number, w: number, qtyEach: number, note: string): void => {
+  const raw: { label: string; band: number; l: number; w: number; poly?: [number, number][] }[] = [];
+  const add = (band: BandBuild, part: string, l: number, w: number, qtyEach: number, note: string, poly?: [number, number][]): void => {
     const qty = qtyEach * band.count;
     cutList.push({ band: band.name, part, l: mm(l), w: mm(w), qty, note: band.count > 1 ? `${note}${note ? '; ' : ''}${band.count} cabinets` : note });
-    for (let i = 0; i < qty; i++) raw.push({ label: `${band.name} ${part}`, band: bands.indexOf(band), l, w });
+    for (let i = 0; i < qty; i++) raw.push({ label: `${band.name} ${part}`, band: bands.indexOf(band), l, w, ...(poly ? { poly } : {}) });
   };
   for (const bb of bands) {
     for (const c of bb.cabinets) {
-      for (const pn of c.panels) add(bb, bb.cabinets.length > 1 ? `${c.title}: ${pn.name}` : pn.name, pn.l, pn.w, pn.qty, panelNote(pn, p.units));
+      for (const pn of c.panels) add(bb, bb.cabinets.length > 1 ? `${c.title}: ${pn.name}` : pn.name, pn.l, pn.w, pn.qty, panelNote(pn, p.units), pn.poly);
     }
     for (const pt of bb.parts ?? []) add(bb, pt.part, pt.l, pt.w, pt.qty, pt.note);
     bb.horn?.sections.forEach((s, k) => {
@@ -1024,12 +1024,12 @@ export function computeBuild(p: Project): BuildView {
 
   const sheetL = p.shop.sheetLmm / 1000;
   const sheetW = p.shop.sheetWmm / 1000;
-  const packed = P.packSheets(raw, sheetL, sheetW, p.shop.kerfMm / 1000);
+  const packed = P.packNested(raw, sheetL, sheetW, p.shop.kerfMm / 1000);
   const pieces = raw.map((r, i) => ({ label: r.label, band: r.band, placement: packed.placements[i]! }));
   const warnings = bands.flatMap((b) => b.warnings);
   const oversize = [...new Set(pieces.filter((x) => x.placement.sheet < 0).map((x) => x.label))];
   for (const label of oversize) warnings.push(`${label} is larger than a ${formatLength(p.shop.sheetLmm, p.units)} x ${fl(p.shop.sheetWmm / 1000, p.units)} sheet: split it or choose a bigger sheet. It is left off the sheet count.`);
-  const usedArea = pieces.filter((x) => x.placement.sheet >= 0).reduce((a, x) => a + x.placement.w * x.placement.h, 0);
+  const usedArea = pieces.filter((x) => x.placement.sheet >= 0).reduce((a, x) => a + (x.placement.poly ? P.polyArea(x.placement.poly) : x.placement.w * x.placement.h), 0);
   const waste = packed.sheets > 0 ? 1 - usedArea / (packed.sheets * sheetL * sheetW) : 0;
 
   const jointM = raw.reduce((a, r) => a + 2 * (r.l + r.w), 0) / 2;

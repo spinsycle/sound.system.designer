@@ -2,6 +2,11 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.16.0 (2026-11-23)
+
+- **Outline nesting:** on the sheet layout a trapezoid panel (the front and back of a tower, the top and bottom of a trapezoid box, a tower's brace frames) is drawn with its true outline in the on-screen layout, the SVG and the DXF. Two identical trapezoids are laid head to tail, a saw kerf apart along their slanted edges, as one unit, so a pair takes (wide - narrow) / 2 less sheet length than two bounding rectangles; a pair wider than a sheet is split. The waste figure now counts the true area of each piece. Rectangles, the angled sides, the wedge and horn sides pack as before.
+- Project file unchanged.
+
 ## 1.15.0 (2026-11-23)
 
 - **Home speaker shapes:** the Build section of the home speaker page has a **Shape** (Rectangular, Trapezoid, Tapered tower) and **Narrow end over wide end**. The baffle is the wide end, so it keeps the width and height set above and the depth follows from the air (drivers, ports and braces taken out). The cut list, drawings, lining, 3D view and bracing are the PA page's. It needs one chamber (no partitions), one column of drivers, a baffle facing front and the ports under the drivers; anything else is built rectangular with a warning saying why. A tower warns when a hole reaches the leaning wall at its narrow top. Speaker templates keep the chosen shape.
