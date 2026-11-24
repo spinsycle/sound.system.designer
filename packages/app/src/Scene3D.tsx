@@ -31,11 +31,13 @@ function disposeGroup(g: THREE.Group): void {
 
 /** A plate w x h x t centred on the origin (thin along z) with the holes cut through it. */
 function plate(w: number, h: number, t: number, holes: Hole3[]): THREE.BufferGeometry {
+  return outlinePlate([[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]], t, holes);
+}
+
+/** A plate of any outline (corners in order, relative to the centre of its bounding rectangle), t thick, with the holes cut through it. */
+function outlinePlate(outline: [number, number][], t: number, holes: Hole3[]): THREE.BufferGeometry {
   const shape = new THREE.Shape();
-  shape.moveTo(-w / 2, -h / 2);
-  shape.lineTo(w / 2, -h / 2);
-  shape.lineTo(w / 2, h / 2);
-  shape.lineTo(-w / 2, h / 2);
+  outline.forEach(([x, y], i) => (i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y)));
   shape.closePath();
   for (const o of holes) {
     const p = new THREE.Path();
@@ -88,27 +90,43 @@ function build(rig: Rig, layout: Layout3, explode: number, transparent: boolean,
     addMesh(geo, b.kind === 'brace' ? 0xc9a36b : colour(b.band), b.kind === 'panel' ? opacity : 0.9, c, b.tilt ?? 0);
   }
   for (const q of layout.prisms) {
+    // a brace is inside a solid box: nothing to see until it is see-through or exploded
+    if (q.kind === 'brace' && !transparent && explode === 0) continue;
+    const colourOf = q.kind === 'brace' ? 0xc9a36b : colour(q.band);
+    const opacityOf = q.kind === 'brace' ? 0.9 : opacity;
     // eight corners: the throat quad then the mouth quad, each in order bottom-left, bottom-right, top-right, top-left
     const p = q.points.flat();
     const idx = [0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 4, 5, 0, 5, 1, 1, 5, 6, 1, 6, 2, 2, 6, 7, 2, 7, 3, 3, 7, 4, 3, 4, 0];
+    // the exploded view moves a prism away from the centre of its cabinet, by the way its own centre lies from it (as the boxes do)
+    const off = new THREE.Vector3();
+    if (q.origin) {
+      const mid = new THREE.Vector3();
+      for (const pt of q.points) mid.add(new THREE.Vector3(...pt));
+      mid.divideScalar(q.points.length);
+      off.copy(mid.sub(new THREE.Vector3(...q.origin)).multiplyScalar(explode));
+    }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
     geo.setIndex(idx);
     geo.computeVertexNormals();
     if (q.holes?.length) {
-      // the wedge's sloping baffle: a holed plate on the face's own axes (x across, y up the slope, z out of the face)
-      const [a0, a1, , a3, b0] = q.points.map((pt) => new THREE.Vector3(...pt)) as [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];
-      const ex = a1.clone().sub(a0);
-      const ey = a3.clone().sub(a0);
+      // a holed plate on the face's own axes (x along the bottom edge, y up, z out of the face): the wedge's sloping baffle, a tower's trapezoid
+      // front, a tower's trapezoid brace. The outline is the face's four corners; u and v of a hole run from the face's bottom left corner.
+      const [a0, a1, a2, a3, b0] = q.points.map((pt) => new THREE.Vector3(...pt)) as [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];
+      const exn = a1.clone().sub(a0).normalize();
+      const ezn = exn.clone().cross(a3.clone().sub(a0).normalize()).normalize();
+      const eyn = ezn.clone().cross(exn);
       const thick = b0.clone().sub(a0).length();
-      const ez = ex.clone().normalize().cross(ey.clone().normalize());
-      const pg = plate(ex.length(), ey.length(), thick, q.holes.map((o) => ({ ...o, u: o.u - ex.length() / 2, v: o.v - ey.length() / 2 })));
-      const mid = a0.clone().addScaledVector(ex, 0.5).addScaledVector(ey, 0.5).addScaledVector(ez, -thick / 2);
-      pg.applyMatrix4(new THREE.Matrix4().makeBasis(ex.normalize(), ey.normalize(), ez).setPosition(mid));
-      addMesh(pg, colour(q.band), opacity, new THREE.Vector3(0, 0, 0));
+      const corner = [a0, a1, a2, a3].map((pt) => [pt.clone().sub(a0).dot(exn), pt.clone().sub(a0).dot(eyn)] as [number, number]);
+      const bw = Math.max(...corner.map((c) => c[0]));
+      const bh = Math.max(...corner.map((c) => c[1]));
+      const pg = outlinePlate(corner.map(([x, y]) => [x - bw / 2, y - bh / 2] as [number, number]), thick, q.holes.map((o) => ({ ...o, u: o.u - bw / 2, v: o.v - bh / 2 })));
+      const mid = a0.clone().addScaledVector(exn, bw / 2).addScaledVector(eyn, bh / 2).addScaledVector(ezn, -thick / 2);
+      pg.applyMatrix4(new THREE.Matrix4().makeBasis(exn, eyn, ezn).setPosition(mid));
+      addMesh(pg, colourOf, opacityOf, off.clone());
       continue;
     }
-    addMesh(geo, colour(q.band), opacity, new THREE.Vector3(0, 0, 0));
+    addMesh(geo, colourOf, opacityOf, off.clone());
   }
   for (const t of layout.tubes) {
     const up = t.axis === 'y';

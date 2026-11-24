@@ -148,9 +148,23 @@ describe('a tapered box in the build', () => {
     // the same equal sides in a rectangular box do warn
     expect(band(proj({}, { rw: 1, rh: 1, rd: 1 })).warnings.join(' ')).toMatch(/share a standing wave/);
   });
-  it('braces are not built into a tapered box, and it says so', () => {
-    expect(band(proj({}, { shape: 'trapezoid', brace: 'window' })).warnings.join(' ')).toMatch(/no braces in the cut list/);
-    expect(band(proj({}, { shape: 'trapezoid', brace: 'none' })).warnings.join(' ')).not.toMatch(/no braces in the cut list/);
+  it('braces are built into a tapered box: frames in the cut list, the air held, no warning about missing braces', () => {
+    const deep = { shape: 'trapezoid', taper: 0.6, brace: 'window', rd: 2.5 };
+    const p = proj({ volumeL: 600 }, deep);
+    const v = computeBuild(p);
+    const frames = v.cutList.filter((r) => r.part.startsWith('Brace frame'));
+    const g = taperOf(p)!;
+    expect(g.braces).toBeGreaterThan(1);
+    expect(frames).toHaveLength(g.braces);
+    expect(frames[0]!.note).toContain('cut the window out');
+    expect(g.netM3).toBeCloseTo(0.6, 9);
+    expect(band(p).warnings.join(' ')).not.toMatch(/no braces/);
+    expect(band(proj({ volumeL: 600 }, { ...deep, brace: 'none' })).cabinets[0]!.taper!.braces).toBe(0);
+    const tower = computeBuild(proj({ volumeL: 600 }, { ...deep, shape: 'tower' }));
+    const tf = tower.cutList.find((r) => r.part === 'Brace frame (trapezoid)')!;
+    expect(tf.qty).toBe(taperOf(proj({ volumeL: 600 }, { ...deep, shape: 'tower' }))!.braces);
+    expect(tf.note).toContain('cut the window out');
+    expect(tf.note).toContain('trapezoid:');
   });
 });
 

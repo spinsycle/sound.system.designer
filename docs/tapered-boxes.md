@@ -22,6 +22,6 @@ On the Build page each band of a PA system has a **Shape**:
 
 ## What it applies to
 
-Sealed, ported and passive-radiator boxes with one driver facing front in the default layout. A band-pass box, a horn, several drivers in a box, push-pull, columns or a baffle facing down is built rectangular, and a warning says why. A tapered box has no braces in the cut list. On a tower the baffle is narrow at the top: a hole that would come within the margin of the leaning wall at its upper edge is warned about.
+Sealed, ported and passive-radiator boxes with one driver facing front in the default layout. A band-pass box, a horn, several drivers in a box, push-pull, columns or a baffle facing down is built rectangular, and a warning says why. Braces are built in as for a rectangular box (frames across the interior, evenly spaced from the front to the back; a plan trapezoid's are as wide as the interior where they sit, a tower's are trapezoids; the wood is taken out of the air). On a tower the baffle is narrow at the top: a hole that would come within the margin of the leaning wall at its upper edge is warned about.
 
 The sheet layout lists an angled panel by its bounding rectangle (a trapezoid wastes the corners), as the wedge and horn sides are. The home speaker and car pages are not changed.

@@ -252,14 +252,14 @@ export function taperHoleNarrow(g: P.TaperGeometry, hole: { cy: number; h: numbe
 
 /**
  * The box of a band. A tapered shape (`allowTaper`, the walls with no divider) is built when the band asks for one; otherwise a rectangle.
- * A tapered box has no bracing: its baffle is the front at the wide end, so `geometry` describes that and `taper` the whole shape.
+ * Its baffle is the front at the wide end, so `geometry` describes that and `taper` the whole shape; braces are frames across the interior.
  */
 function cabinet(title: string, vNetM3: number, dispM3: number, b: Band, tM: number, divider: boolean | number, cutouts: Cutout[], shape?: { rw: number; rh: number; rd: number }, allowTaper = false): Cabinet {
   const o = shape ? { ...b.build, ...shape } : b.build;
   const kind = o.shape ?? 'box';
   if (allowTaper && kind !== 'box') {
-    const tg = P.solveTaper(vNetM3, dispM3, o.rw, o.rh, o.rd, o.taper ?? DEFAULT_TAPER, kind === 'trapezoid' ? 'plan' : 'height', tM);
-    const bg: P.BoxGeometry = { wI: tg.wideI, hI: tg.hI, dI: tg.dI, wO: tg.wideO, hO: tg.hO, dO: tg.dO, braces: 0, netM3: tg.netM3 };
+    const tg = P.solveTaper(vNetM3, dispM3, o.rw, o.rh, o.rd, o.taper ?? DEFAULT_TAPER, kind === 'trapezoid' ? 'plan' : 'height', tM, o.brace);
+    const bg: P.BoxGeometry = { wI: tg.wideI, hI: tg.hI, dI: tg.dI, wO: tg.wideO, hO: tg.hO, dO: tg.dO, braces: tg.braces, netM3: tg.netM3 };
     // the walls other than the baffle, inside
     const side = tg.slantI * (tg.axis === 'plan' ? tg.hI : tg.dI);
     const rest = tg.axis === 'plan' ? tg.narrowI * tg.hI + ((tg.wideI + tg.narrowI) / 2) * tg.dI * 2 : ((tg.wideI + tg.narrowI) / 2) * tg.hI + (tg.wideI + tg.narrowI) * tg.dI;
@@ -550,7 +550,6 @@ function bandBuild(b: Band, name: string, shop: Project['shop'], u: Units): Band
       warnings.push(`${name}: the ${wantShape === 'trapezoid' ? 'trapezoid' : 'tapered tower'} shape is for sealed, ported and passive-radiator boxes with one driver facing front; this has ${why}, so it is built rectangular.`);
     } else {
       const g = tapered.taper!;
-      if (b.build.brace !== 'none') warnings.push(`${name}: a tapered box has no braces in the cut list; add them yourself if it is large.`);
       warnings.push(`${name}: the ${g.axis === 'plan' ? 'side walls angle in over the depth' : 'side walls lean in over the height'}: ${fl(g.wideO, u)} wide at the ${g.axis === 'plan' ? 'front' : 'bottom'}, ${fl(g.narrowO, u)} at the ${g.axis === 'plan' ? 'back' : 'top'}. Cut the sides to their slant length with the ends bevelled ${(Math.round(g.angleDeg * 10) / 10).toString()} degrees (${g.axis === 'plan' ? 'the edges that meet the front and the back' : 'the edges that meet the top and the bottom'}); the trapezoid panels are drawn on the Build page. The cut sizes are for butt joints: test-fit before cutting everything.`);
     }
   }
@@ -958,7 +957,7 @@ const fmtL = (v: number): string => (v < 10 ? v.toFixed(1) : v.toFixed(0));
 /** What a cut-list row says about a panel: a window to cut out, a trapezoid's outline, a bevel. */
 export function panelNote(pn: P.Panel, u: Units): string {
   const bits: string[] = [];
-  if (pn.name.endsWith('frame')) bits.push('cut the window out');
+  if (pn.name.endsWith('frame') || pn.name.startsWith('Brace frame')) bits.push('cut the window out');
   if (pn.poly) {
     const top = pn.poly[2]![0] - pn.poly[3]![0];
     bits.push(`trapezoid: ${fl(pn.l, u)} on one edge and ${fl(top, u)} on the parallel one; the bounding rectangle is listed`);

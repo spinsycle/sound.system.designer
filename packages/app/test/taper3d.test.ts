@@ -1,6 +1,7 @@
 // 1.14: a tapered box in the 3D preview: the walls where the geometry puts them, the side walls t thick, holes and drivers on the front.
 import { describe, expect, it } from 'vitest';
 import { computeBuild } from '../src/buildlist';
+import * as C from '../src/carsub';
 import { layout3d } from '../src/layout3d';
 import * as M from '../src/model';
 import * as S from '../src/system';
@@ -101,6 +102,31 @@ describe('a tower in 3D', () => {
   });
 });
 
+describe('the exploded view moves every wall', () => {
+  it('each prism of a tapered box carries the centre of its cabinet, as the boxes do', () => {
+    for (const shape of ['trapezoid', 'tower']) {
+      const p = proj({}, { shape, taper: 0.6 });
+      const g = taper(p);
+      const l = lay(p);
+      const origin = [g.wideO / 2, g.hO / 2, -g.dO / 2];
+      expect(l.prisms.length).toBeGreaterThan(0);
+      for (const q of l.prisms) expect(q.origin).toEqual(origin);
+      for (const b of l.boxes) expect(b.origin).toEqual(origin);
+    }
+  });
+  it('the sides of a wedge and the sections of a TQWT column move too; a horn section stays', () => {
+    const car = S.sanitizeProject({ ...S.DEFAULT_PROJECT, kind: 'car', car: C.sanitizeCar({ ...C.DEFAULT_CAR, shape: 'wedge', taper: 0.5 }) });
+    const w = lay(car);
+    expect(w.prisms.length).toBeGreaterThan(0);
+    expect(w.prisms.every((q) => q.origin !== undefined)).toBe(true);
+    const tq = lay(proj({ type: 'tqwt', tl: M.tqwtSettingsFor(M.driverOf(M.sanitize({ ...M.DEFAULT_DESIGN, driverClass: 1 }))) }, {}));
+    expect(tq.prisms.length).toBeGreaterThan(0);
+    expect(tq.prisms.every((q) => q.origin !== undefined)).toBe(true);
+    const horn = lay(proj({ type: 'horn', volumeL: 40 }, {}));
+    expect(horn.prisms.some((q) => q.origin === undefined)).toBe(true);
+  });
+});
+
 describe('motor out and long ports', () => {
   it('with the motor out the flange is behind the baffle and the driver points forward', () => {
     const p = proj({ layout: { ...M.DEFAULT_LAYOUT, mount: 'out' } }, { shape: 'trapezoid', taper: 0.7 });
@@ -135,5 +161,33 @@ describe('ports and neighbours', () => {
     // the second box starts after the first one's wide end plus the gap
     expect(l.extent[0]).toBeGreaterThan(g.wideO);
     expect(l.boxes.length).toBeGreaterThan(2);
+  });
+});
+
+describe('braces and the tower front in 3D', () => {
+  const deep = { taper: 0.6, brace: 'window', rd: 2.5 };
+  it('a plan trapezoid has a windowed brace box per brace, as wide as the interior where it sits', () => {
+    const p = proj({ volumeL: 200 }, { ...deep, shape: 'trapezoid' });
+    const g = taper(p);
+    const braces = lay(p).boxes.filter((b) => b.kind === 'brace');
+    expect(g.braces).toBeGreaterThan(0);
+    expect(braces.map((b) => b.size[0])).toEqual(g.braceWidths);
+    expect(braces.every((b) => b.holes?.length === 1 && b.size[2] === T)).toBe(true);
+    braces.forEach((b, k) => expect(b.center[2]).toBeCloseTo(-T - g.braceAt[k]!, 12));
+  });
+  it('a tower has trapezoid brace prisms with a window, and its front prism carries the driver hole', () => {
+    const p = proj({ volumeL: 200 }, { ...deep, shape: 'tower' });
+    const g = taper(p);
+    const l = lay(p);
+    const braces = l.prisms.filter((q) => q.kind === 'brace');
+    expect(braces).toHaveLength(g.braces);
+    expect(braces.every((q) => q.holes?.length === 1)).toBe(true);
+    const front = l.prisms.find((q) => q.kind === undefined && q.holes && q.holes.length > 0);
+    expect(front).toBeDefined();
+    expect(front!.holes).toHaveLength(1);
+  });
+  it('no bracing, no brace parts', () => {
+    const p = proj({ volumeL: 200 }, { ...deep, shape: 'tower', brace: 'none' });
+    expect(lay(p).prisms.some((q) => q.kind === 'brace')).toBe(false);
   });
 });

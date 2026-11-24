@@ -2,10 +2,17 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.14.1 (2026-11-23)
+
+- **Tapered boxes get bracing:** the Bracing setting now works on a trapezoid and a tapered tower. Each brace is a frame across the interior (a window of bars cut out) evenly spaced from front to back; the cut list has a frame per brace of a trapezoid, or a trapezoid frame repeated for a tower; the wood is taken out of the air so the net volume still holds. The 3D preview shows them (when see-through or exploded) with their windows.
+- **Fix: a tower's baffle in 3D** now has the driver and port cut-outs through it, as the rectangular and trapezoid boxes do.
+- **Fix: the Shape control on the Build page** is stacked (label above the box) like the other long lists, so its text no longer runs past the edge of the band's card and pushes the card's labels out of view.
+- **Fix: the exploded 3D view** now moves every wall of a tapered box, a car wedge and a TQWT column away from the centre of the cabinet. The angled walls were drawn as prisms that did not take part in the explode, so only the flat walls moved.
+
 ## 1.14.0 (2026-11-23)
 
 - **Tapered boxes:** a PA band's box on the Build page can be a **trapezoid** (the side walls angle in over the depth: wide front, narrow back) or a **tapered tower** (they lean in over the height: wide bottom, narrow top), with a taper from 0.3 to 1 (narrow end over wide end). The air of the design is held exactly. The cut list has the panels of the shape: trapezoid top and bottom (or front and back), angled or leaning sides cut to their slant length with the bevel angle in the note, and the parallel edges of every trapezoid. A tower's baffle is drawn as a trapezoid; every trapezoid panel is drawn to scale with the length of its edges and can be downloaded as SVG. The 3D preview shows the walls, holes and drivers.
-- Sealed, ported and passive-radiator boxes with one driver facing front; anything else (a band-pass box, a horn, several drivers, push-pull, columns, a baffle facing down) is built rectangular with a warning saying why. A tapered box has no braces in the cut list. A hole that reaches the leaning wall at the narrow top of a tower is warned about.
+- Sealed, ported and passive-radiator boxes with one driver facing front; anything else (a band-pass box, a horn, several drivers, push-pull, columns, a baffle facing down) is built rectangular with a warning saying why. A hole that reaches the leaning wall at the narrow top of a tower is warned about.
 - The sheet layout lists an angled panel by its bounding rectangle, as the wedge and horn sides are. Home speaker and car pages are unchanged.
 - Project file version stays 4; old files open as rectangular boxes (a new optional shape and taper per band).
 

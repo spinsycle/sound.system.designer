@@ -1843,6 +1843,22 @@ const mutations = [
   [app('buildlist.ts'), 'return hole.w + 2 * HOLE_MARGIN > wide + 1e-9 ? wide : null;', 'return hole.w > wide + 1e-9 ? wide : null;'],
   [app('buildlist.ts'), 'return hole.w + 2 * HOLE_MARGIN > wide + 1e-9 ? wide : null;', 'return hole.w + 2 * HOLE_MARGIN > wide * 2 ? wide : null;'],
   [app('buildlist.ts'), 'if (wide !== null) warnings.push(', 'if (wide === null) warnings.push('],
+  [app('layout3d.ts'), 'const prism = (a: V3[], b: V3[]): void => void out.prisms.push({ band, points: [...a, ...b], origin });', 'const prism = (a: V3[], b: V3[]): void => void out.prisms.push({ band, points: [...a, ...b] });'],
+  [app('layout3d.ts'), 'const baffle: Prism3 = { band, points: [...A, ...B], holes: [], origin };', 'const baffle: Prism3 = { band, points: [...A, ...B], holes: [] };'],
+  [app('layout3d.ts'), 'out.prisms.push({ band, points: [...back(y1, s.d1), ...back(y2, s.d2)], origin });', 'out.prisms.push({ band, points: [...back(y1, s.d1), ...back(y2, s.d2)] });'],
+  [app('layout3d.ts'), 'out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)], origin });\n  };\n  side(cx - wO / 2);', 'out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)] });\n  };\n  side(cx - wO / 2);'],
+  [app('layout3d.ts'), 'out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)], origin });\n    };\n    side(xl);', 'out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)] });\n    };\n    side(xl);'],
+  [src('cabinet.ts'), 'braces = braceCount(brace, dI);', 'braces = braceCount(brace, wideI);'],
+  [src('cabinet.ts'), 'braceAt = Array.from({ length: braces }, (_, k) => (dI * (k + 1)) / (braces + 1));', 'braceAt = Array.from({ length: braces }, (_, k) => (dI * (k + 1)) / braces);'],
+  [src('cabinet.ts'), "(axis === 'plan' ? wideI - ((wideI - narrowI) * z) / dI : wideI)", "(axis === 'plan' ? wideI : wideI - ((wideI - narrowI) * z) / dI)"],
+  [src('cabinet.ts'), 'netM3: ((wideI + narrowI) / 2) * hI * dI - disp - braceM3,', 'netM3: ((wideI + narrowI) / 2) * hI * dI - disp,'],
+  [src('cabinet.ts'), 'if (narrow <= 2 * BRACE_BAR || h <= 2 * BRACE_BAR) return outer * t;', 'if (narrow <= 2 * BRACE_BAR && h <= 2 * BRACE_BAR) return outer * t;'],
+  [src('cabinet.ts'), 'return (outer - (narrow - 2 * BRACE_BAR) * (h - 2 * BRACE_BAR)) * t;', 'return (outer - (wide - 2 * BRACE_BAR) * (h - 2 * BRACE_BAR)) * t;'],
+  [src('cabinet.ts'), 'qty: g.braces, poly: trapezoid(g.wideI, g.narrowI, g.hI)', 'qty: 1, poly: trapezoid(g.wideI, g.narrowI, g.hI)'],
+  [app('layout3d.ts'), "const zc = -t - d;", "const zc = -d;"],
+  [app('layout3d.ts'), "b.kind = 'brace';", "void 0;"],
+  [app('layout3d.ts'), "brace.holes = [{ u: g.wideI / 2, v: g.hI / 2,", "brace.holes = [{ u: g.narrowI / 2, v: g.hI / 2,"],
+  [app('layout3d.ts'), 'if (towerFront) towerFront.holes!.push(holeOf(h, h.cx, g.hO - h.cy));', 'void 0;'],
 ];
 
 // `check` is the gate without the production build, which no mutation here can affect

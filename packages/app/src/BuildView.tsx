@@ -178,7 +178,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
             <h2>{v.bands[k]!.name}</h2>
             <p className="hint">{v.bands[k]!.summary}</p>
             <h3>Box shape and bracing</h3>
-            <div className="field">
+            <div className="field stacked">
               <label htmlFor={`shape-${k}`}>Shape</label>
               <select id={`shape-${k}`} value={band.build.shape ?? 'box'} onChange={(e) => setBuild(k, { shape: e.target.value as NonNullable<Band['build']['shape']> })}>
                 {BOX_SHAPES.map((s) => (
@@ -210,7 +210,7 @@ export function BuildView({ project, onChange }: { project: Project; onChange: (
               </select>
             </div>
             <p className="hint">
-              Proportions of the inside, width : height : depth{(band.build.shape ?? 'box') !== 'box' ? ' (the width is the wide end; a tapered box is for sealed, ported and passive-radiator boxes with one driver, and has no bracing)' : ''}. {v.bands[k]!.cabinets.map((c) => `${c.title}: ${mm(c.geometry.wI, project.units)} x ${mm(c.geometry.hI, project.units)} x ${mm(c.geometry.dI, project.units)} ${project.units} inside`).join('; ') || 'Horn sections only.'}
+              Proportions of the inside, width : height : depth{(band.build.shape ?? 'box') !== 'box' ? ' (the width is the wide end; a tapered box is for sealed, ported and passive-radiator boxes with one driver)' : ''}. {v.bands[k]!.cabinets.map((c) => `${c.title}: ${mm(c.geometry.wI, project.units)} x ${mm(c.geometry.hI, project.units)} x ${mm(c.geometry.dI, project.units)} ${project.units} inside`).join('; ') || 'Horn sections only.'}
             </p>
           </section>
         ))}

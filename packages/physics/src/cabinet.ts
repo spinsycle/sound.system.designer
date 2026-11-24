@@ -165,21 +165,45 @@ export interface TaperGeometry {
   slantI: number;
   /** The lean of a side wall from straight, degrees: the bevel its edges are cut to. */
   angleDeg: number;
-  /** Air left after what is inside is taken out. */
+  /** Frame braces across the interior, counted from the depth as in a rectangular box, spread evenly from the front to the back. */
+  braces: number;
+  /** Each brace's distance behind the inside of the front, and its interior width (a tower's braces are all the bottom width: they are trapezoids). */
+  braceAt: number[];
+  braceWidths: number[];
+  /** Wood in the braces, m3 (a window of the narrow end's width less two bars, by the height less two bars, is cut out of each). */
+  braceM3: number;
+  /** Air left after what is inside (drivers, ports, braces) is taken out. */
   netM3: number;
 }
 
 /**
  * A box whose width narrows linearly, either front to back (plan) or bottom to top (height): a trapezoidal prism. Interior proportions are
  * wide-end width : height : depth, taper is narrow over wide. The interior volume is (wide + narrow) / 2 x height x depth, so the
- * air of the design is held exactly; disp is taken out of it. Walls are t thick, butt joints; no bracing.
+ * air of the design is held exactly; disp and the wood of any braces are taken out of it. Walls are t thick, butt joints. Frame braces
+ * (`brace`, as for a rectangular box) cross the interior, evenly spaced from the front to the back; the box is sized with eight passes
+ * because the braces depend on the size.
  */
-export function solveTaper(vNet: number, disp: number, rw: number, rh: number, rd: number, taper: number, axis: TaperAxis, t: number): TaperGeometry {
-  const s = ((vNet + disp) / ((rw * rh * rd * (1 + taper)) / 2)) ** (1 / 3);
-  const wideI = s * rw;
-  const narrowI = taper * wideI;
-  const hI = s * rh;
-  const dI = s * rd;
+export function solveTaper(vNet: number, disp: number, rw: number, rh: number, rd: number, taper: number, axis: TaperAxis, t: number, brace: Brace = 'none'): TaperGeometry {
+  let braceM3 = 0;
+  let braces = 0;
+  let wideI = 0;
+  let narrowI = 0;
+  let hI = 0;
+  let dI = 0;
+  let braceAt: number[] = [];
+  let braceWidths: number[] = [];
+  for (let pass = 0; pass < 8; pass++) {
+    const s = ((vNet + disp + braceM3) / ((rw * rh * rd * (1 + taper)) / 2)) ** (1 / 3);
+    wideI = s * rw;
+    narrowI = taper * wideI;
+    hI = s * rh;
+    dI = s * rd;
+    braces = braceCount(brace, dI);
+    braceAt = Array.from({ length: braces }, (_, k) => (dI * (k + 1)) / (braces + 1));
+    // a plan trapezoid's brace is as wide as the interior where it sits; a tower's is the whole trapezoid
+    braceWidths = braceAt.map((z) => (axis === 'plan' ? wideI - ((wideI - narrowI) * z) / dI : wideI));
+    braceM3 = braceWidths.reduce((a, w) => a + (axis === 'plan' ? braceVolume(w, hI, t) : trapezoidBraceVolume(wideI, narrowI, hI, t)), 0);
+  }
   const insetI = (wideI - narrowI) / 2;
   const along = axis === 'plan' ? dI : hI;
   return {
@@ -196,8 +220,19 @@ export function solveTaper(vNet: number, disp: number, rw: number, rh: number, r
     insetI,
     slantI: Math.hypot(along, insetI),
     angleDeg: (Math.atan2(insetI, along) * 180) / Math.PI,
-    netM3: ((wideI + narrowI) / 2) * hI * dI - disp,
+    braces,
+    braceAt,
+    braceWidths,
+    braceM3,
+    netM3: ((wideI + narrowI) / 2) * hI * dI - disp - braceM3,
   };
+}
+
+/** One frame brace across a tower's trapezoid interior: its area less a window (the narrow end's width and the height, each less two bars), by t; solid when the bars would meet. */
+function trapezoidBraceVolume(wide: number, narrow: number, h: number, t: number): number {
+  const outer = ((wide + narrow) / 2) * h;
+  if (narrow <= 2 * BRACE_BAR || h <= 2 * BRACE_BAR) return outer * t;
+  return (outer - (narrow - 2 * BRACE_BAR) * (h - 2 * BRACE_BAR)) * t;
 }
 
 /** The trapezoid with parallel edges wide (along y = 0) and narrow (along y = h), centred: corners in order round the outline. */
@@ -211,9 +246,19 @@ const trapezoid = (wide: number, narrow: number, h: number): [number, number][] 
 /**
  * Cut list of a tapered box. Plan: a front baffle at the wide end and a back at the narrow end (both rectangles), trapezoid top and
  * bottom, and two angled sides. Tower: trapezoid front and back, a wide bottom and a narrow top, and two leaning sides. A trapezoid is
- * listed by its bounding rectangle with its outline in poly; a side is cut to its slant length with its ends bevelled.
+ * listed by its bounding rectangle with its outline in poly; a side is cut to its slant length with its ends bevelled. Braces follow the walls:
+ * one frame for each brace of a plan trapezoid (each as wide as the interior where it sits), or a trapezoid frame repeated for a tower.
  */
 export function taperPanels(g: TaperGeometry): Panel[] {
+  const panels = taperWalls(g);
+  if (g.braces > 0) {
+    if (g.axis === 'plan') g.braceWidths.forEach((w, k) => panels.push({ name: `Brace frame ${k + 1} of ${g.braces}`, l: w, w: g.hI, qty: 1 }));
+    else panels.push({ name: 'Brace frame (trapezoid)', l: g.wideI, w: g.hI, qty: g.braces, poly: trapezoid(g.wideI, g.narrowI, g.hI) });
+  }
+  return panels;
+}
+
+function taperWalls(g: TaperGeometry): Panel[] {
   const bevel = { bevelDeg: g.angleDeg, bevelEdges: g.axis === 'plan' ? 'the two edges that meet the front and the back' : 'the two edges that meet the top and the bottom' };
   if (g.axis === 'plan') {
     return [

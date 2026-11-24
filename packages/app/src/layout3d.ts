@@ -75,6 +75,10 @@ export interface Prism3 {
   points: [number, number, number][];
   /** A plate with holes (the sloping baffle of a wedge): u across from the left edge of the face, v up from its bottom edge. */
   holes?: Hole3[];
+  /** Centre of the cabinet it belongs to: in the exploded view the prism moves away from it, as the boxes do. Absent: it stays put (a horn section). */
+  origin?: [number, number, number];
+  /** A brace is drawn brown and only when the box is see-through or exploded; absent is a wall. */
+  kind?: 'panel' | 'brace';
 }
 
 export interface Layout3 {
@@ -111,7 +115,7 @@ function wedgeBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
   box([wO, t, dt], 0, hO - t / 2, -db + dt / 2); // top
   const side = (x0: number): void => {
     const quad = (x: number): [number, number, number][] => [[x, 0, -db], [x, 0, 0], [x, hO, -delta], [x, hO, -db]];
-    out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)] });
+    out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)], origin });
   };
   side(cx - wO / 2);
   side(cx + wO / 2 - t);
@@ -124,7 +128,7 @@ function wedgeBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
   const xr = cx + wO / 2;
   const A = [face(xl, 0, 0), face(xr, 0, 0), face(xr, hO, -delta), face(xl, hO, -delta)];
   const B = A.map(([x, y, z]) => face(x, y + t * ny, z + t * nz));
-  const baffle: Prism3 = { band, points: [...A, ...B], holes: [] };
+  const baffle: Prism3 = { band, points: [...A, ...B], holes: [], origin };
   out.prisms.push(baffle);
   // holes lie on the slope: cy runs down the baffle from its top edge
   const tilt = -Math.atan2(delta, hO);
@@ -168,7 +172,7 @@ function columnBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layou
     // a side: the trapezoid between the flat front (z = -t) and the back at each end of the section
     const side = (x0: number): void => {
       const quad = (x: number): [number, number, number][] => [[x, y1, -t], [x, y1, -t - s.d1], [x, y2, -t - s.d2], [x, y2, -t]];
-      out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)] });
+      out.prisms.push({ band, points: [...quad(x0), ...quad(x0 + t)], origin });
     };
     side(xl);
     side(xr - t);
@@ -176,7 +180,7 @@ function columnBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layou
     const x0 = xl + t;
     const x1 = xr - t;
     const back = (y: number, d: number): [number, number, number][] => [[x0, y, -t - d], [x1, y, -t - d], [x1, y, -t - d - t], [x0, y, -t - d - t]];
-    out.prisms.push({ band, points: [...back(y1, s.d1), ...back(y2, s.d2)] });
+    out.prisms.push({ band, points: [...back(y1, s.d1), ...back(y2, s.d2)], origin });
   }
   for (const h of holePositions(c)) {
     (front.holes ??= []).push(holeOf(h, h.cx - g.wO / 2, g.hO / 2 - h.cy));
@@ -197,13 +201,14 @@ function taperBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
   const B = g.narrowO / 2;
   const origin: [number, number, number] = [cx, g.hO / 2, -g.dO / 2];
   type V3 = [number, number, number];
-  const prism = (a: V3[], b: V3[]): void => void out.prisms.push({ band, points: [...a, ...b] });
+  const prism = (a: V3[], b: V3[]): void => void out.prisms.push({ band, points: [...a, ...b], origin });
   const box = (size: Box3['size'], x: number, y: number, z: number): Box3 => {
     const b: Box3 = { band, kind: 'panel', size, center: [cx + x, y, z], origin };
     out.boxes.push(b);
     return b;
   };
   let front: Box3 | null = null;
+  let towerFront: Prism3 | null = null;
   if (g.axis === 'plan') {
     // half width at depth z (z from 0 at the front to -dO at the back)
     const hw = (z: number): number => F + ((B - F) * -z) / g.dO;
@@ -234,7 +239,9 @@ function taperBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
     // half width at height y
     const hw = (y: number): number => F + ((B - F) * y) / g.hO;
     const face = (z: number): V3[] => [[cx - F, 0, z], [cx + F, 0, z], [cx + B, g.hO, z], [cx - B, g.hO, z]];
-    prism(face(0), face(-t)); // front
+    // the front is a trapezoid plate; its driver and port holes are cut through it by the scene (u across from the bottom left corner, v up)
+    towerFront = { band, points: [...face(0), ...face(-t)], holes: [], origin };
+    out.prisms.push(towerFront);
     prism(face(-g.dO + t), face(-g.dO)); // back
     box([g.wideO, t, g.dO - 2 * t], 0, t / 2, -g.dO / 2); // bottom
     box([g.narrowO, t, g.dO - 2 * t], 0, g.hO - t / 2, -g.dO / 2); // top
@@ -253,11 +260,28 @@ function taperBoxes(c: Cabinet, band: number, cx: number, t: number, out: Layout
     wall(1);
     wall(-1);
   }
+  // frame braces across the interior: a plan trapezoid's are rectangles as wide as the interior where they sit, a tower's are trapezoids; each has a
+  // window of bars BRACE_BAR wide (for a trapezoid the window is the narrow end's width, so it fits everywhere)
+  g.braceAt.forEach((d, k) => {
+    const zc = -t - d;
+    if (g.axis === 'plan') {
+      const w = g.braceWidths[k]!;
+      const b = box([w, g.hI, t], 0, g.hO / 2, zc);
+      b.kind = 'brace';
+      if (w > 2 * BRACE_BAR && g.hI > 2 * BRACE_BAR) b.holes = [{ u: 0, v: 0, radius: 0, shape: 'rect', w: w - 2 * BRACE_BAR, h: g.hI - 2 * BRACE_BAR }];
+    } else {
+      const quad = (z: number): V3[] => [[cx - g.wideI / 2, t, z], [cx + g.wideI / 2, t, z], [cx + g.narrowI / 2, g.hO - t, z], [cx - g.narrowI / 2, g.hO - t, z]];
+      const brace: Prism3 = { band, points: [...quad(zc), ...quad(zc - t)], origin, kind: 'brace' };
+      if (g.narrowI > 2 * BRACE_BAR && g.hI > 2 * BRACE_BAR) brace.holes = [{ u: g.wideI / 2, v: g.hI / 2, radius: 0, shape: 'rect', w: g.narrowI - 2 * BRACE_BAR, h: g.hI - 2 * BRACE_BAR }];
+      out.prisms.push(brace);
+    }
+  });
   const motorOut = c.magnetOut === true;
   for (const h of holePositions(c)) {
     const x = cx + h.cx - g.wideO / 2;
     const y = g.hO - h.cy;
     if (front) (front.holes ??= []).push(holeOf(h, h.cx - g.wideO / 2, g.hO / 2 - h.cy));
+    if (towerFront) towerFront.holes!.push(holeOf(h, h.cx, g.hO - h.cy));
     out.discs.push({ band, kind: h.kind, center: [x, y, LIFT], radius: h.r, ...(h.shape === 'rect' ? { shape: 'rect' as const, w: h.w, h: h.h } : {}) });
     if (h.kind === 'driver') out.drivers.push({ band, flange: [x, y, (h.magnetOut ?? motorOut) ? -t : 0], dir: (h.magnetOut ?? motorOut) ? [0, 0, 1] : [0, 0, -1], radius: h.r });
   }
