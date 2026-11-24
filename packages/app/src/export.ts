@@ -140,9 +140,10 @@ const rect = (layer: string, x: number, y: number, w: number, h: number): string
  */
 export function panelSvg(pn: P.Panel, title: string, u: Units = 'mm'): string | null {
   if (!pn.poly) return null;
-  const H = pn.w;
+  // the outline's own extent: for a wedge side the listed length and width are the other way round
+  const H = Math.max(...pn.poly.map((q) => q[1]));
   const pts = pn.poly.map(([x, y]) => [mm(x), mm(H - y)] as const);
-  const W = mm(pn.l);
+  const W = mm(Math.max(...pn.poly.map((q) => q[0])));
   const Hh = mm(H);
   const margin = 80;
   const edge = (a: readonly [number, number], b: readonly [number, number], dx: number, dy: number): string => {

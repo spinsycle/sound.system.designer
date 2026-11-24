@@ -2,6 +2,12 @@
 
 Each release is tagged `good-<date>-v<version>` in this repository.
 
+## 1.18.0 (2026-11-23)
+
+- **Outline nesting for the car wedge and the horn:** the two sides of a car wedge box are right trapezoids; they are now drawn with their true outline on the sheet layout (SVG, DXF, on screen) and laid as a pair, one turned half a turn, their slanted edges a kerf apart, which makes a rectangle with no waste but the kerf. A horn section whose ends differ in height has two isosceles trapezoid sides, which pair head to tail the same way as a tower's front and back. The cut list notes give the two parallel edges; a section with equal ends is a rectangle and says so. The waste figure counts true areas.
+- The angled sides of a trapezoid or tower box were already rectangles (the slant length by the height or depth), so there was nothing to nest; that note in 1.16.0 was wrong.
+- A wedge side's drawing (Baffles section) is to the size of its outline. Project file unchanged.
+
 ## 1.17.0 (2026-11-23)
 
 - **Home speaker shapes take chamber partitions and any port position:** a trapezoid or tapered tower speaker no longer falls back to a rectangle when it has chamber partitions (a 3-way with separate chambers, a woofer and midrange in their own air) or the port is on the back wall or beside a driver. Each partition lies flat where the air above it has run out: a trapezoid's is a trapezoid, a tower's is a rectangle as wide as the interior at that height, so a tower puts the shelf lower than a plain share of the height would (the air above a level is a quadratic in it). The partitions' wood is taken out of the air and the depth grows to hold it; the cut list lists them with the bevel of the sloping side walls, and the 3D view shows them.

@@ -131,14 +131,19 @@ export function solveWedge(vNet: number, disp: number, rw: number, rh: number, r
   return { wI, hI, dBottomI, dTopI, wO, hO, slantO: Math.hypot(hO, dBottomI - dTopI), netM3: (wI * hI * (dBottomI + dTopI)) / 2 - disp };
 }
 
-/** Back, sloping baffle (outside size), bottom, top (between the baffle and the back) and the trapezoid sides (bounding box). */
+/**
+ * Back, sloping baffle (outside size), bottom, top (between the baffle and the back) and the two sides: right trapezoids, listed by their
+ * bounding rectangle (height x bottom depth) with the outline in poly (bottom depth along x, height up y, the vertical edge at x = 0), unless the
+ * top is as deep as the bottom, when they are rectangles.
+ */
 export function wedgePanels(g: WedgeGeometry): Panel[] {
+  const slanted = g.dTopI < g.dBottomI - 1e-12;
   return [
     { name: 'Back', l: g.wO, w: g.hO, qty: 1 },
     { name: 'Front baffle', l: g.wO, w: g.slantO, qty: 1 },
     { name: 'Bottom', l: g.wO, w: g.dBottomI, qty: 1 },
     { name: 'Top', l: g.wO, w: g.dTopI, qty: 1 },
-    { name: 'Sides', l: g.hI, w: g.dBottomI, qty: 2 },
+    { name: 'Sides', l: g.hI, w: g.dBottomI, qty: 2, ...(slanted ? { poly: [[0, 0], [g.dBottomI, 0], [g.dTopI, g.hI], [0, g.hI]] as [number, number][] } : {}) },
   ];
 }
 
@@ -315,6 +320,8 @@ export interface HornSection {
   /** Each of the two trapezoid sides, by bounding box. */
   sideLen: number;
   sideH: number;
+  /** The side's outline when the two ends differ in height: an isosceles trapezoid (the taller end along x, sideH wide, sideLen up y); absent when they are equal. */
+  sidePoly?: [number, number][];
   /** Inside heights at the throat end and the mouth end. */
   h1: number;
   h2: number;
@@ -327,7 +334,9 @@ export function hornPanels(stations: readonly { x: number; h: number }[], width:
     const a = stations[k]!;
     const b = stations[k + 1]!;
     const len = b.x - a.x;
-    out.push({ slant: Math.hypot(len, (b.h - a.h) / 2), width, sideLen: len, sideH: Math.max(a.h, b.h) + 2 * t, h1: a.h, h2: b.h });
+    const tall = Math.max(a.h, b.h) + 2 * t;
+    const short = Math.min(a.h, b.h) + 2 * t;
+    out.push({ slant: Math.hypot(len, (b.h - a.h) / 2), width, sideLen: len, sideH: tall, h1: a.h, h2: b.h, ...(tall - short > 1e-12 ? { sidePoly: trapezoid(tall, short, len) } : {}) });
   }
   return out;
 }
@@ -399,20 +408,26 @@ export interface NestPiece {
 export const polyArea = (poly: readonly (readonly [number, number])[]): number =>
   Math.abs(poly.reduce((a, [x, y], i) => a + (x * poly[(i + 1) % poly.length]![1] - poly[(i + 1) % poly.length]![0] * y), 0)) / 2;
 
-/** The parts of an isosceles trapezoid (wide edge along y = 0, narrow along y = h) from its outline; null for anything else, or a rectangle. */
-function trapezoidOf(poly: readonly (readonly [number, number])[]): { a: number; b: number; h: number } | null {
+/**
+ * The parts of a trapezoid from its outline: 'iso', an isosceles one (wide edge a along y = 0, narrow edge b along y = h, centred), or 'right', one with a
+ * vertical edge along x = 0 (corners (0,0), (a,0), (b,h), (0,h)); null for anything else, or a rectangle.
+ */
+function trapezoidOf(poly: readonly (readonly [number, number])[]): { kind: 'iso' | 'right'; a: number; b: number; h: number } | null {
   if (poly.length !== 4) return null;
   const [p0, p1, p2, p3] = poly as [number, number][];
   const a = p1![0] - p0![0];
   const b = p2![0] - p3![0];
   const h = p2![1];
-  const ok = p0![1] === 0 && p1![1] === 0 && p3![1] === h && a > b && b > 0 && h > 0 && Math.abs(p3![0] - (a - b) / 2) < 1e-9 * Math.max(a, 1);
-  return ok ? { a, b, h } : null;
+  const base = p0![0] === 0 && p0![1] === 0 && p1![1] === 0 && p3![1] === h && a > b && b > 0 && h > 0;
+  if (base && Math.abs(p3![0] - (a - b) / 2) < 1e-9 * Math.max(a, 1)) return { kind: 'iso', a, b, h };
+  if (base && p3![0] === 0) return { kind: 'right', a, b, h };
+  return null;
 }
 
 /**
  * packSheets for pieces with outlines. Two identical isosceles trapezoids lie head to tail, one turned half a turn, their slanted edges
  * a kerf apart, as one unit (a parallelogram ending in two triangles of waste) shorter than two bounding rectangles by (wide - narrow) / 2;
+ * two identical right trapezoids (a wedge box's sides) turned that way fit into a rectangle with no waste but the kerf;
  * the units are packed as rectangles by packSheets. A trapezoid left over, and anything else, is a piece of its own. A piece with an
  * outline comes back with `poly` in sheet coordinates.
  */
@@ -426,14 +441,16 @@ export function packNested(pieces: readonly NestPiece[], sheetL: number, sheetW:
       units.push({ members: [{ i, ...(pc.poly ? { poly: pc.poly } : {}) }], bw: pc.poly ? Math.max(...pc.poly.map((q) => q[0])) : pc.l, bh: pc.poly ? Math.max(...pc.poly.map((q) => q[1])) : pc.w });
       return;
     }
-    const key = [t.a, t.b, t.h].join('/');
+    const key = [t.kind, t.a, t.b, t.h].join('/');
     const wait = open.get(key);
     if (wait && wait.length > 0) {
       const first = wait.pop()!;
-      const shift = (t.a + t.b) / 2 + (kerf * Math.hypot((t.a - t.b) / 2, t.h)) / t.h;
-      // turned half a turn; an isosceles trapezoid turned that way is the same shape as one flipped top to bottom
-      const flipped = pc.poly!.map(([x, y]): [number, number] => [shift + x, t.h - y]);
-      const bw = shift + t.a;
+      // turned half a turn, the slanted edges a kerf apart: an isosceles trapezoid turned that way is the same shape as one flipped top to bottom;
+      // two right trapezoids make a rectangle a + b wide
+      const iso = t.kind === 'iso';
+      const shift = iso ? (t.a + t.b) / 2 + (kerf * Math.hypot((t.a - t.b) / 2, t.h)) / t.h : t.a + t.b + (kerf * Math.hypot(t.a - t.b, t.h)) / t.h;
+      const flipped = pc.poly!.map(([x, y]): [number, number] => [iso ? shift + x : shift - x, t.h - y]);
+      const bw = iso ? shift + t.a : shift;
       if (Math.max(bw, t.h) <= sheetL && Math.min(bw, t.h) <= sheetW) units.push({ members: [{ i: first, poly: pieces[first]!.poly! }, { i, poly: flipped }], bw, bh: t.h });
       else {
         // the pair is bigger than a sheet: each lies alone

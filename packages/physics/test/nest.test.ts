@@ -126,3 +126,50 @@ describe('packNested', () => {
     expect(used(nested.placements)).toBeLessThan(used(plain.placements));
   });
 });
+
+// 1.18: a right trapezoid (a wedge box's side) paired with a half turn of itself is a rectangle
+const right = (a: number, b: number, h: number): [number, number][] => [[0, 0], [a, 0], [b, h], [0, h]];
+const rpiece = (a: number, b: number, h: number): P.NestPiece => ({ l: h, w: a, poly: right(a, b, h) });
+
+describe('right trapezoids', () => {
+  const a = 0.5;
+  const b = 0.2;
+  const h = 0.4;
+  const r = P.packNested([rpiece(a, b, h), rpiece(a, b, h)], SL, SW, K);
+  const [p, q] = [r.placements[0]!.poly!, r.placements[1]!.poly!];
+  it('two identical ones are laid as one rectangle, half a turn apart, the slanted edges a kerf apart', () => {
+    expect(p).toBeDefined();
+    expect(q).toBeDefined();
+    expect(overlap(p, q)).toBe(false);
+    expect(gap(p, q)).toBeCloseTo(K, 6);
+    const w = Math.max(...[...p, ...q].map((v) => v[0])) - Math.min(...[...p, ...q].map((v) => v[0]));
+    expect(w).toBeCloseTo(a + b + (K * Math.hypot(a - b, h)) / h, 12);
+    // the pair is as high as one piece, so two bounding rectangles (2 a wide) are not needed
+    expect(w).toBeLessThan(2 * a);
+  });
+  it('the second is the first turned half a turn', () => {
+    const area = (poly: [number, number][]) => P.polyArea(poly);
+    expect(area(q)).toBeCloseTo(area(p), 12);
+    expect(area(p)).toBeCloseTo(((a + b) / 2) * h, 12);
+  });
+  it('a lone right trapezoid keeps its outline and its bounding box', () => {
+    const one = P.packNested([rpiece(a, b, h)], SL, SW, K).placements[0]!;
+    expect(one.poly).toBeDefined();
+    expect(one.w).toBeCloseTo(a, 12);
+    expect(one.h).toBeCloseTo(h, 12);
+  });
+  it('different ones, or a right and an isosceles one, are not paired', () => {
+    const mixed = P.packNested([rpiece(a, b, h), rpiece(a, b + 0.01, h), piece(a, b, h)], SL, SW, K);
+    mixed.placements.forEach((pl) => expect(pl.w).toBeLessThan(a + 1e-9));
+    // a right and an isosceles trapezoid with the same numbers are different shapes: the isosceles one is not turned to meet the other
+    // (numbers exact in binary, so the two outlines give the very same a, b and h)
+    const pair = P.packNested([rpiece(0.5, 0.25, 0.5), piece(0.5, 0.25, 0.5)], SL, SW, K);
+    const iso = pair.placements[1]!.poly!;
+    expect(iso[0]![1]).toBeCloseTo(Math.min(...iso.map((v) => v[1])), 12);
+    expect(iso[1]![1]).toBeCloseTo(iso[0]![1], 12);
+  });
+  it('a pair wider than the sheet falls back to two singles', () => {
+    const big = P.packNested([rpiece(0.7, 0.6, 0.3), rpiece(0.7, 0.6, 0.3)], 1.0, 0.4, K);
+    expect(big.placements.every((pl) => pl.sheet >= 0)).toBe(true);
+  });
+});

@@ -46,8 +46,11 @@ describe('sheet SVG', () => {
   });
 
   it('holds every piece of that sheet at its size and position', () => {
-    const here = v.pieces.filter((x) => x.placement.sheet === 0);
+    // a piece with an outline (a horn's trapezoid sides) is a polygon, not a rectangle
+    const all = v.pieces.filter((x) => x.placement.sheet === 0);
+    const here = all.filter((x) => !x.placement.poly);
     expect(rects.length - 1).toBe(here.length);
+    expect((svg.match(/<polygon/g) ?? []).length).toBe(all.length - here.length);
     here.forEach((x, i) => {
       const r = rects[i + 1]!;
       expect(r[0]).toBeCloseTo(x.placement.x * 1000, 0);

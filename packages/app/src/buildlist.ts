@@ -997,7 +997,7 @@ export function panelNote(pn: P.Panel, u: Units): string {
   if (pn.name.endsWith('frame') || pn.name.startsWith('Brace frame')) bits.push('cut the window out');
   if (pn.poly) {
     const top = pn.poly[2]![0] - pn.poly[3]![0];
-    bits.push(`trapezoid: ${fl(pn.l, u)} on one edge and ${fl(top, u)} on the parallel one; the bounding rectangle is listed`);
+    bits.push(`trapezoid: ${fl(pn.poly[1]![0] - pn.poly[0]![0], u)} on one edge and ${fl(top, u)} on the parallel one; the bounding rectangle is listed`);
   }
   if (pn.bevelDeg !== undefined) bits.push(`bevel ${(Math.round(pn.bevelDeg * 10) / 10).toString()} degrees on ${pn.bevelEdges ?? 'its ends'}`);
   return bits.join('; ');
@@ -1018,8 +1018,9 @@ export function computeBuild(p: Project): BuildView {
     }
     for (const pt of bb.parts ?? []) add(bb, pt.part, pt.l, pt.w, pt.qty, pt.note);
     bb.horn?.sections.forEach((s, k) => {
+      const u = p.units;
       add(bb, `Horn ${k + 1}: top and bottom`, s.slant, s.width, 2, 'straight, across the horn width');
-      add(bb, `Horn ${k + 1}: sides`, s.sideLen, s.sideH, 2, 'trapezoid, bounding box listed');
+      add(bb, `Horn ${k + 1}: sides`, s.sideLen, s.sideH, 2, s.sidePoly ? `trapezoid: ${fl(s.sideH, u)} on one edge and ${fl(s.sidePoly[2]![0] - s.sidePoly[3]![0], u)} on the parallel one, ${fl(s.sideLen, u)} apart; the bounding rectangle is listed` : 'rectangle', s.sidePoly);
     });
   }
 
