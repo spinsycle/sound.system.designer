@@ -62,12 +62,10 @@ SmartScreen warns, choose More info, then Run anyway). The [User Guide (PDF)](do
   amplifier above its minimum load, and the volts, amps, heat and capacitor rating of every part. Outputs: a schematic (SVG
   or print to PDF), a bill of materials and a parts list (CSV). The alignment and frequencies can be applied back to the PA
   system, the home speaker and the car's front speakers, which now take any alignment (default unchanged).
-- **Tapered boxes (new in 1.14):** on the Build page a PA band's box can be a trapezoid (wide front, narrow back) or a tapered tower (wide bottom, narrow top) as well as a rectangle, with the angled panels, bevel angles and trapezoid drawings in the cut list, the 3D view and the SVG exports ([docs/tapered-boxes.md](docs/tapered-boxes.md)).
+- **Tapered boxes and nesting (1.14 to 1.18):** a PA band's box or a home speaker can be a trapezoid (wide front, narrow back) or a tapered tower (wide bottom, narrow top) as well as a rectangle, with the angled panels, bevel angles, chamber partitions, rear and side ports, bracing and trapezoid drawings in the cut list, the 3D view and the SVG exports. Trapezoid panels, car wedge sides and horn sides are drawn with their true outline on the sheet layout and paired head to tail to save wood ([docs/tapered-boxes.md](docs/tapered-boxes.md)).
 - **Compare crossovers (new in 1.13):** on the Crossover page, your drivers and crossover points through other orders (3rd against 4th), other alignments, or active against passive, drawn over the current crossover with a table of sum flatness, filter-sum deviation, polarity, group delay, stages or parts, passband loss, the amplifier load and the hottest part, and Use this ([docs/crossover-compare.md](docs/crossover-compare.md)).
 - **Compare box types and find drivers for this box (new in 1.12):** on the box page, the same driver in sealed, ported, passive-radiator, band-pass, 6th- and 8th-order band-pass, transmission-line and TQWT boxes drawn over this one (Cookbook alignment or the same air) with a table of figures and Use this; and a ranking of every usable driver in the database for this box, with the figures behind a 0 to 100 score ([docs/compare-and-ranking.md](docs/compare-and-ranking.md)).
 - **Driver database (new in 1.11):** your own drivers with manufacturer, series, model and every Thiele-Small number, searchable and filterable, favourites in green; import CSV, Driver Probe files or whole libraries; one driver picker on the box, home speaker and car pages, and Use in design everywhere ([docs/driver-database.md](docs/driver-database.md)). Measure a driver with the Driver Probe rig (USB or WiFi) and save it there ([docs/driver-probe.md](docs/driver-probe.md)).
-  bulk-import datasheet drivers from a CSV; a saved driver becomes the Custom driver of a box. See
-  [docs/driver-probe.md](docs/driver-probe.md).
 - **Home speaker port position:** choose where the port goes (under the drivers, beside the top or lowest driver, or on the back
   wall) with offsets; it moves the hole in the cut list, baffle drawing and 3D view.
 - **Folded horns:** tick **Fold the horn into the box** on a horn's box page and set the number of legs and the box depth. The
@@ -167,6 +165,10 @@ More, by topic:
 | Crossover: plots | Crossover: passive schematic |
 | --- | --- |
 | ![Crossover plots](docs/screenshots/crossover.png) | ![Crossover schematic](docs/screenshots/crossover-schematic.png) |
+
+| Compare box types | Tapered tower |
+| --- | --- |
+| ![Compare box types](docs/screenshots/compare-box-types.png) | ![Tapered tower](docs/screenshots/tapered-tower.png) |
 
 Every box type has its own screenshots in [docs/box-types.md](docs/box-types.md).
 
